@@ -20,6 +20,102 @@
     return (document.body?.innerText || "").toLowerCase();
   }
 
+  function positivePageCount(value, maxPages) {
+    const n = Number.parseInt(String(value ?? "").trim(), 10);
+    if (!Number.isInteger(n) || n < 1 || n > maxPages) return null;
+    return n;
+  }
+
+  function detectTotalPages(maxPages) {
+    const candidates = [];
+    const seen = new Set();
+
+    const addCandidate = (value, score, source) => {
+      const n = positivePageCount(value, maxPages);
+      if (!n) return;
+      const key = `${n}:${score}:${source}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      candidates.push({pages: n, score, source});
+    };
+
+    // Prefer explicit page-count metadata / PDF-style counters when present.
+    const attrSelectors = [
+      "[data-total-pages]",
+      "[data-page-count]",
+      "[data-pages]"
+    ];
+    for (const el of document.querySelectorAll(attrSelectors.join(","))) {
+      for (const attr of ["data-total-pages", "data-page-count", "data-pages"]) {
+        if (el.hasAttribute(attr)) addCandidate(el.getAttribute(attr), 120, attr);
+      }
+    }
+
+    const strongSelectors = [
+      "#numPages",
+      "[id*='numPages' i]",
+      "[class*='numPages' i]",
+      "[id*='pageCount' i]",
+      "[class*='pageCount' i]",
+      "[id*='totalPage' i]",
+      "[class*='totalPage' i]"
+    ];
+    for (const el of document.querySelectorAll(strongSelectors.join(","))) {
+      const nums = String(el.textContent || "").match(/\d{1,4}/g) || [];
+      if (nums.length) addCandidate(nums[nums.length - 1], 115, "page-count-element");
+    }
+
+    for (const el of document.querySelectorAll(
+      "input[id*='page' i][max], input[name*='page' i][max]"
+    )) {
+      addCandidate(el.getAttribute("max"), 110, "page-input-max");
+    }
+
+    // RBV's reader exposes a toolbar counter like "1 / 63".
+    // Scan short element labels only, and give extra weight to page/viewer context.
+    for (const el of document.querySelectorAll("body *")) {
+      const text = String(el.textContent || "").replace(/\s+/g, " ").trim();
+      if (!text || text.length > 40) continue;
+
+      let m = text.match(/^(\d{1,4})\s*\/\s*(\d{1,4})$/);
+      if (!m) {
+        m = text.match(/^(?:page|halaman)\s*(\d{1,4})\s*(?:of|dari|\/)\s*(\d{1,4})$/i);
+      }
+      if (!m) continue;
+
+      const current = Number.parseInt(m[1], 10);
+      const total = Number.parseInt(m[2], 10);
+      if (!Number.isInteger(current) || current < 1 || current > total) continue;
+
+      let context = "";
+      let node = el;
+      for (let depth = 0; node && depth < 4; depth++, node = node.parentElement) {
+        context += " " + [
+          node.id || "",
+          typeof node.className === "string" ? node.className : "",
+          node.getAttribute?.("aria-label") || ""
+        ].join(" ");
+      }
+
+      let score = 90;
+      if (/page|halaman|viewer|toolbar|pager/i.test(context)) score += 15;
+      if (current === 1) score += 5;
+      addCandidate(total, score, "visible-page-counter");
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates[0] || null;
+  }
+
+  async function detectTotalPagesWithRetry(maxPages) {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const found = detectTotalPages(maxPages);
+      if (found) return found;
+      await sleep(250);
+    }
+    return null;
+  }
+
   function pageRejected() {
     const t = bodyText();
     return t.includes("request rejected") ||
@@ -149,12 +245,16 @@
     }
 
     let downloaded = 0;
+    const detected = await detectTotalPagesWithRetry(maxPages);
+    const totalPages = detected?.pages || null;
+    const pageLimit = totalPages || maxPages;
 
-    for (let page = 1; page <= maxPages; page++) {
+    for (let page = 1; page <= pageLimit; page++) {
       await chrome.runtime.sendMessage({
         type: "PAGE_PROGRESS",
         module,
-        page
+        page,
+        totalPages
       });
 
       const r = await fetchPage(code, module, page);
@@ -235,6 +335,18 @@
       }
 
       downloaded++;
+
+      if (totalPages && page === pageLimit) {
+        await chrome.runtime.sendMessage({
+          type: "MODULE_RESULT",
+          module,
+          result: "complete",
+          pages: downloaded,
+          totalPages
+        });
+        return;
+      }
+
       await sleep(Math.max(700, delayMs));
     }
 
