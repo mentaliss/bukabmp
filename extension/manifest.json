@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "BMP Terbuka",
   "version": "1.0.5",
-  "version_name": "1.0.5 TEST4 STORAGE UX",
+  "version_name": "1.0.5",
   "description": "Simpan materi BMP yang dapat Anda akses menjadi PDF yang dapat dicari dengan pemrosesan lokal.",
   "minimum_chrome_version": "109",
   "permissions": [

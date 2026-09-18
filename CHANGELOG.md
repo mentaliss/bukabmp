@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada source extension publik dicatat di sini.
 
+## [1.0.5] - 2026-09-18
+
+### Added
+- Penyimpanan lokal PDF per BMP untuk melanjutkan proses tanpa mengulang OCR modul yang sudah selesai.
+- Ringkasan penyimpanan per kode BMP, termasuk modul tersimpan, ukuran data lokal, modul yang sudah tersedia, dan modul yang masih perlu diproses.
+- Opsi **Download ulang modul yang dipilih** untuk memproses ulang hanya rentang yang dipilih tanpa menghapus modul lain.
+- Opsi **Buat PDF gabungan** yang sekarang bersifat opsional.
+- Dukungan PDF gabungan **FULL** dari cache lengkap dan PDF gabungan rentang seperti `M3-M6` untuk pilihan parsial yang lengkap.
+- Ekspor ulang satu atau beberapa PDF modul langsung dari penyimpanan lokal tanpa retrieval/OCR ulang.
+- Kontrol untuk mengosongkan penyimpanan lokal hanya untuk BMP yang sedang dipilih, tanpa menghapus file yang sudah ada di folder Downloads.
+- Penyimpanan draft kode BMP dan rentang modul agar popup tidak kembali ke nilai contoh saat dibuka ulang.
+
+### Changed
+- `STDA4101` sekarang hanya menjadi placeholder/contoh, bukan nilai kode BMP yang dipaksakan.
+- Tombol aksi utama menyesuaikan kondisi: memproses modul yang belum ada, download ulang, membuat PDF gabungan, atau mengarahkan ke ekspor ketika rentang sudah lengkap.
+- UX penyimpanan disederhanakan agar pengguna tidak perlu memahami IndexedDB atau istilah cache teknis.
+- Resume tetap menjadi perilaku default: modul yang sudah tersedia dilewati dan hanya modul yang hilang dalam rentang yang diproses.
+- PDF gabungan dibangun dari PDF modul yang tersimpan lokal, bukan dari file di folder Downloads.
+
+### Fixed
+- OCR berhenti tepat pada jumlah halaman yang dilaporkan reader ketika total halaman tersedia, sehingga tidak meminta halaman setelah halaman terakhir.
+- Popup menampilkan kembali kode BMP, rentang, dan status pekerjaan aktif secara konsisten setelah ditutup dan dibuka ulang.
+- PDF gabungan tidak dibuat jika ada gap pada rentang yang dipilih; modul yang hilang dilaporkan alih-alih diabaikan.
+- Re-run pada Android tidak otomatis mengekspor ulang modul yang sudah tersimpan hanya karena tombol mulai ditekan.
+
+### Validation
+- Page-count termination pada reader-reported total: **PASS**.
+- Resume cache, gap processing, redownload rentang, merge OFF, partial merge, FULL merge, re-export, dan clear per BMP: **PASS** pada test lokal.
+- GitHub Actions Validate untuk source v1.0.5: **PASS**.
+- Android CRX test ditandatangani dengan signing key yang sama dan extension ID tetap `lpbcndejhechedaemnjmjppjkhblkonj`.
+
 ## [1.0.4] - 2026-09-17
 
 ### Added
