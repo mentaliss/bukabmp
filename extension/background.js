@@ -434,6 +434,31 @@ async function buildFull(lastMod, candidate = false) {
   );
 }
 
+function normalizeModules(modules, maxModule = 99) {
+  return Array.from(new Set(
+    (Array.isArray(modules) ? modules : [])
+      .map(Number)
+      .filter(m => Number.isInteger(m) && m >= 1 && m <= maxModule)
+  )).sort((a, b) => a - b);
+}
+
+function firstMissingModule(fromModule, toModule, completedModules) {
+  const done = new Set(normalizeModules(completedModules, toModule));
+  for (let m = fromModule; m <= toModule; m++) {
+    if (!done.has(m)) return m;
+  }
+  return null;
+}
+
+function hasAllModulesThrough(lastModule, completedModules) {
+  if (!Number.isInteger(lastModule) || lastModule < 1) return false;
+  const done = new Set(normalizeModules(completedModules, lastModule));
+  for (let m = 1; m <= lastModule; m++) {
+    if (!done.has(m)) return false;
+  }
+  return true;
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
   const x = await chrome.storage.local.get("bmpState");
   if (!x.bmpState) await chrome.storage.local.set({bmpState: DEFAULT_STATE});
@@ -531,25 +556,81 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const probe = await askOffscreen({type: "OCR_ENGINE_PROBE"});
       if (!probe?.ok) throw new Error(probe?.error || "OCR lokal tidak siap.");
 
-      await askOffscreen({type: "OCR_RESET_JOB", code});
+      const prepared = await askOffscreen({type: "OCR_PREPARE_JOB", code});
+      if (!prepared?.ok) {
+        throw new Error(prepared?.error || "Cache lokal tidak dapat dibaca.");
+      }
+
+      const completedModules = normalizeModules(
+        prepared.cachedModules || [],
+        maxModule
+      );
+      const currentModule = firstMissingModule(
+        startModule,
+        maxModule,
+        completedModules
+      );
 
       await setState({
         running: true,
         tabId,
         code,
         startModule,
-        currentModule: startModule,
+        currentModule: currentModule ?? maxModule,
         maxModule,
         delayMs: 2500,
         maxPages: 500,
         buildFull: true,
         status: "STARTING",
-        progress: "Menyiapkan dokumen...",
+        progress: currentModule == null
+          ? "Semua modul pada rentang ini sudah tersedia di cache lokal."
+          : currentModule > startModule
+            ? `Melanjutkan dari Modul ${currentModule}; modul yang sudah selesai dilewati.`
+            : "Menyiapkan dokumen...",
         ocrProgress: "",
-        completedModules: []
+        completedModules
       });
+
+      if (currentModule == null) {
+        let finalMessage =
+          `Modul ${startModule}–${maxModule} sudah selesai sebelumnya; OCR tidak diulang.`;
+        if (hasAllModulesThrough(maxModule, completedModules)) {
+          await setState({
+            status: "BUILDING_FULL",
+            progress: `Menggabungkan Modul 1–${maxModule} dari cache lokal...`,
+            ocrProgress: ""
+          });
+          try {
+            await buildFull(maxModule, false);
+            finalMessage =
+              `Selesai. Modul yang sudah ada dilewati dan PDF gabungan Modul 1–${maxModule} dibuat dari cache lokal.`;
+          } catch (e) {
+            finalMessage =
+              `Modul sudah ada di cache, tetapi PDF gabungan gagal: ${String(e)}`;
+          }
+        } else {
+          finalMessage +=
+            " PDF gabungan belum dibuat karena cache Modul 1 sampai modul terakhir belum lengkap.";
+        }
+        await setState({
+          running: false,
+          status: "DONE",
+          progress: finalMessage,
+          ocrProgress: ""
+        });
+        sendResponse({ok: true, resumed: true, skippedModules: completedModules});
+        return;
+      }
+
+      await setState({currentModule});
       await navigateCurrentModule();
-      sendResponse({ok: true});
+      sendResponse({
+        ok: true,
+        resumed: currentModule > startModule,
+        skippedModules: completedModules.filter(
+          m => m >= startModule && m < currentModule
+        )
+      });
       return;
     }
     if (msg.type === "STOP_JOB") {
@@ -623,27 +704,36 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         });
         await finishModule(mod, msg.pages);
 
-        const completed = Array.from(
-          new Set([...(state.completedModules || []), mod])
-        ).sort((a, b) => a - b);
+        const completed = normalizeModules(
+          [...(state.completedModules || []), mod],
+          state.maxModule
+        );
+        const nextModule = firstMissingModule(
+          mod + 1,
+          state.maxModule,
+          completed
+        );
 
-        if (mod >= state.maxModule) {
+        if (nextModule == null) {
           let finalMessage = `Modul ${mod} selesai.`;
-          if (Number(state.startModule || 1) === 1) {
+          if (hasAllModulesThrough(state.maxModule, completed)) {
             await setState({
               status: "BUILDING_FULL",
-              progress: `Menggabungkan Modul 1–${mod}...`,
+              progress: `Menggabungkan Modul 1–${state.maxModule} dari cache lokal...`,
               completedModules: completed,
               ocrProgress: ""
             });
             try {
-              await buildFull(mod, false);
+              await buildFull(state.maxModule, false);
               finalMessage =
-                `Selesai. PDF gabungan Modul 1–${mod} sudah dibuat.`;
+                `Selesai. PDF gabungan Modul 1–${state.maxModule} sudah dibuat.`;
             } catch (e) {
               finalMessage =
                 `PDF per modul selesai, tetapi PDF gabungan gagal: ${String(e)}`;
             }
+          } else {
+            finalMessage +=
+              " PDF gabungan belum dibuat karena cache modul sebelumnya belum lengkap.";
           }
           await setState({
             running: false,
@@ -656,11 +746,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           return;
         }
 
+        const skipped = nextModule - mod - 1;
         await setState({
           completedModules: completed,
-          currentModule: mod + 1,
+          currentModule: nextModule,
           status: `M${mod}_PDF_READY`,
-          progress: `PDF Modul ${mod} siap. Membuka Modul ${mod + 1}...`,
+          progress: skipped > 0
+            ? `PDF Modul ${mod} siap. ${skipped} modul yang sudah selesai dilewati; membuka Modul ${nextModule}...`
+            : `PDF Modul ${mod} siap. Membuka Modul ${nextModule}...`,
           ocrProgress: ""
         });
         setTimeout(navigateCurrentModule, Math.max(1000, state.delayMs));
@@ -670,21 +763,31 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       if (msg.result === "missing_module") {
         const lastMod = mod - 1;
+        const completed = normalizeModules(
+          state.completedModules || [],
+          Math.max(lastMod, 1)
+        );
         let extra = "";
-        if (lastMod >= 1 && Number(state.startModule || 1) === 1) {
+        if (lastMod >= 1 && hasAllModulesThrough(lastMod, completed)) {
           await setState({
             status: "BUILDING_FULL",
-            progress: `Modul ${mod} tidak tersedia. Menggabungkan Modul 1–${lastMod}...`
+            progress: `Modul ${mod} tidak tersedia. Menggabungkan Modul 1–${lastMod} dari cache lokal...`,
+            completedModules: completed,
+            ocrProgress: ""
           });
           try {
             await buildFull(lastMod, true);
-            extra = ` PDF gabungan kandidat Modul 1–${lastMod} dibuat.`;
+            extra = ` PDF gabungan kandidat Modul 1–${lastMod} dibuat dari cache lokal.`;
           } catch (e) {
             extra = ` PDF gabungan kandidat gagal: ${String(e)}`;
           }
+        } else if (lastMod >= 1) {
+          extra =
+            " PDF gabungan tidak dibuat karena cache modul sebelumnya belum lengkap.";
         }
         await setState({
           running: false,
+          completedModules: completed,
           status: "END_CANDIDATE",
           progress: `Modul ${mod} tidak tersedia. Kandidat modul terakhir: ${lastMod}.${extra}`,
           ocrProgress: ""
