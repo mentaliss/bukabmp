@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      BMP_API_BASE_URL: https://community.bukabmp.workers.dev
+      BMP_TELEGRAM_CHANNEL_URL: https://t.me/bukabmp
+      BMP_TELEGRAM_GROUP_URL: https://t.me/+0pAg9ymEhWdkZmNl
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate extension source
+        run: npm run validate
+
+      - name: Check tag matches manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./extension/manifest.json').version")
+          test "${GITHUB_REF_NAME}" = "v${VERSION}"
+
+      - name: Build self-contained extension
+        run: npm run build:release
+
+      - name: Package and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./extension/manifest.json').version")
+          cd dist
+          zip -qr "BMP-Terbuka-v${VERSION}.zip" "BMP-Terbuka-v${VERSION}"
+          sha256sum "BMP-Terbuka-v${VERSION}.zip" > "BMP-Terbuka-v${VERSION}.zip.sha256"
+          unzip -t "BMP-Terbuka-v${VERSION}.zip"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./extension/manifest.json').version")
+          gh release create "v${VERSION}" \
+            "dist/BMP-Terbuka-v${VERSION}.zip" \
+            "dist/BMP-Terbuka-v${VERSION}.zip.sha256" \
+            --verify-tag \
+            --title "BMP Terbuka v${VERSION}" \
+            --generate-notes

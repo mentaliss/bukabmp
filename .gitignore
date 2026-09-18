@@ -1,0 +1,8 @@
+dist/
+.cache/
+extension/config.js
+*.pem
+*.key
+.env
+.env.*
+.DS_Store
