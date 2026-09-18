@@ -580,10 +580,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
     if (msg.type === "PAGE_PROGRESS") {
+      const totalPages = Number(msg.totalPages || 0);
+      const pageSuffix = totalPages > 0 ? ` / ${totalPages}` : "";
       await setState({
         status: `DOWNLOADING_M${msg.module}`,
-        progress: `Modul ${msg.module} • halaman ${msg.page}`,
-        ocrProgress: `Menyiapkan halaman ${msg.page}`
+        progress: `Modul ${msg.module} • halaman ${msg.page}${pageSuffix}`,
+        ocrProgress: `Menyiapkan halaman ${msg.page}${pageSuffix}`
       });
       sendResponse({ok: true});
       return;
