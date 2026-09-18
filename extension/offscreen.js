@@ -79,6 +79,38 @@ async function dbGet(key) {
   });
 }
 
+async function dbListModules(code) {
+  const prefix = `${code}:M`;
+  const modules = [];
+  const db = await dbOpen();
+  return await new Promise((resolve, reject) => {
+    const tx = db.transaction("pdfs", "readonly");
+    const store = tx.objectStore("pdfs");
+    const req = store.openKeyCursor();
+    req.onsuccess = () => {
+      const cur = req.result;
+      if (!cur) return;
+      const key = String(cur.key || "");
+      if (key.startsWith(prefix)) {
+        const moduleNo = Number.parseInt(key.slice(prefix.length), 10);
+        if (Number.isInteger(moduleNo) && moduleNo >= 1 && moduleNo <= 99) {
+          modules.push(moduleNo);
+        }
+      }
+      cur.continue();
+    };
+    tx.oncomplete = () => {
+      db.close();
+      resolve(Array.from(new Set(modules)).sort((a, b) => a - b));
+    };
+    tx.onerror = () => {
+      const e = tx.error;
+      db.close();
+      reject(e);
+    };
+  });
+}
+
 async function dbClearCode(code) {
   const db = await dbOpen();
   return await new Promise((resolve, reject) => {
@@ -173,6 +205,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === "OCR_ENGINE_PROBE") {
       assertLibraries();
       sendResponse({ok: true});
+      return;
+    }
+    if (msg.type === "OCR_PREPARE_JOB") {
+      assertLibraries();
+      const code = String(msg.code || "").toUpperCase();
+      currentModuleKey = null;
+      currentPdf = null;
+      sendResponse({
+        ok: true,
+        cachedModules: await dbListModules(code)
+      });
       return;
     }
     if (msg.type === "OCR_RESET_JOB") {
