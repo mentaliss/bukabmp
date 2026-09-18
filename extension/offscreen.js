@@ -79,6 +79,24 @@ async function dbGet(key) {
   });
 }
 
+function storedBytes(value) {
+  if (!value) return 0;
+  if (typeof value.byteLength === "number") return value.byteLength;
+  if (typeof value.size === "number") return value.size;
+  return 0;
+}
+
+async function dbCacheInfo(code) {
+  const normalized = String(code || "").trim().toUpperCase();
+  if (!normalized) return {modules: [], bytes: 0, totalBytes: 0};
+  const modules = await dbListModules(normalized);
+  let bytes = 0;
+  for (const moduleNo of modules) {
+    bytes += storedBytes(await dbGet(`${normalized}:M${moduleNo}`));
+  }
+  return {modules, bytes, totalBytes: bytes};
+}
+
 async function dbListModules(code) {
   const prefix = `${code}:M`;
   const modules = [];
@@ -178,14 +196,32 @@ async function finishModule(code, moduleNo, pages) {
   return url;
 }
 
-async function buildFull(code, lastModule) {
+async function cachedPdfBlobUrl(code, moduleNo) {
+  const bytes = await dbGet(`${code}:M${moduleNo}`);
+  if (!bytes) throw new Error(`PDF Modul ${moduleNo} belum tersedia di penyimpanan lokal.`);
+  const blob = new Blob([bytes], {type: "application/pdf"});
+  const url = URL.createObjectURL(blob);
+  blobUrls.add(url);
+  return url;
+}
+
+async function buildRange(code, firstModule, lastModule) {
+  if (!Number.isInteger(firstModule) || !Number.isInteger(lastModule) ||
+      firstModule < 1 || lastModule < firstModule || lastModule > 99) {
+    throw new Error("Rentang PDF gabungan tidak valid.");
+  }
+
   const out = await PDFLib.PDFDocument.create();
-  out.setTitle(`${code} Searchable OCR`);
+  out.setTitle(
+    firstModule === 1
+      ? `${code} Searchable OCR`
+      : `${code} M${firstModule}-M${lastModule} Searchable OCR`
+  );
   out.setCreator("BMP Terbuka");
 
-  for (let m = 1; m <= lastModule; m++) {
+  for (let m = firstModule; m <= lastModule; m++) {
     const bytes = await dbGet(`${code}:M${m}`);
-    if (!bytes) throw new Error(`PDF Modul ${m} belum tersedia di cache.`);
+    if (!bytes) throw new Error(`PDF Modul ${m} belum tersedia di penyimpanan lokal.`);
     const src = await PDFLib.PDFDocument.load(bytes);
     const copied = await out.copyPages(src, src.getPageIndices());
     copied.forEach(p => out.addPage(p));
@@ -196,6 +232,10 @@ async function buildFull(code, lastModule) {
   const url = URL.createObjectURL(blob);
   blobUrls.add(url);
   return url;
+}
+
+async function buildFull(code, lastModule) {
+  return await buildRange(code, 1, lastModule);
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -218,7 +258,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
       return;
     }
-    if (msg.type === "OCR_RESET_JOB") {
+    if (msg.type === "OCR_CACHE_INFO") {
+      const info = await dbCacheInfo(String(msg.code || "").toUpperCase());
+      sendResponse({ok: true, ...info});
+      return;
+    }
+    if (msg.type === "OCR_RESET_JOB" || msg.type === "OCR_CLEAR_CODE") {
       assertLibraries();
       await dbClearCode(String(msg.code || "").toUpperCase());
       currentModuleKey = null;
@@ -242,6 +287,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({
         ok: true,
         blobUrl: await buildFull(msg.code, Number(msg.lastModule))
+      });
+      return;
+    }
+    if (msg.type === "OCR_BUILD_RANGE") {
+      sendResponse({
+        ok: true,
+        blobUrl: await buildRange(
+          msg.code,
+          Number(msg.firstModule),
+          Number(msg.lastModule)
+        )
+      });
+      return;
+    }
+    if (msg.type === "OCR_EXPORT_CACHED_MODULE") {
+      sendResponse({
+        ok: true,
+        blobUrl: await cachedPdfBlobUrl(msg.code, Number(msg.module))
       });
       return;
     }

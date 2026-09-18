@@ -10,8 +10,10 @@
     h1{font-size:19px;margin:0}.sub{font-size:11.5px;color:#666;margin-top:2px}
     .screen{display:none}.screen.active{display:block}.card{margin-top:14px;padding:12px;border-radius:10px;background:#f5f5f5}
     .title{font-weight:700;font-size:13px;margin-bottom:4px}.body{font-size:12px;line-height:1.5;color:#444}
-    label{display:block;margin-top:11px;font-size:12px;font-weight:650} input{width:100%;margin-top:4px;padding:9px 10px;border:1px solid #bbb;border-radius:7px;font:inherit;font-size:14px}
+    label{display:block;margin-top:11px;font-size:12px;font-weight:650} input{width:100%;margin-top:4px;padding:9px 10px;border:1px solid #bbb;border-radius:7px;background:#fff;font:inherit;font-size:14px}
+    input:focus,button:focus-visible,summary:focus-visible{outline:2px solid #222;outline-offset:2px}
     .row{display:flex;gap:10px}.row>div{flex:1} button{width:100%;padding:10px 12px;border-radius:8px;border:1px solid #c7c7c7;background:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-top:8px}
+    .cacheCard{margin-top:11px;padding:12px;border:1px solid #e2e2e2;border-radius:10px;background:#fafafa}.cacheTitle{font-size:13px;font-weight:750}.cacheMeta{font-size:11.5px;color:#444;margin-top:3px;line-height:1.45}.cacheLine{font-size:11px;color:#555;margin-top:6px;line-height:1.45}.cacheLine b{color:#222}.cacheHelp{font-size:10.5px;color:#777;line-height:1.45;margin-top:8px;padding-top:8px;border-top:1px solid #e8e8e8}.planTitle{font-size:10.5px;color:#777;font-weight:700;margin-top:9px}.check{display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-weight:600;line-height:1.35}.check input{width:auto;margin:2px 0 0;flex:0 0 auto}.check span{font-size:11.5px}.optionHint{display:none;font-size:10.5px;color:#666;line-height:1.4;margin:5px 0 0 25px}.storageTools{margin-top:12px;border-top:1px solid #eee;padding-top:10px}.storageTools summary{cursor:pointer;font-size:11.5px;font-weight:750;color:#333;list-style:none;display:flex;align-items:center;justify-content:space-between;padding:3px 0}.storageTools summary::-webkit-details-marker{display:none}.storageTools summary::after{content:"›";font-size:18px;line-height:1;color:#777;transform:rotate(90deg);transition:transform .15s}.storageTools[open] summary::after{transform:rotate(-90deg)}.storageBody{padding-top:8px}.storageMeta{font-size:10.8px;line-height:1.45;color:#555}.moduleGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:9px}.moduleChoice{margin:0;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 5px;border:1px solid #d4d4d4;border-radius:7px;background:#fff;font-size:11px;font-weight:650;cursor:pointer}.moduleChoice input{width:auto;margin:0}.storageActions{display:flex;gap:8px;align-items:center;margin-top:8px}.storageActions button{margin-top:0}.textButton{width:auto;border:0;background:transparent;text-decoration:underline;padding:7px 0;font-size:10.8px;color:#555}.dangerZone{margin-top:12px;padding-top:10px;border-top:1px solid #e5e5e5}.dangerLabel{font-size:10.8px;color:#555;line-height:1.45}.mutedButton{font-weight:650;color:#555}.notice{font-size:10.5px;line-height:1.4;color:#666;margin-top:7px;white-space:pre-wrap}
     button.primary{background:#181818;color:#fff;border-color:#181818} button:disabled{opacity:.45;cursor:default}.small{font-size:10.5px;color:#666;line-height:1.45;margin-top:10px}
     .status{margin-top:14px;padding:11px 12px;border-radius:9px;background:#f5f5f5}.status strong{display:block;font-size:12px;margin-bottom:3px}#statusText,#activationText{font-size:12px;line-height:1.45;white-space:pre-wrap}.pairbox{display:none;margin-top:10px;padding:10px;border:1px dashed #bbb;border-radius:8px;background:#fafafa}.pairlabel{font-size:11px;color:#666;margin-bottom:4px}.paircode{font:700 16px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.7px;word-break:break-all}
     #completed{font-size:10.5px;color:#666;margin-top:5px}.ocr{display:none;margin-top:9px}.ocrLabel{font-size:10.5px;color:#555;margin-bottom:5px}.bar{height:6px;background:#ddd;border-radius:99px;overflow:hidden}.fill{height:100%;width:0;background:#333;transition:width .15s}
@@ -84,13 +86,47 @@
 
   <section id="mainScreen" class="screen">
     <div id="accessBadge" class="small ok">● Akses komunitas aktif</div>
-    <label>Kode BMP<input id="code" value="STDA4101" autocomplete="off"></label>
+    <label>Kode BMP<input id="code" placeholder="Contoh: STDA4101" autocomplete="off" autocapitalize="characters"></label>
     <div class="row">
-      <div><label>Modul pertama<input id="startModule" type="number" min="1" value="1"></label></div>
-      <div><label>Modul terakhir<input id="maxModule" type="number" min="1" value="9"></label></div>
+      <div><label>Modul pertama<input id="startModule" type="number" min="1" max="99" value="1"></label></div>
+      <div><label>Modul terakhir<input id="maxModule" type="number" min="1" max="99" value="9"></label></div>
     </div>
+
+    <div class="cacheCard" aria-live="polite">
+      <div id="cacheTitle" class="cacheTitle">Masukkan kode BMP</div>
+      <div id="cacheSummary" class="cacheMeta">Data lokal BMP ini akan tampil di sini.</div>
+      <div id="cacheModules" class="cacheLine"></div>
+      <div id="cacheHelp" class="cacheHelp">Data lokal dipakai untuk melanjutkan proses dan membuat PDF tanpa OCR ulang. Ini bukan file di folder Downloads.</div>
+      <div id="planTitle" class="planTitle"></div>
+      <div id="planSkip" class="cacheLine"></div>
+      <div id="planProcess" class="cacheLine"></div>
+    </div>
+
+    <label class="check"><input id="redownload" type="checkbox"><span>Download ulang modul yang dipilih</span></label>
+    <div id="redownloadHint" class="optionHint"></div>
+    <label class="check"><input id="mergePdf" type="checkbox"><span>Buat PDF gabungan</span></label>
+    <div id="mergeHint" class="optionHint"></div>
+
     <button id="start" class="primary">Mulai</button>
-    <button id="stop">Hentikan</button>
+    <button id="stop" style="display:none">Hentikan</button>
+
+    <details id="storageTools" class="storageTools">
+      <summary>Kelola PDF tersimpan</summary>
+      <div class="storageBody">
+        <div id="storageMeta" class="storageMeta"></div>
+        <div id="exportGrid" class="moduleGrid" aria-label="Pilih modul yang ingin diekspor"></div>
+        <div class="storageActions">
+          <button id="selectAllExport" class="textButton" type="button">Pilih semua</button>
+          <button id="exportCached" class="mutedButton" type="button">Ekspor yang dipilih</button>
+        </div>
+        <div class="dangerZone">
+          <div id="clearExplain" class="dangerLabel"></div>
+          <button id="clearCache" class="mutedButton" type="button">Kosongkan penyimpanan BMP ini</button>
+        </div>
+        <div id="utilityNotice" class="notice"></div>
+      </div>
+    </details>
+
     <div class="status">
       <strong id="statusTitle">Siap</strong>
       <div id="statusText">Buka halaman reader pada tab aktif, lalu tekan Mulai.</div>

@@ -5,6 +5,250 @@ const ACTIVATION_LONG_WAIT_MS = 90_000;
 let activationChecking = false;
 let latestAccess = null;
 let latestVersionPolicy = null;
+let latestState = null;
+let latestCacheInfo = {modules:[],bytes:0,totalBytes:0,detectedLastModule:null};
+let latestCacheCode = "";
+let cacheRefreshTimer = null;
+let draftSaveTimer = null;
+let lastRunning = false;
+let activeFormKey = "";
+let lastCompletedKey = "";
+
+const DRAFT_KEY = "bmpDraftV105";
+
+function normalizedCode(){return el("code").value.trim().toUpperCase()}
+function validCode(value){return /^[A-Z0-9_-]{3,32}$/.test(String(value||""))}
+function selectedRange(){
+  const first=Number(el("startModule").value);
+  const last=Number(el("maxModule").value);
+  return {first,last,valid:Number.isInteger(first)&&Number.isInteger(last)&&first>=1&&last>=first&&last<=99};
+}
+function modulesBetween(first,last){
+  const out=[];
+  if(Number.isInteger(first)&&Number.isInteger(last)&&last>=first){for(let m=first;m<=last;m++)out.push(m)}
+  return out;
+}
+function moduleLabels(modules){return modules.length?modules.map(m=>`M${m}`).join(", "):"-"}
+function rangeLabel(modules){
+  if(!modules.length)return "-";
+  return modules.length===1?`M${modules[0]}`:`M${modules[0]}–M${modules[modules.length-1]}`;
+}
+function formatBytes(bytes){
+  const n=Math.max(0,Number(bytes)||0);
+  if(n<1024)return `${n} B`;
+  if(n<1024*1024)return `${(n/1024).toFixed(n<10*1024?1:0)} KB`;
+  if(n<1024*1024*1024)return `${(n/1024/1024).toFixed(n<10*1024*1024?1:0)} MB`;
+  return `${(n/1024/1024/1024).toFixed(1)} GB`;
+}
+function setUtilityNotice(text){el("utilityNotice").textContent=text||""}
+
+async function loadDraft(){
+  const x=await chrome.storage.local.get(DRAFT_KEY);
+  const d=x[DRAFT_KEY]||{};
+  if(d.code)el("code").value=String(d.code).toUpperCase();
+  if(Number.isInteger(Number(d.startModule))&&Number(d.startModule)>=1)el("startModule").value=String(Number(d.startModule));
+  if(Number.isInteger(Number(d.maxModule))&&Number(d.maxModule)>=1)el("maxModule").value=String(Number(d.maxModule));
+  el("redownload").checked=Boolean(d.redownload);
+  el("mergePdf").checked=Boolean(d.mergeRequested);
+}
+async function saveDraft(){
+  const range=selectedRange();
+  await chrome.storage.local.set({
+    [DRAFT_KEY]:{
+      code:normalizedCode(),
+      startModule:range.valid?range.first:1,
+      maxModule:range.valid?range.last:9,
+      redownload:el("redownload").checked,
+      mergeRequested:el("mergePdf").checked
+    }
+  });
+}
+function scheduleDraftSave(){
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer=setTimeout(()=>saveDraft().catch(()=>{}),180);
+}
+function scheduleCacheRefresh(){
+  clearTimeout(cacheRefreshTimer);
+  cacheRefreshTimer=setTimeout(()=>refreshCachePreview().catch(()=>{}),180);
+}
+
+function currentPlan(){
+  const range=selectedRange();
+  if(!range.valid)return {valid:false,selected:[],available:[],process:[],effectiveLast:null};
+  const cacheMatches=latestCacheCode===normalizedCode();
+  const detected=cacheMatches?latestCacheInfo.detectedLastModule:null;
+  const effectiveLast=detected?Math.min(range.last,detected):range.last;
+  const selected=effectiveLast>=range.first?modulesBetween(range.first,effectiveLast):[];
+  const cached=new Set(cacheMatches?latestCacheInfo.modules:[]);
+  const redownload=el("redownload").checked;
+  const available=selected.filter(m=>cached.has(m));
+  const process=redownload?selected:selected.filter(m=>!cached.has(m));
+  return {valid:true,range,selected,available,process,effectiveLast,redownload,cached};
+}
+
+function checkedExportModules(){
+  return [...el("exportGrid").querySelectorAll('input[type="checkbox"]:checked')]
+    .map(x=>Number(x.value)).filter(Number.isInteger).sort((a,b)=>a-b);
+}
+function updateExportControls(){
+  const checked=checkedExportModules();
+  const all=latestCacheInfo.modules.length>0&&checked.length===latestCacheInfo.modules.length;
+  el("selectAllExport").textContent=all?"Hapus pilihan":"Pilih semua";
+  el("exportCached").disabled=Boolean(latestState?.running)||checked.length===0;
+  if(!latestState?.running)el("exportCached").textContent=checked.length?`Ekspor ${checked.length} PDF`:"Ekspor yang dipilih";
+}
+function renderExportGrid(modules,{prefer=null}={}){
+  const grid=el("exportGrid");
+  const previous=new Set(checkedExportModules());
+  const preferred=prefer?new Set(prefer):previous;
+  grid.textContent="";
+  for(const m of modules){
+    const label=document.createElement("label");
+    label.className="moduleChoice";
+    const input=document.createElement("input");
+    input.type="checkbox";
+    input.value=String(m);
+    input.checked=preferred.has(m);
+    input.addEventListener("change",updateExportControls);
+    const span=document.createElement("span");
+    span.textContent=`M${m}`;
+    label.append(input,span);
+    grid.append(label);
+  }
+  updateExportControls();
+}
+function selectExportModules(modules){
+  const wanted=new Set(modules);
+  for(const input of el("exportGrid").querySelectorAll('input[type="checkbox"]')){
+    input.checked=wanted.has(Number(input.value));
+  }
+  updateExportControls();
+}
+
+function updatePrimaryAction(){
+  const button=el("start");
+  const code=normalizedCode();
+  const plan=currentPlan();
+  const locked=Boolean(latestState?.running)||Boolean(latestVersionPolicy?.updateRequired);
+  let action="process",label="Mulai",disabled=locked;
+  if(!validCode(code)||!plan.valid){
+    label="Mulai";
+  }else if(!plan.selected.length){
+    label=latestCacheInfo.detectedLastModule?`Modul tersedia sampai M${latestCacheInfo.detectedLastModule}`:"Mulai";
+    disabled=true;
+  }else if(plan.redownload){
+    label="Download ulang modul dipilih";
+  }else if(plan.process.length){
+    label="Proses modul yang belum ada";
+  }else if(el("mergePdf").checked){
+    action="merge";
+    label="Buat PDF gabungan";
+  }else if(plan.available.length){
+    action="export";
+    label="Ekspor PDF";
+  }
+  button.dataset.action=action;
+  button.textContent=label;
+  button.disabled=disabled;
+}
+
+function setFormLocked(locked){
+  for(const id of ["code","startModule","maxModule","redownload","mergePdf"]){el(id).disabled=locked}
+  el("selectAllExport").disabled=locked||!latestCacheInfo.modules.length;
+  el("clearCache").disabled=locked||!validCode(normalizedCode())||!latestCacheInfo.modules.length;
+  updateExportControls();
+  updatePrimaryAction();
+}
+
+function renderOptionHints(){
+  const plan=currentPlan();
+  const code=normalizedCode();
+  const redHint=el("redownloadHint");
+  const mergeHint=el("mergeHint");
+  if(el("redownload").checked&&plan.selected.length){
+    redHint.style.display="block";
+    redHint.textContent=`${rangeLabel(plan.selected)} akan diproses ulang. Modul lain tidak berubah.`;
+  }else{
+    redHint.style.display="none";
+    redHint.textContent="";
+  }
+  if(el("mergePdf").checked&&plan.selected.length&&validCode(code)){
+    const detected=latestCacheInfo.detectedLastModule;
+    const full=Boolean(detected&&plan.range.first===1&&plan.range.last>=detected);
+    const filename=full
+      ? `${code}_FULL_Searchable.pdf`
+      : `${code}_M${plan.selected[0]}-M${plan.selected[plan.selected.length-1]}_Searchable.pdf`;
+    mergeHint.style.display="block";
+    mergeHint.textContent=`Hasil gabungan: ${filename}`;
+  }else{
+    mergeHint.style.display="none";
+    mergeHint.textContent="";
+  }
+}
+
+async function refreshCachePreview(){
+  const code=normalizedCode();
+  const range=selectedRange();
+  if(!validCode(code)){
+    latestCacheInfo={modules:[],bytes:0,totalBytes:0,detectedLastModule:null};
+    latestCacheCode="";
+    el("cacheTitle").textContent=code?"Kode BMP belum valid":"Masukkan kode BMP";
+    el("cacheSummary").textContent="Data lokal BMP ini akan tampil di sini.";
+    el("cacheModules").textContent="";
+    el("planTitle").textContent="";
+    el("planSkip").textContent="";
+    el("planProcess").textContent="";
+    el("storageTools").style.display="none";
+    renderExportGrid([]);
+    renderOptionHints();
+    setFormLocked(Boolean(latestState?.running));
+    return;
+  }
+
+  const r=await send("GET_CACHE_INFO",{code});
+  if(!r?.ok)throw new Error(r?.error||"Penyimpanan lokal tidak dapat dibaca.");
+  const modules=Array.isArray(r.modules)?r.modules.map(Number).filter(Number.isInteger).sort((a,b)=>a-b):[];
+  latestCacheInfo={
+    modules,bytes:Number(r.bytes||0),totalBytes:Number(r.totalBytes||0),
+    detectedLastModule:Number.isInteger(Number(r.detectedLastModule))&&Number(r.detectedLastModule)>=1?Number(r.detectedLastModule):null
+  };
+  latestCacheCode=code;
+
+  el("cacheTitle").textContent=code;
+  const lastText=latestCacheInfo.detectedLastModule?` • modul terakhir M${latestCacheInfo.detectedLastModule}`:"";
+  el("cacheSummary").textContent=modules.length
+    ? `${modules.length} modul • ${formatBytes(latestCacheInfo.bytes)} tersimpan lokal${lastText}`
+    : `Belum ada modul tersimpan lokal${lastText}`;
+  el("cacheModules").innerHTML=modules.length
+    ? `<b>Tersimpan lokal:</b> ${moduleLabels(modules)}`
+    : "";
+
+  const plan=currentPlan();
+  if(range.valid&&plan.selected.length){
+    el("planTitle").textContent=`Pilihan ${rangeLabel(plan.selected)}`;
+    el("planSkip").innerHTML=`<b>Sudah tersedia:</b> ${moduleLabels(plan.available)}`;
+    el("planProcess").innerHTML=`<b>Perlu diproses:</b> ${moduleLabels(plan.process)}`;
+  }else if(range.valid&&latestCacheInfo.detectedLastModule&&range.first>latestCacheInfo.detectedLastModule){
+    el("planTitle").textContent=`Pilihan M${range.first}–M${range.last}`;
+    el("planSkip").innerHTML=`<b>Info:</b> BMP ini terdeteksi sampai M${latestCacheInfo.detectedLastModule}.`;
+    el("planProcess").textContent="";
+  }else{
+    el("planTitle").textContent="";
+    el("planSkip").textContent=range.valid?"":"Periksa rentang modul.";
+    el("planProcess").textContent="";
+  }
+
+  el("storageTools").style.display=modules.length?"block":"none";
+  el("storageMeta").textContent=modules.length
+    ? `${code} memakai ${formatBytes(latestCacheInfo.bytes)} untuk menyimpan ${modules.length} PDF modul. Pilih satu atau beberapa modul untuk membuat salinan baru di Downloads tanpa OCR ulang.`
+    : "";
+  el("clearExplain").textContent=modules.length
+    ? `Kosongkan ${formatBytes(latestCacheInfo.bytes)} data lokal ${code} jika sudah tidak diperlukan. PDF yang sudah ada di folder Downloads tidak ikut dihapus.`
+    : "";
+  renderExportGrid(modules);
+  renderOptionHints();
+  setFormLocked(Boolean(latestState?.running));
+}
 
 function formatDate(ms){
   if(!ms) return "";
@@ -18,15 +262,16 @@ function formatElapsed(ms){
 }
 function humanStatus(s){
   const x=s.status||"IDLE";
-  if(!s.running&&x==="IDLE")return["Siap","Buka halaman reader pada tab aktif, lalu tekan Mulai."];
+  if(!s.running&&x==="IDLE")return["Siap","Pilih BMP dan modul yang ingin kamu proses atau ekspor."];
   if(x==="STARTING")return["Menyiapkan","Menyiapkan dokumen..."];
   if(x.startsWith("OPENING_M"))return["Membuka modul",s.progress||""];
   if(x.startsWith("DOWNLOADING_M"))return["Sedang diproses",s.progress||""];
   if(x.startsWith("OCR_FINALIZING_M"))return["Menyusun PDF","Halaman selesai. Menyusun file PDF..."];
   if(x.startsWith("M")&&x.endsWith("_PDF_READY"))return["PDF siap",s.progress||""];
-  if(x==="BUILDING_FULL")return["Menggabungkan PDF",s.progress||""];
+  if(x==="BUILDING_FULL"||x==="BUILDING_MERGE")return["Menggabungkan PDF",s.progress||""];
   if(x==="DONE"||x==="MAX_MODULE_REACHED")return["Selesai",s.progress||"Semua modul selesai."];
-  if(x==="END_CANDIDATE")return["Selesai",s.progress||"Kandidat modul terakhir terdeteksi."];
+  if(x==="END_CANDIDATE")return["Selesai",s.progress||"Modul terakhir terdeteksi."];
+  if(x==="MISSING_GAP")return["Belum lengkap",s.progress||"Ada modul yang belum tersedia."];
   if(x==="LOGIN_REQUIRED")return["Perlu login","Sesi sumber meminta login ulang. Login kembali lalu mulai lagi."];
   if(x==="BLOCKED")return["Akses dihentikan","Server menolak permintaan. Proses dihentikan tanpa mencoba ulang."];
   if(x==="STOPPED_BY_USER")return["Dihentikan","Proses dihentikan."];
@@ -100,11 +345,35 @@ async function refreshAccess(){
 async function refreshState(){
   const r=await send("GET_STATE");
   const s=r?.state||{};
+  latestState=s;
   const [title,text]=humanStatus(s);
   el("statusTitle").textContent=title;
   el("statusText").textContent=text;
+
+  if(s.running){
+    const formKey=`${s.code}:${s.startModule}:${s.maxModule}:${Boolean(s.redownload)}:${Boolean(s.mergeRequested)}`;
+    if(activeFormKey!==formKey){
+      activeFormKey=formKey;
+      el("code").value=s.code||"";
+      el("startModule").value=String(s.startModule||1);
+      el("maxModule").value=String(s.maxModule||9);
+      el("redownload").checked=Boolean(s.redownload);
+      el("mergePdf").checked=Boolean(s.mergeRequested);
+      scheduleCacheRefresh();
+    }
+  }else{
+    activeFormKey="";
+  }
+
   const completed=s.completedModules||[];
-  el("completed").textContent=completed.length?`PDF selesai: ${completed.map(x=>"Modul "+x).join(", ")}`:"";
+  const completedKey=`${s.code||""}:${completed.join(",")}`;
+  if(s.running&&lastCompletedKey&&completedKey!==lastCompletedKey){
+    await refreshCachePreview();
+  }
+  lastCompletedKey=s.running?completedKey:"";
+  el("completed").textContent=s.running&&completed.length
+    ? `Tersimpan lokal: ${completed.map(x=>"M"+x).join(", ")}`
+    : "";
   const o=ocrProgress(s.ocrProgress||"");
   if(s.running&&o.label){
     el("ocrWrap").style.display="block";
@@ -114,10 +383,13 @@ async function refreshState(){
     el("ocrWrap").style.display="none";
     el("ocrBar").style.width="0%";
   }
-  el("start").disabled=Boolean(s.running)||Boolean(latestVersionPolicy?.updateRequired);
   el("stop").disabled=!s.running;
-}
+  el("stop").style.display=s.running?"block":"none";
+  setFormLocked(Boolean(s.running));
 
+  if(lastRunning&&!s.running)await refreshCachePreview();
+  lastRunning=Boolean(s.running);
+}
 
 async function refreshVersion(){
   try{
@@ -330,24 +602,58 @@ el("start").addEventListener("click",async()=>{
     el("statusText").textContent="Update BMP Terbuka ke versi yang didukung sebelum memulai proses baru.";
     return;
   }
-  const tabs=await chrome.tabs.query({active:true,currentWindow:true});
-  const tab=tabs[0];
-  if(!tab?.id||!tab.url?.startsWith("https://pustaka.ut.ac.id/reader/")){
-    el("statusTitle").textContent="Buka reader terlebih dahulu";
-    el("statusText").textContent="Tab aktif harus berada pada halaman reader yang didukung.";
+  const code=normalizedCode();
+  const range=selectedRange();
+  const plan=currentPlan();
+  if(!validCode(code)){
+    el("statusTitle").textContent="Periksa kode BMP";
+    el("statusText").textContent="Masukkan kode BMP, misalnya STDA4101.";
     return;
   }
-  const startModule=Number(el("startModule").value);
-  const maxModule=Number(el("maxModule").value);
-  if(!Number.isInteger(startModule)||!Number.isInteger(maxModule)||startModule<1||maxModule<startModule){
+  if(!range.valid){
     el("statusTitle").textContent="Periksa modul";
-    el("statusText").textContent="Modul terakhir harus sama atau lebih besar dari modul pertama.";
+    el("statusText").textContent="Modul terakhir harus sama atau lebih besar dari modul pertama (maksimal 99).";
     return;
   }
+  if(!plan.selected.length){
+    el("statusTitle").textContent="Rentang tidak tersedia";
+    el("statusText").textContent=latestCacheInfo.detectedLastModule
+      ? `BMP ini terdeteksi sampai Modul ${latestCacheInfo.detectedLastModule}.`
+      : "Tidak ada modul pada rentang tersebut.";
+    return;
+  }
+
+  const action=el("start").dataset.action||"process";
+  if(action==="export"){
+    el("storageTools").open=true;
+    selectExportModules(plan.available);
+    setUtilityNotice(`${rangeLabel(plan.available)} sudah tersedia. Pilih modul lalu tekan Ekspor untuk membuat salinan baru di Downloads.`);
+    el("storageTools").scrollIntoView({behavior:"smooth",block:"nearest"});
+    return;
+  }
+
+  let tabId=null;
+  const needsReader=plan.process.length>0;
+  if(needsReader){
+    const tabs=await chrome.tabs.query({active:true,currentWindow:true});
+    const tab=tabs[0];
+    if(!tab?.id||!tab.url?.startsWith("https://pustaka.ut.ac.id/reader/")){
+      el("statusTitle").textContent="Buka reader terlebih dahulu";
+      el("statusText").textContent="Ada modul yang perlu diproses. Buka halaman reader BMP pada tab aktif lalu coba lagi.";
+      return;
+    }
+    tabId=tab.id;
+  }
+
+  el("code").value=code;
+  await saveDraft();
   const res=await send("START_JOB",{
-    tabId:tab.id,
-    code:el("code").value.trim().toUpperCase(),
-    startModule,maxModule
+    tabId,
+    code,
+    startModule:range.first,
+    maxModule:range.last,
+    redownload:el("redownload").checked,
+    mergeRequested:el("mergePdf").checked
   });
   if(!res?.ok){
     el("statusTitle").textContent="Gagal memulai";
@@ -356,13 +662,71 @@ el("start").addEventListener("click",async()=>{
   await refreshState();
 });
 
+el("selectAllExport").addEventListener("click",()=>{
+  const checked=checkedExportModules();
+  const shouldSelect=checked.length!==latestCacheInfo.modules.length;
+  for(const input of el("exportGrid").querySelectorAll('input[type="checkbox"]'))input.checked=shouldSelect;
+  updateExportControls();
+});
+
+el("exportCached").addEventListener("click",async()=>{
+  const code=normalizedCode();
+  const modules=checkedExportModules();
+  if(!validCode(code)||!modules.length)return;
+  el("exportCached").disabled=true;
+  try{
+    for(let i=0;i<modules.length;i++){
+      const moduleNo=modules[i];
+      setUtilityNotice(`Mengekspor M${moduleNo} (${i+1}/${modules.length})...`);
+      const r=await send("EXPORT_CACHED_MODULE",{code,module:moduleNo});
+      if(!r?.ok)throw new Error(r?.error||`Ekspor Modul ${moduleNo} gagal.`);
+    }
+    setUtilityNotice(`${modules.length} PDF diekspor dari penyimpanan lokal tanpa OCR ulang.`);
+  }catch(e){
+    setUtilityNotice(String(e?.message||e));
+  }finally{
+    setFormLocked(Boolean(latestState?.running));
+  }
+});
+
+el("clearCache").addEventListener("click",async()=>{
+  const code=normalizedCode();
+  if(!validCode(code)||!latestCacheInfo.modules.length)return;
+  const size=formatBytes(latestCacheInfo.bytes);
+  if(!confirm(`Kosongkan ${size} data lokal BMP Terbuka untuk ${code}?\n\nPDF yang sudah ada di folder Downloads tidak akan dihapus.`))return;
+  el("clearCache").disabled=true;
+  setUtilityNotice(`Mengosongkan data lokal ${code}...`);
+  try{
+    const r=await send("CLEAR_CACHE_CODE",{code});
+    if(!r?.ok)throw new Error(r?.error||"Penyimpanan tidak dapat dikosongkan.");
+    setUtilityNotice(`Data lokal ${code} sudah dikosongkan. PDF di Downloads tetap ada.`);
+    el("storageTools").open=false;
+    await refreshCachePreview();
+  }catch(e){setUtilityNotice(String(e?.message||e))}
+  finally{setFormLocked(Boolean(latestState?.running))}
+});
+
+for(const id of ["code","startModule","maxModule"]){
+  el(id).addEventListener("input",()=>{scheduleDraftSave();renderOptionHints();updatePrimaryAction();scheduleCacheRefresh()});
+}
+for(const id of ["redownload","mergePdf"]){
+  el(id).addEventListener("change",()=>{scheduleDraftSave();scheduleCacheRefresh();renderOptionHints();updatePrimaryAction()});
+}
+el("code").addEventListener("blur",()=>{
+  el("code").value=normalizedCode();
+  scheduleDraftSave();
+  scheduleCacheRefresh();
+});
+
 el("stop").addEventListener("click",async()=>{await send("STOP_JOB");await refreshState()});
 el("about").addEventListener("click",()=>chrome.tabs.create({url:chrome.runtime.getURL("about.html")}));
 
 (async()=>{
+  await loadDraft();
   await refreshAccess();
   await refreshVersion();
   await refreshState();
+  await refreshCachePreview();
   setInterval(async()=>{await refreshAccess();await refreshState()},1000);
   setInterval(async()=>{
     const a=await send("GET_ACCESS_STATUS");

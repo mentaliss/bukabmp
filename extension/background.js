@@ -10,16 +10,24 @@ const DEFAULT_STATE = {
   startModule: 1,
   currentModule: 1,
   maxModule: 9,
+  effectiveMaxModule: 9,
   delayMs: 2500,
   maxPages: 500,
-  buildFull: true,
+  mergeRequested: false,
+  redownload: false,
   status: "IDLE",
   progress: "",
   ocrProgress: "",
-  completedModules: []
+  completedModules: [],
+  cachedModulesAtStart: [],
+  processedModules: [],
+  skippedModules: [],
+  detectedLastModule: null,
+  mergeMessage: ""
 };
 
 let creatingOffscreen = null;
+const cacheInfoMemo = new Map();
 
 function configReady() {
   return Boolean(
@@ -41,6 +49,42 @@ async function setState(patch) {
   const next = {...current, ...patch};
   await chrome.storage.local.set({bmpState: next});
   return next;
+}
+
+async function getCacheMetaMap() {
+  const x = await chrome.storage.local.get("bmpCacheMeta");
+  return x.bmpCacheMeta && typeof x.bmpCacheMeta === "object"
+    ? x.bmpCacheMeta
+    : {};
+}
+
+async function getCodeMeta(code) {
+  const map = await getCacheMetaMap();
+  return map[String(code || "").toUpperCase()] || {};
+}
+
+async function setDetectedLastModule(code, lastModule) {
+  const normalized = String(code || "").toUpperCase();
+  if (!normalized || !Number.isInteger(lastModule) || lastModule < 1 || lastModule > 99) {
+    return null;
+  }
+  const map = await getCacheMetaMap();
+  map[normalized] = {
+    ...(map[normalized] || {}),
+    detectedLastModule: lastModule,
+    detectedAt: Date.now()
+  };
+  await chrome.storage.local.set({bmpCacheMeta: map});
+  return map[normalized];
+}
+
+async function clearCodeMeta(code) {
+  const normalized = String(code || "").toUpperCase();
+  const map = await getCacheMetaMap();
+  if (Object.prototype.hasOwnProperty.call(map, normalized)) {
+    delete map[normalized];
+    await chrome.storage.local.set({bmpCacheMeta: map});
+  }
 }
 
 async function getInstallId() {
@@ -417,20 +461,69 @@ async function finishModule(mod, pages) {
     out.blobUrl,
     `BMP Terbuka/${state.code}/${state.code}_M${mod}_Searchable.pdf`
   );
+  invalidateCacheInfo(state.code);
 }
 
-async function buildFull(lastMod, candidate = false) {
+async function buildMergedPdf(firstModule, lastModule, {full = false} = {}) {
   const state = await getState();
   const out = await askOffscreen({
-    type: "OCR_BUILD_FULL",
+    type: firstModule === 1 ? "OCR_BUILD_FULL" : "OCR_BUILD_RANGE",
     code: state.code,
-    lastModule: lastMod
+    firstModule,
+    lastModule
   });
   if (!out?.ok) throw new Error(out?.error || "Gagal membuat PDF gabungan.");
-  const suffix = candidate ? "_FULL_CANDIDATE_Searchable.pdf" : "_FULL_Searchable.pdf";
+  const filename = full
+    ? `${state.code}_FULL_Searchable.pdf`
+    : `${state.code}_M${firstModule}-M${lastModule}_Searchable.pdf`;
   await saveBlobUrl(
     out.blobUrl,
-    `BMP Terbuka/${state.code}/${state.code}${suffix}`
+    `BMP Terbuka/${state.code}/${filename}`
+  );
+  return filename;
+}
+
+function invalidateCacheInfo(code) {
+  cacheInfoMemo.delete(String(code || "").trim().toUpperCase());
+}
+
+async function cacheInfo(code) {
+  const normalized = String(code || "").trim().toUpperCase();
+  if (!normalized) return {modules: [], bytes: 0, totalBytes: 0, detectedLastModule: null};
+  let raw = cacheInfoMemo.get(normalized) || null;
+  if (!raw) {
+    const out = await askOffscreen({type: "OCR_CACHE_INFO", code: normalized});
+    if (!out?.ok) throw new Error(out?.error || "Penyimpanan lokal tidak dapat dibaca.");
+    raw = {
+      modules: normalizeModules(out.modules || [], 99),
+      bytes: Number(out.bytes || 0),
+      totalBytes: Number(out.totalBytes || 0)
+    };
+    cacheInfoMemo.set(normalized, raw);
+  }
+  const meta = await getCodeMeta(normalized);
+  const detected = Number(meta.detectedLastModule);
+  return {
+    ...raw,
+    detectedLastModule: Number.isInteger(detected) && detected >= 1 ? detected : null
+  };
+}
+
+async function exportCachedModule(code, moduleNo) {
+  const normalized = String(code || "").trim().toUpperCase();
+  if (!/^[A-Z0-9_-]{3,32}$/.test(normalized)) throw new Error("Kode BMP tidak valid.");
+  if (!Number.isInteger(moduleNo) || moduleNo < 1 || moduleNo > 99) {
+    throw new Error("Nomor modul tidak valid.");
+  }
+  const out = await askOffscreen({
+    type: "OCR_EXPORT_CACHED_MODULE",
+    code: normalized,
+    module: moduleNo
+  });
+  if (!out?.ok) throw new Error(out?.error || `PDF Modul ${moduleNo} belum tersimpan.`);
+  await saveBlobUrl(
+    out.blobUrl,
+    `BMP Terbuka/${normalized}/${normalized}_M${moduleNo}_Searchable.pdf`
   );
 }
 
@@ -457,6 +550,79 @@ function hasAllModulesThrough(lastModule, completedModules) {
     if (!done.has(m)) return false;
   }
   return true;
+}
+
+function modulesInRange(firstModule, lastModule) {
+  const out = [];
+  for (let m = firstModule; m <= lastModule; m++) out.push(m);
+  return out;
+}
+
+function missingModulesInRange(firstModule, lastModule, completedModules) {
+  const done = new Set(normalizeModules(completedModules, 99));
+  return modulesInRange(firstModule, lastModule).filter(m => !done.has(m));
+}
+
+function effectiveLastModule(maxModule, detectedLastModule) {
+  return Number.isInteger(detectedLastModule) && detectedLastModule >= 1
+    ? Math.min(maxModule, detectedLastModule)
+    : maxModule;
+}
+
+function mergeTarget(state, detectedLastModule = null) {
+  const actualLast = Number.isInteger(detectedLastModule) && detectedLastModule >= 1
+    ? detectedLastModule
+    : null;
+  const first = Number(state.startModule);
+  const last = actualLast ? Math.min(Number(state.maxModule), actualLast) : Number(state.maxModule);
+  if (!Number.isInteger(first) || !Number.isInteger(last) || last < first) return null;
+  const full = Boolean(actualLast && first === 1 && Number(state.maxModule) >= actualLast);
+  return {first, last, full};
+}
+
+function formatModuleList(modules) {
+  return normalizeModules(modules, 99).map(m => `M${m}`).join(", ") || "-";
+}
+
+async function maybeBuildRequestedMerge(state, detectedLastModule = null) {
+  if (!state.mergeRequested) return {made: false, message: ""};
+  const target = mergeTarget(state, detectedLastModule);
+  if (!target) return {made: false, message: "PDF gabungan tidak dibuat karena rentang yang dipilih tidak tersedia."};
+  const missing = missingModulesInRange(target.first, target.last, state.completedModules || []);
+  if (missing.length) {
+    return {
+      made: false,
+      message: `PDF gabungan tidak dibuat karena ${missing.map(m => `Modul ${m}`).join(", ")} belum tersedia.`
+    };
+  }
+
+  await setState({
+    status: "BUILDING_MERGE",
+    progress: target.full
+      ? `Menggabungkan Modul 1–${target.last}...`
+      : `Menggabungkan Modul ${target.first}–${target.last}...`,
+    ocrProgress: ""
+  });
+  const filename = await buildMergedPdf(target.first, target.last, {full: target.full});
+  return {
+    made: true,
+    full: target.full,
+    first: target.first,
+    last: target.last,
+    filename,
+    message: target.full
+      ? `PDF gabungan FULL Modul 1–${target.last} dibuat.`
+      : `PDF gabungan Modul ${target.first}–${target.last} dibuat.`
+  };
+}
+
+function finalSummary(state, mergeMessage = "") {
+  const lines = [
+    `Diproses: ${formatModuleList(state.processedModules || [])}`,
+    `Dilewati: ${formatModuleList(state.skippedModules || [])}`
+  ];
+  if (mergeMessage) lines.push(mergeMessage);
+  return lines.join("\n");
 }
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -532,6 +698,45 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({ok: true});
       return;
     }
+    if (msg.type === "GET_CACHE_INFO") {
+      const code = String(msg.code || "").trim().toUpperCase();
+      if (!code) {
+        sendResponse({ok: true, modules: [], bytes: 0, totalBytes: 0, detectedLastModule: null});
+        return;
+      }
+      if (!/^[A-Z0-9_-]{3,32}$/.test(code)) {
+        sendResponse({ok: true, modules: [], bytes: 0, totalBytes: 0, detectedLastModule: null});
+        return;
+      }
+      sendResponse({ok: true, ...(await cacheInfo(code))});
+      return;
+    }
+    if (msg.type === "EXPORT_CACHED_MODULE") {
+      await requireAccess();
+      const code = String(msg.code || "").trim().toUpperCase();
+      const moduleNo = Number(msg.module);
+      await exportCachedModule(code, moduleNo);
+      sendResponse({ok: true});
+      return;
+    }
+    if (msg.type === "CLEAR_CACHE_CODE") {
+      await requireAccess();
+      const code = String(msg.code || "").trim().toUpperCase();
+      if (!/^[A-Z0-9_-]{3,32}$/.test(code)) throw new Error("Kode BMP tidak valid.");
+      const current = await getState();
+      if (current.running && current.code === code) {
+        throw new Error("Penyimpanan BMP yang sedang diproses tidak bisa dibersihkan.");
+      }
+      const out = await askOffscreen({type: "OCR_CLEAR_CODE", code});
+      if (!out?.ok) throw new Error(out?.error || "Penyimpanan lokal tidak dapat dibersihkan.");
+      await clearCodeMeta(code);
+      invalidateCacheInfo(code);
+      if (current.code === code) {
+        await setState({completedModules: [], detectedLastModule: null});
+      }
+      sendResponse({ok: true});
+      return;
+    }
     if (msg.type === "GET_STATE") {
       sendResponse({ok: true, state: await getState()});
       return;
@@ -553,72 +758,89 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         throw new Error("Rentang modul tidak valid.");
       }
 
+      const redownload = Boolean(msg.redownload);
+      const mergeRequested = Boolean(msg.mergeRequested);
+
       const probe = await askOffscreen({type: "OCR_ENGINE_PROBE"});
       if (!probe?.ok) throw new Error(probe?.error || "OCR lokal tidak siap.");
 
       const prepared = await askOffscreen({type: "OCR_PREPARE_JOB", code});
       if (!prepared?.ok) {
-        throw new Error(prepared?.error || "Cache lokal tidak dapat dibaca.");
+        throw new Error(prepared?.error || "Penyimpanan lokal tidak dapat dibaca.");
       }
 
-      const completedModules = normalizeModules(
-        prepared.cachedModules || [],
-        maxModule
-      );
-      const currentModule = firstMissingModule(
-        startModule,
-        maxModule,
-        completedModules
-      );
+      const meta = await getCodeMeta(code);
+      const detectedLastModule = Number(meta.detectedLastModule);
+      const knownLast = Number.isInteger(detectedLastModule) && detectedLastModule >= 1
+        ? detectedLastModule
+        : null;
+      const effectiveMaxModule = effectiveLastModule(maxModule, knownLast);
+      const allCachedModules = normalizeModules(prepared.cachedModules || [], 99);
+      const selectedCached = effectiveMaxModule >= startModule
+        ? allCachedModules.filter(m => m >= startModule && m <= effectiveMaxModule)
+        : [];
+      const forced = redownload ? new Set(selectedCached) : new Set();
+      const completedModules = allCachedModules.filter(m => !forced.has(m));
+      const skippedModules = redownload ? [] : selectedCached;
+      const currentModule = effectiveMaxModule >= startModule
+        ? firstMissingModule(startModule, effectiveMaxModule, completedModules)
+        : null;
 
-      await setState({
+      const nextState = await setState({
         running: true,
         tabId,
         code,
         startModule,
-        currentModule: currentModule ?? maxModule,
+        currentModule: currentModule ?? startModule,
         maxModule,
+        effectiveMaxModule,
         delayMs: 2500,
         maxPages: 500,
-        buildFull: true,
+        mergeRequested,
+        redownload,
         status: "STARTING",
         progress: currentModule == null
-          ? "Semua modul pada rentang ini sudah tersedia di cache lokal."
+          ? "Rentang yang dipilih sudah tersedia di penyimpanan lokal."
           : currentModule > startModule
-            ? `Melanjutkan dari Modul ${currentModule}; modul yang sudah selesai dilewati.`
-            : "Menyiapkan dokumen...",
+            ? `Melanjutkan dari Modul ${currentModule}; modul yang sudah tersimpan dilewati.`
+            : redownload
+              ? "Menyiapkan download ulang modul yang dipilih..."
+              : "Menyiapkan dokumen...",
         ocrProgress: "",
-        completedModules
+        completedModules,
+        cachedModulesAtStart: allCachedModules,
+        processedModules: [],
+        skippedModules,
+        detectedLastModule: knownLast,
+        mergeMessage: ""
       });
 
+      if (effectiveMaxModule < startModule) {
+        const message = knownLast
+          ? `Modul terakhir yang terdeteksi adalah M${knownLast}; rentang ini tidak perlu diproses.`
+          : "Tidak ada modul pada rentang ini yang dapat diproses.";
+        await setState({running: false, status: "DONE", progress: message, ocrProgress: ""});
+        sendResponse({ok: true, resumed: true, skippedModules: []});
+        return;
+      }
+
       if (currentModule == null) {
-        let finalMessage =
-          `Modul ${startModule}–${maxModule} sudah selesai sebelumnya; OCR tidak diulang.`;
-        if (hasAllModulesThrough(maxModule, completedModules)) {
-          await setState({
-            status: "BUILDING_FULL",
-            progress: `Menggabungkan Modul 1–${maxModule} dari cache lokal...`,
-            ocrProgress: ""
-          });
-          try {
-            await buildFull(maxModule, false);
-            finalMessage =
-              `Selesai. Modul yang sudah ada dilewati dan PDF gabungan Modul 1–${maxModule} dibuat dari cache lokal.`;
-          } catch (e) {
-            finalMessage =
-              `Modul sudah ada di cache, tetapi PDF gabungan gagal: ${String(e)}`;
-          }
-        } else {
-          finalMessage +=
-            " PDF gabungan belum dibuat karena cache Modul 1 sampai modul terakhir belum lengkap.";
+        let mergeMessage = "";
+        try {
+          const merged = await maybeBuildRequestedMerge(nextState, knownLast);
+          mergeMessage = merged.message;
+        } catch (e) {
+          mergeMessage = `PDF gabungan gagal: ${String(e?.message || e)}`;
         }
+        const finalState = {...nextState, mergeMessage};
         await setState({
           running: false,
           status: "DONE",
-          progress: finalMessage,
+          progress: finalSummary(finalState, mergeMessage),
+          mergeMessage,
           ocrProgress: ""
         });
-        sendResponse({ok: true, resumed: true, skippedModules: completedModules});
+        sendResponse({ok: true, resumed: true, skippedModules});
         return;
       }
 
@@ -626,10 +848,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       await navigateCurrentModule();
       sendResponse({
         ok: true,
-        resumed: currentModule > startModule,
-        skippedModules: completedModules.filter(
-          m => m >= startModule && m < currentModule
-        )
+        resumed: !redownload && currentModule > startModule,
+        skippedModules
       });
       return;
     }
@@ -706,54 +926,52 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
         const completed = normalizeModules(
           [...(state.completedModules || []), mod],
-          state.maxModule
+          99
+        );
+        const processed = normalizeModules(
+          [...(state.processedModules || []), mod],
+          99
         );
         const nextModule = firstMissingModule(
           mod + 1,
-          state.maxModule,
+          Number(state.effectiveMaxModule || state.maxModule),
           completed
         );
 
         if (nextModule == null) {
-          let finalMessage = `Modul ${mod} selesai.`;
-          if (hasAllModulesThrough(state.maxModule, completed)) {
-            await setState({
-              status: "BUILDING_FULL",
-              progress: `Menggabungkan Modul 1–${state.maxModule} dari cache lokal...`,
-              completedModules: completed,
-              ocrProgress: ""
-            });
-            try {
-              await buildFull(state.maxModule, false);
-              finalMessage =
-                `Selesai. PDF gabungan Modul 1–${state.maxModule} sudah dibuat.`;
-            } catch (e) {
-              finalMessage =
-                `PDF per modul selesai, tetapi PDF gabungan gagal: ${String(e)}`;
-            }
-          } else {
-            finalMessage +=
-              " PDF gabungan belum dibuat karena cache modul sebelumnya belum lengkap.";
+          const readyState = {...state, completedModules: completed, processedModules: processed};
+          let mergeMessage = "";
+          try {
+            const merged = await maybeBuildRequestedMerge(
+              readyState,
+              Number.isInteger(Number(state.detectedLastModule))
+                ? Number(state.detectedLastModule)
+                : null
+            );
+            mergeMessage = merged.message;
+          } catch (e) {
+            mergeMessage = `PDF gabungan gagal: ${String(e?.message || e)}`;
           }
+          const finalState = {...readyState, mergeMessage};
           await setState({
             running: false,
             completedModules: completed,
+            processedModules: processed,
             status: "DONE",
-            progress: finalMessage,
+            progress: finalSummary(finalState, mergeMessage),
+            mergeMessage,
             ocrProgress: ""
           });
           sendResponse({ok: true});
           return;
         }
 
-        const skipped = nextModule - mod - 1;
         await setState({
           completedModules: completed,
+          processedModules: processed,
           currentModule: nextModule,
           status: `M${mod}_PDF_READY`,
-          progress: skipped > 0
-            ? `PDF Modul ${mod} siap. ${skipped} modul yang sudah selesai dilewati; membuka Modul ${nextModule}...`
-            : `PDF Modul ${mod} siap. Membuka Modul ${nextModule}...`,
+          progress: `PDF Modul ${mod} siap. Membuka Modul ${nextModule}...`,
           ocrProgress: ""
         });
         setTimeout(navigateCurrentModule, Math.max(1000, state.delayMs));
@@ -762,34 +980,63 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
 
       if (msg.result === "missing_module") {
-        const lastMod = mod - 1;
-        const completed = normalizeModules(
-          state.completedModules || [],
-          Math.max(lastMod, 1)
-        );
-        let extra = "";
-        if (lastMod >= 1 && hasAllModulesThrough(lastMod, completed)) {
+        const completed = normalizeModules(state.completedModules || [], 99);
+        const knownLast = Number(state.detectedLastModule);
+        const cachedAtStart = normalizeModules(state.cachedModulesAtStart || [], 99);
+        const hasHigherEvidence = completed.some(m => m > mod) ||
+          cachedAtStart.some(m => m > mod) ||
+          (Number.isInteger(knownLast) && knownLast > mod);
+
+        if (hasHigherEvidence) {
+          const gapMessage = state.mergeRequested
+            ? `PDF gabungan tidak dibuat karena Modul ${mod} belum tersedia.`
+            : `Modul ${mod} belum tersedia.`;
+          const stopped = {...state, completedModules: completed};
           await setState({
-            status: "BUILDING_FULL",
-            progress: `Modul ${mod} tidak tersedia. Menggabungkan Modul 1–${lastMod} dari cache lokal...`,
-            completedModules: completed,
+            running: false,
+            status: "MISSING_GAP",
+            progress: `${gapMessage}\n${finalSummary(stopped)}`,
+            mergeMessage: state.mergeRequested ? gapMessage : "",
             ocrProgress: ""
           });
-          try {
-            await buildFull(lastMod, true);
-            extra = ` PDF gabungan kandidat Modul 1–${lastMod} dibuat dari cache lokal.`;
-          } catch (e) {
-            extra = ` PDF gabungan kandidat gagal: ${String(e)}`;
-          }
-        } else if (lastMod >= 1) {
-          extra =
-            " PDF gabungan tidak dibuat karena cache modul sebelumnya belum lengkap.";
+          sendResponse({ok: true});
+          return;
         }
+
+        const lastMod = mod - 1;
+        if (lastMod >= 1) await setDetectedLastModule(state.code, lastMod);
+        const detectedLastModule = lastMod >= 1 ? lastMod : null;
+        const readyState = {
+          ...state,
+          completedModules: completed,
+          detectedLastModule,
+          effectiveMaxModule: lastMod >= 1
+            ? Math.min(Number(state.maxModule), lastMod)
+            : 0
+        };
+
+        let mergeMessage = "";
+        if (state.mergeRequested && lastMod >= 1) {
+          try {
+            const merged = await maybeBuildRequestedMerge(readyState, lastMod);
+            mergeMessage = merged.message;
+          } catch (e) {
+            mergeMessage = `PDF gabungan gagal: ${String(e?.message || e)}`;
+          }
+        }
+
+        const detectedText = lastMod >= 1
+          ? `Modul terakhir terdeteksi: M${lastMod}.`
+          : "Modul 1 tidak tersedia.";
+        const summary = finalSummary(readyState, mergeMessage);
         await setState({
           running: false,
           completedModules: completed,
+          detectedLastModule,
+          effectiveMaxModule: readyState.effectiveMaxModule,
           status: "END_CANDIDATE",
-          progress: `Modul ${mod} tidak tersedia. Kandidat modul terakhir: ${lastMod}.${extra}`,
+          progress: `${detectedText}${summary ? `\n${summary}` : ""}`,
+          mergeMessage,
           ocrProgress: ""
         });
         sendResponse({ok: true});
