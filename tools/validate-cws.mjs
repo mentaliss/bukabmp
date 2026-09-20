@@ -29,6 +29,13 @@ if(!fs.existsSync(packageDir))fail(`Package build not found: ${packageDir}`);
 const manifest=JSON.parse(fs.readFileSync(mustFile("manifest.json"),"utf8"));
 if(manifest.manifest_version!==3)fail("Manifest must use Manifest V3.");
 if(manifest.update_url)fail("Store/manual package must not set update_url.");
+if(manifest.default_locale!=="id")fail('Manifest default_locale must be "id".');
+if(manifest.name!=="__MSG_extensionName__"||manifest.description!=="__MSG_extensionDescription__"){
+  fail("Manifest name/description must use i18n message keys.");
+}
+const localeMessages=JSON.parse(fs.readFileSync(mustFile("_locales/id/messages.json"),"utf8"));
+if(localeMessages?.extensionName?.message!=="BMP Terbuka")fail("Indonesian extension name mismatch.");
+if(!String(localeMessages?.extensionDescription?.message||"").trim())fail("Indonesian extension description missing.");
 
 const permissions=new Set(manifest.permissions||[]);
 for(const required of ["storage","downloads","offscreen","clipboardWrite"]){
