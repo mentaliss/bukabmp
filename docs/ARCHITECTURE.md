@@ -1,27 +1,42 @@
 # Extension Architecture
 
-Dokumen ini hanya menjelaskan architecture **client extension yang open-source**.
+Dokumen ini menjelaskan architecture **client extension BMP Terbuka** dan batas antara code yang direview store dengan service eksternal.
 
 ```text
-Chrome
+Chrome / Chromium
   │
   ├── authenticated reader tab
   │     └── content.js
-  │           └── membaca konteks halaman dan mengambil resource yang dapat diakses user
+  │           └── membaca konteks halaman dan resource yang sudah dapat diakses user
   │
   ├── background.js
   │     ├── job/state orchestration
   │     ├── safe-stop handling
-  │     └── activation API client
+  │     ├── activation API client
+  │     └── distribution-aware version policy
   │
   ├── offscreen document
-  │     ├── Tesseract.js/WASM (bundled in release)
-  │     ├── Indonesian traineddata (bundled in release)
-  │     └── pdf-lib (bundled in release)
+  │     ├── Tesseract.js/WASM (bundled)
+  │     ├── Indonesian traineddata (bundled)
+  │     ├── pdf-lib (bundled)
+  │     └── IndexedDB PDF cache
   │
-  └── Chrome Downloads
-        └── searchable PDF
+  ├── Chrome Downloads
+  │     └── exported searchable PDF
+  │
+  └── Cloudflare Worker
+        ├── activation/version data
+        └── approved cloud state/content only
 ```
+
+## Shared source, separate distribution profiles
+
+Satu source client digunakan untuk beberapa jalur distribusi:
+- `github`: manual desktop release;
+- `cws`: Chrome Web Store package;
+- `android`: existing signed CRX path.
+
+CWS build dihasilkan dari source yang sama, tetapi menggunakan package profile sendiri. Build CWS menghapus broad `tabs` permission sementara build GitHub/Android mempertahankan baseline v1.0.5 sampai regression test membuktikan perubahan shared aman.
 
 ## Trust boundaries
 
@@ -34,7 +49,29 @@ Halaman, OCR, dan PDF diproses lokal oleh extension/offscreen document. Activati
 ### Community activation
 Extension membuat pairing melalui API eksternal, menerima signed activation token, lalu memverifikasi signature token secara lokal menggunakan public key yang terdapat di client.
 
-Implementation, hosting, deployment, dan secret management activation service berada di luar scope repository ini.
+Implementation, hosting, deployment, secret management, dan retention activation service berada di luar repository client publik.
+
+### Executable code
+Semua JavaScript/WASM/model OCR yang diperlukan runtime harus berada di package extension. Dependency boleh diambil saat build, tetapi package end-user tidak boleh bergantung pada JavaScript/WASM executable yang di-host remote.
+
+## Cloud Surface boundary
+
+Mental model:
+
+```text
+CLOUD CONTROLS STATE AND CONTENT.
+STORE PACKAGE CONTROLS EXECUTABLE CODE.
+```
+
+Cloud Surface hanya boleh mengontrol value yang lolos schema allowlist, misalnya boolean, teks, label, tanggal, HTTPS URL, dan feature flags untuk code path yang sudah dikirim di package. Remote JavaScript, arbitrary HTML execution, remote WASM, command strings yang diinterpretasikan sebagai code, dan downloaded functionality dilarang.
+
+Schema kandidat didokumentasikan di `docs/CLOUD_SURFACE.md`.
+
+## Update model
+
+Build `cws` mengirim distribution channel ke version API. Remote minimum-version policy tidak boleh memblokir build CWS sampai backend memberi `store_ready=true` untuk versi yang benar-benar tersedia melalui Store. Package update CWS tetap dikelola Chrome Web Store/browser.
+
+Build `github` dan `android` mempertahankan jalur manual yang sudah ada.
 
 ## Failure behavior
 
