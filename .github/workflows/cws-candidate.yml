@@ -1,0 +1,61 @@
+name: CWS Candidate
+
+on:
+  push:
+    branches:
+      - "cws-candidate"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-cws:
+    runs-on: ubuntu-latest
+    env:
+      BMP_API_BASE_URL: https://community.bukabmp.workers.dev
+      BMP_TELEGRAM_CHANNEL_URL: https://t.me/bukabmp
+      BMP_TELEGRAM_GROUP_URL: https://t.me/+0pAg9ymEhWdkZmNl
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate shared source
+        run: npm run validate
+
+      - name: Build CWS package
+        run: npm run build:cws
+
+      - name: Validate CWS package
+        run: npm run validate:cws
+
+      - name: Create flat-root CWS ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./extension/manifest.json').version")
+          PKG="dist/cws/BMP-Terbuka-v${VERSION}"
+          ZIP="dist/BMP-Terbuka-v${VERSION}-CWS.zip"
+
+          (
+            cd "${PKG}"
+            zip -qr "../../BMP-Terbuka-v${VERSION}-CWS.zip" .
+          )
+
+          test "$(unzip -Z1 "${ZIP}" | grep -xc 'manifest.json')" -eq 1
+          test "$(unzip -Z1 "${ZIP}" | grep -xc 'background.js')" -eq 1
+          unzip -t "${ZIP}"
+          sha256sum "${ZIP}" > "${ZIP}.sha256"
+
+      - name: Upload CWS candidate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bmp-terbuka-cws-candidate
+          path: |
+            dist/BMP-Terbuka-v*-CWS.zip
+            dist/BMP-Terbuka-v*-CWS.zip.sha256
+          if-no-files-found: error
