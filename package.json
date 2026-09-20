@@ -1,7 +1,7 @@
 {
   "name": "bukabmp-extension",
   "private": true,
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Open-source Chrome extension and release tooling for BMP Terbuka.",
   "scripts": {
     "validate": "node tools/validate.mjs && npm run test:cloud",
