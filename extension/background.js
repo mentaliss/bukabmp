@@ -193,6 +193,11 @@ async function api(path, options = {}) {
   return data;
 }
 
+function distributionChannel() {
+  const value = String(CFG?.DISTRIBUTION_CHANNEL || "github").toLowerCase();
+  return ["github", "cws", "android"].includes(value) ? value : "github";
+}
+
 function versionParts(value) {
   return String(value || "")
     .split(".")
@@ -215,14 +220,21 @@ function compareVersions(a, b) {
 }
 
 function applyVersionDecision(policy, currentVersion, now = Date.now()) {
-  const latestVersion = String(policy?.latestVersion || currentVersion);
-  const minimumVersion = String(policy?.minimumVersion || "");
+  const channel = String(policy?.channel || distributionChannel());
+  const reportedLatestVersion = String(policy?.latestVersion || currentVersion);
+  const reportedMinimumVersion = String(policy?.minimumVersion || "");
+  const storeReady = policy?.storeReady === true;
+  const mayEnforceRemoteVersion = channel !== "cws" || storeReady;
+  const latestVersion = mayEnforceRemoteVersion ? reportedLatestVersion : currentVersion;
+  const minimumVersion = mayEnforceRemoteVersion ? reportedMinimumVersion : "";
   const rawForceAfter = policy?.forceAfter;
   const parsedForceAfter = rawForceAfter
     ? (typeof rawForceAfter === "number" ? rawForceAfter : Date.parse(rawForceAfter))
     : null;
   return {
     ...(policy || {}),
+    channel,
+    storeReady,
     currentVersion,
     latestVersion,
     minimumVersion,
@@ -247,15 +259,18 @@ async function versionStatus({force = false} = {}) {
   }
 
   try {
+    const channel = distributionChannel();
     const data = await api(
-      `/v1/version?extension_version=${encodeURIComponent(currentVersion)}`,
+      `/v1/version?extension_version=${encodeURIComponent(currentVersion)}&distribution_channel=${encodeURIComponent(channel)}`,
       {method: "GET"}
     );
     const policy = applyVersionDecision({
+      channel,
+      storeReady: data.store_ready === true,
       latestVersion: String(data.latest_version || currentVersion),
       minimumVersion: String(data.minimum_version || ""),
       forceAfter: data.force_after || null,
-      releaseUrl: String(data.release_url || CFG.TELEGRAM_CHANNEL_URL || ""),
+      releaseUrl: String(data.release_url || ""),
       message: String(data.message || ""),
       lastAttemptAt: now,
       lastSuccessAt: now,
@@ -693,9 +708,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     if (msg.type === "OPEN_UPDATE") {
       const policy = await versionStatus();
-      const url = policy?.releaseUrl || CFG.TELEGRAM_CHANNEL_URL;
-      await chrome.tabs.create({url});
-      sendResponse({ok: true});
+      const url = String(policy?.releaseUrl || "");
+      if (!url && distributionChannel() === "cws") {
+        sendResponse({ok: true, managedByStore: true});
+        return;
+      }
+      await chrome.tabs.create({url: url || CFG.TELEGRAM_CHANNEL_URL});
+      sendResponse({ok: true, managedByStore: false});
       return;
     }
     if (msg.type === "GET_CACHE_INFO") {
