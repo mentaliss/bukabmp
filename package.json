@@ -4,11 +4,17 @@
   "version": "1.0.5",
   "description": "Open-source Chrome extension and release tooling for BMP Terbuka.",
   "scripts": {
-    "validate": "node tools/validate.mjs",
+    "validate": "node tools/validate.mjs && npm run test:cloud",
     "build": "node tools/build-release.mjs",
     "build:release": "node tools/build-release.mjs --strict",
     "build:cws": "node tools/build-release.mjs --strict --channel=cws",
-    "validate:cws": "node tools/validate-cws.mjs"
+    "validate:cws": "node tools/validate-cws.mjs --channel=cws",
+    "build:android": "node tools/build-release.mjs --strict --channel=android",
+    "build:edge": "node tools/build-release.mjs --strict --channel=edge",
+    "validate:github": "node tools/validate-cws.mjs --channel=github",
+    "validate:edge": "node tools/validate-cws.mjs --channel=edge",
+    "validate:android": "node tools/validate-cws.mjs --channel=android",
+    "test:cloud": "node tests/cloud-surface.test.mjs"
   },
   "engines": {
     "node": ">=20"
