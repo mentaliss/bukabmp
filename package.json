@@ -6,7 +6,9 @@
   "scripts": {
     "validate": "node tools/validate.mjs",
     "build": "node tools/build-release.mjs",
-    "build:release": "node tools/build-release.mjs --strict"
+    "build:release": "node tools/build-release.mjs --strict",
+    "build:cws": "node tools/build-release.mjs --strict --channel=cws",
+    "validate:cws": "node tools/validate-cws.mjs"
   },
   "engines": {
     "node": ">=20"
