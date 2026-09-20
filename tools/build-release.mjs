@@ -14,10 +14,12 @@ const channelArg = process.argv.find(x => x.startsWith("--channel="));
 const channel = String(
   channelArg ? channelArg.slice("--channel=".length) : (process.env.BMP_DISTRIBUTION_CHANNEL || "github")
 ).toLowerCase();
-const allowedChannels = new Set(["github", "cws", "android"]);
+const allowedChannels = new Set(["github", "cws", "edge", "android"]);
+const storeChannels = new Set(["cws", "edge"]);
 if (!allowedChannels.has(channel)) throw new Error(`Unknown distribution channel: ${channel}`);
 
 const TESSDATA_FAST_COMMIT = "87416418657359cb625c412a48b6e1d6d41c29bd";
+const TESSDATA_FAST_SHA256 = "69786901da87ab8766c1ea7fbb10b28f2110c14da3f6c8f2735df131fba95d88";
 
 function mkdir(p){ fs.mkdirSync(p,{recursive:true}); }
 function rm(p){ fs.rmSync(p,{recursive:true,force:true}); }
@@ -37,17 +39,26 @@ async function fetchBytes(url){
   if(!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
   return Buffer.from(await r.arrayBuffer());
 }
-async function ensure(url,target,minBytes=1000){
+async function ensure(url,target,minBytes=1000,expectedSha256=""){
   mkdir(path.dirname(target));
-  if(fs.existsSync(target) && fs.statSync(target).size>=minBytes) return;
+  if(fs.existsSync(target) && fs.statSync(target).size>=minBytes){
+    if(!expectedSha256 || sha256File(target)===expectedSha256) return;
+    fs.rmSync(target,{force:true});
+  }
   const buf=await fetchBytes(url);
   if(buf.length<minBytes) throw new Error(`File terlalu kecil: ${url} (${buf.length})`);
+  if(expectedSha256){
+    const actual=crypto.createHash("sha256").update(buf).digest("hex");
+    if(actual!==expectedSha256){
+      throw new Error(`SHA-256 mismatch: ${url}\nexpected=${expectedSha256}\nactual=${actual}`);
+    }
+  }
   fs.writeFileSync(target,buf);
 }
 
 const manifest=JSON.parse(fs.readFileSync(path.join(EXT_SRC,"manifest.json"),"utf8"));
 const version=manifest.version;
-const outBase=channel==="cws" ? path.join(DIST,"cws") : DIST;
+const outBase=storeChannels.has(channel) ? path.join(DIST,channel) : DIST;
 const out=path.join(outBase,`BMP-Terbuka-v${version}`);
 
 rm(out);
@@ -56,7 +67,7 @@ copyDir(EXT_SRC,out);
 
 // CWS gets a minimum-permission manifest without changing the shared source manifest.
 // The GitHub/manual and Android packages keep their existing permission profile.
-if(channel==="cws"){
+if(storeChannels.has(channel)){
   const manifestPath=path.join(out,"manifest.json");
   const cwsManifest=JSON.parse(fs.readFileSync(manifestPath,"utf8"));
   cwsManifest.permissions=(cwsManifest.permissions||[]).filter(p=>p!=="tabs");
@@ -84,21 +95,21 @@ fs.rmSync(path.join(out,"config.template.js"),{force:true});
 
 // Runtime vendor: fetched only at build time. End-user release is self-contained.
 const assets=[
-  ["https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js","tesseract.min.js",30000],
-  ["https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/worker.min.js","worker.min.js",50000],
-  ["https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js","pdf-lib.min.js",100000],
-  ["https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/tesseract-core.wasm.js","core/tesseract-core.wasm.js",1000000],
-  ["https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/tesseract-core-simd.wasm.js","core/tesseract-core-simd.wasm.js",1000000],
-  ["https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/tesseract-core-lstm.wasm.js","core/tesseract-core-lstm.wasm.js",1000000],
-  ["https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/tesseract-core-simd-lstm.wasm.js","core/tesseract-core-simd-lstm.wasm.js",1000000],
-  ["https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/LICENSE.md","licenses/LICENSE-tesseract-js.md",5000],
-  ["https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/LICENSE","licenses/LICENSE-tesseract-core.txt",5000],
-  ["https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/LICENSE.md","licenses/LICENSE-pdf-lib.md",500]
+  ["https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js","tesseract.min.js",30000,"10fff78484067759c43028a02a72d76d0b90eb17302bb23b58a9ec5410bc928b"],
+  ["https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/worker.min.js","worker.min.js",50000,"38645599043239c0eb6db08a6504a92dcdc292200535f3e9339cd77c4443b842"],
+  ["https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js","pdf-lib.min.js",100000,"0f9a5cad07941f0826586c94e089d89b918c46e5c17cf2d5a3c6f666e3bc694f"],
+  ["https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/tesseract-core.wasm.js","core/tesseract-core.wasm.js",1000000,"e66872f6a76f5ad414d73d21512245df0de3060ad4871a97c47efceaab27b955"],
+  ["https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/tesseract-core-simd.wasm.js","core/tesseract-core-simd.wasm.js",1000000,"3b0678c47a8dea6abb931b214171c08b742a5b9a9fcbbb1a028a08d5de6e9d4c"],
+  ["https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/tesseract-core-lstm.wasm.js","core/tesseract-core-lstm.wasm.js",1000000,"775a35df6f2ae100e02609443e6bd5cafcd07983dd6175454ca4a432a7730687"],
+  ["https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/tesseract-core-simd-lstm.wasm.js","core/tesseract-core-simd-lstm.wasm.js",1000000,"9d7c43fb206dc9f48475228b46bf35f888fa9e6259da2e67d5a75c77049f2dc7"],
+  ["https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/LICENSE.md","licenses/LICENSE-tesseract-js.md",5000,"b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"],
+  ["https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/LICENSE","licenses/LICENSE-tesseract-core.txt",5000,"c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"],
+  ["https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/LICENSE.md","licenses/LICENSE-pdf-lib.md",500,"f2c9fc00fdb66eb99ac156ba52d734af66d8d309f65753ae809ad34ee2883bcb"]
 ];
 
-for(const [url,rel,min] of assets){
+for(const [url,rel,min,expectedSha256] of assets){
   const cached=path.join(CACHE,rel);
-  await ensure(url,cached,min);
+  await ensure(url,cached,min,expectedSha256);
   const dest=path.join(out,"vendor",rel);
   mkdir(path.dirname(dest));
   fs.copyFileSync(cached,dest);
@@ -109,7 +120,8 @@ const trainedRaw=path.join(CACHE,"lang",`ind-${TESSDATA_FAST_COMMIT}.traineddata
 await ensure(
   `https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/${TESSDATA_FAST_COMMIT}/ind.traineddata`,
   trainedRaw,
-  1000000
+  1000000,
+  TESSDATA_FAST_SHA256
 );
 const langDest=path.join(out,"vendor","lang","ind.traineddata.gz");
 mkdir(path.dirname(langDest));
