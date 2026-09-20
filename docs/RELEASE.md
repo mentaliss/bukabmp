@@ -42,9 +42,9 @@ Output tetap kompatibel dengan pipeline v1.0.5:
 dist/BMP-Terbuka-v<VERSION>/
 ```
 
-## Chrome Web Store candidate
+## Store candidates
 
-Build:
+Chrome Web Store:
 
 ```bash
 BMP_API_BASE_URL="https://community.bukabmp.workers.dev" \
@@ -60,12 +60,29 @@ Output:
 dist/cws/BMP-Terbuka-v<VERSION>/
 ```
 
-The CWS build:
-- sets `DISTRIBUTION_CHANNEL="cws"`;
-- removes broad `tabs` permission from the packaged manifest;
-- keeps the shared runtime source unchanged;
-- bundles OCR/PDF dependencies locally;
-- pins Indonesian tessdata to an immutable upstream commit.
+Microsoft Edge Add-ons:
+
+```bash
+BMP_API_BASE_URL="https://community.bukabmp.workers.dev" \
+BMP_TELEGRAM_CHANNEL_URL="https://t.me/bukabmp" \
+BMP_TELEGRAM_GROUP_URL="https://t.me/..." \
+npm run build:edge
+npm run validate:edge
+```
+
+Output:
+
+```text
+dist/edge/BMP-Terbuka-v<VERSION>/
+```
+
+Store builds:
+- set channel to `cws` or `edge`;
+- remove broad `tabs` permission from the packaged manifest;
+- keep the shared runtime source unchanged;
+- bundle OCR/PDF dependencies locally;
+- verify every fetched vendor against known-good SHA-256;
+- pin Indonesian tessdata to an immutable upstream commit and digest.
 
 For Store upload, zip the **contents** of that directory so `manifest.json` is at ZIP root:
 
@@ -77,7 +94,7 @@ VERSION=$(node -p "require('./extension/manifest.json').version")
 )
 ```
 
-The `CWS Candidate` GitHub Actions workflow performs this build, validation, flat-root ZIP packaging, checksum generation, and artifact upload automatically on the `cws-candidate` branch.
+The `Store and Compatibility Candidate` GitHub Actions workflow automatically validates source, builds and validates `github`, `android`, `cws`, and `edge` profiles, creates flat-root CWS/Edge ZIPs, generates checksums, and uploads both Store artifacts.
 
 ## GitHub release
 
@@ -88,7 +105,7 @@ Existing GitHub release behavior remains:
 4. builds the self-contained manual package;
 5. creates ZIP/checksum and GitHub Release.
 
-CWS candidate work must not change the Android signing key or require the CWS extension ID to match the existing Android CRX ID.
+Store candidate work must not change the Android signing key or require CWS/Edge Store IDs to match the existing Android CRX ID. The public repository does not contain the private Android signing pipeline/key, so CI proves source/package compatibility only; signed-CRX regression remains an external controlled step.
 
 ## Manual smoke test
 
@@ -106,4 +123,4 @@ Before distribution:
 - Worker outage fails safely;
 - runtime OCR does not load executable code from CDN.
 
-CWS additionally requires clean-install testing and reviewer activation instructions.
+CWS and Edge additionally require clean-install testing and reviewer activation instructions. Automated CI does not substitute for a real authenticated RBV/browser regression.
