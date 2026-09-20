@@ -173,6 +173,7 @@ async function addOcrPage(code, moduleNo, pageNo, dataUrl) {
   const pagePdf = await PDFLib.PDFDocument.load(new Uint8Array(res.data.pdf));
   const copied = await currentPdf.copyPages(pagePdf, pagePdf.getPageIndices());
   copied.forEach(p => currentPdf.addPage(p));
+  return String(res?.data?.text || "").trim();
 }
 
 async function finishModule(code, moduleNo, pages) {
@@ -238,6 +239,48 @@ async function buildFull(code, lastModule) {
   return await buildRange(code, 1, lastModule);
 }
 
+function reviewerSampleDataUrl() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1400;
+  canvas.height = 900;
+  const ctx = canvas.getContext("2d", {alpha: false});
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#111111";
+  ctx.textBaseline = "top";
+  ctx.font = "700 60px Arial, sans-serif";
+  ctx.fillText("BMP Terbuka — Store Review Sample", 90, 100);
+  ctx.font = "46px Arial, sans-serif";
+  const lines = [
+    "OCR berjalan sepenuhnya di perangkat pengguna.",
+    "Halaman sampel ini dibundel di dalam extension.",
+    "Tidak ada dokumen, password, cookie, atau sesi sumber yang dikirim.",
+    "Hasil pengujian adalah PDF yang dapat dicari."
+  ];
+  lines.forEach((line, index) => ctx.fillText(line, 90, 240 + index * 105));
+  ctx.font = "32px Arial, sans-serif";
+  ctx.fillText("Review fixture • bukan materi BMP asli", 90, 720);
+  return canvas.toDataURL("image/png");
+}
+
+async function runReviewerSample() {
+  const code = "REVIEW";
+  const moduleNo = 1;
+  currentModuleKey = null;
+  currentPdf = null;
+  try {
+    const text = await addOcrPage(code, moduleNo, 1, reviewerSampleDataUrl());
+    const blobUrl = await finishModule(code, moduleNo, 1);
+    await dbClearCode(code);
+    return {blobUrl, text};
+  } catch (e) {
+    currentModuleKey = null;
+    currentPdf = null;
+    await dbClearCode(code).catch(() => {});
+    throw e;
+  }
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.target !== "offscreen") return;
 
@@ -245,6 +288,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === "OCR_ENGINE_PROBE") {
       assertLibraries();
       sendResponse({ok: true});
+      return;
+    }
+    if (msg.type === "OCR_REVIEW_SAMPLE") {
+      assertLibraries();
+      const out = await runReviewerSample();
+      sendResponse({ok: true, ...out});
       return;
     }
     if (msg.type === "OCR_PREPARE_JOB") {
