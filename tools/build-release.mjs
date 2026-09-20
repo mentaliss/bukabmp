@@ -123,9 +123,29 @@ await ensure(
   1000000,
   TESSDATA_FAST_SHA256
 );
-const langDest=path.join(out,"vendor","lang","ind.traineddata.gz");
+const edgeUncompressedTessdata = channel === "edge";
+const langDest=path.join(
+  out,
+  "vendor",
+  "lang",
+  edgeUncompressedTessdata ? "ind.traineddata" : "ind.traineddata.gz"
+);
 mkdir(path.dirname(langDest));
-fs.writeFileSync(langDest,zlib.gzipSync(fs.readFileSync(trainedRaw),{level:9}));
+fs.writeFileSync(
+  langDest,
+  edgeUncompressedTessdata
+    ? fs.readFileSync(trainedRaw)
+    : zlib.gzipSync(fs.readFileSync(trainedRaw),{level:9})
+);
+
+if(edgeUncompressedTessdata){
+  const offscreenPath=path.join(out,"offscreen.js");
+  const offscreen=fs.readFileSync(offscreenPath,"utf8");
+  if(!offscreen.includes("gzip: true")){
+    throw new Error("Expected Tesseract gzip:true setting missing from offscreen.js");
+  }
+  fs.writeFileSync(offscreenPath,offscreen.replace("gzip: true","gzip: false"));
+}
 
 // Provenance manifest for bundled third-party files.
 const vendorFiles=[];
@@ -153,6 +173,7 @@ fs.writeFileSync(
     tessdata_repository:"tesseract-ocr/tessdata_fast",
     tessdata_commit:TESSDATA_FAST_COMMIT,
     tessdata_language:"ind",
+    tessdata_compression:edgeUncompressedTessdata ? "none" : "gzip",
     files:vendorFiles
   },null,2)+"\n"
 );
