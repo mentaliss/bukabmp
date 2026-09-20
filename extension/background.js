@@ -5,7 +5,7 @@ const CLOUD = self.BMP_CLOUD_SURFACE;
 const SOURCE_ROOT = "https://pustaka.ut.ac.id";
 const VERSION_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const CLOUD_FAILURE_BACKOFF_MS = 5 * 60 * 1000;
-const CLOUD_CACHE_KEY = "bmpCloudStateCacheV2";
+const CLOUD_CACHE_KEY = "bmpCloudStateCacheV3";
 const DEFAULT_STATE = {
   running: false,
   tabId: null,
@@ -245,17 +245,19 @@ async function cloudState({force = false} = {}) {
     await chrome.storage.local.set({[CLOUD_CACHE_KEY]: cache});
     return {...state, cached: false, unavailable: false};
   } catch (e) {
-    const state = CLOUD.defaultState();
+    const cachedState = cached?.state?.schemaVersion === 1 ? cached.state : null;
+    const hasLastGood = Boolean(cachedState && Number(cached?.lastSuccessAt || 0) > 0);
+    const state = hasLastGood ? cachedState : CLOUD.defaultState();
     const cache = {
       state,
       unavailable: true,
       lastAttemptAt: now,
       lastSuccessAt: Number(cached?.lastSuccessAt || 0),
-      expiresAt: now + CLOUD_FAILURE_BACKOFF_MS,
+      expiresAt: now + (hasLastGood ? 60_000 : CLOUD_FAILURE_BACKOFF_MS),
       error: String(e?.message || e)
     };
     await chrome.storage.local.set({[CLOUD_CACHE_KEY]: cache});
-    return {...state, cached: false, unavailable: true};
+    return {...state, cached: hasLastGood, unavailable: true};
   }
 }
 
