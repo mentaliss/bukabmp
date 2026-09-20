@@ -1,6 +1,6 @@
 # Microsoft Edge Add-ons Submission Pack — Candidate
 
-Status: **candidate preparation**, not proof of Microsoft certification.
+Status: **submission-ready package preparation**, not proof of Microsoft certification. Initial publication target: **Hidden**.
 
 ## Distribution
 
@@ -50,11 +50,19 @@ Broad `tabs` is removed only from Store package output. The narrow reader/API ho
 
 ## Reviewer/certification access
 
-Same backend blocker as CWS:
-- deterministic temporary reviewer activation;
-- normal signed-token flow;
-- no hard-coded public bypass;
-- reviewer secret only in private Partner Center instructions.
+The client now includes a reviewer-only local OCR fixture. It is exposed only when the normal signed activation token contains the `store_review` scope.
+
+Backend Store-control V11 candidate provides:
+- a temporary reviewer activation page at `/review`;
+- private server-side reviewer secret;
+- installation-bound RS256 token issuance;
+- 24-hour reviewer token;
+- rate-limited reviewer attempts;
+- no public hard-coded bypass.
+
+The Worker candidate must be deployed and smoke-tested before Partner Center submission. The private reviewer secret belongs only in Partner Center certification notes, never in this repository.
+
+Exact fields and reviewer instructions are frozen in `docs/EDGE_PARTNER_CENTER_FIELDS.md`.
 
 ## Required real-device regression before submission
 
