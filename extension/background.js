@@ -1,8 +1,10 @@
-importScripts("config.js");
+importScripts("config.js", "cloud-surface.js");
 
 const CFG = self.BMP_CONFIG;
+const CLOUD = self.BMP_CLOUD_SURFACE;
 const SOURCE_ROOT = "https://pustaka.ut.ac.id";
 const VERSION_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const CLOUD_FAILURE_BACKOFF_MS = 5 * 60 * 1000;
 const DEFAULT_STATE = {
   running: false,
   tabId: null,
@@ -195,7 +197,81 @@ async function api(path, options = {}) {
 
 function distributionChannel() {
   const value = String(CFG?.DISTRIBUTION_CHANNEL || "github").toLowerCase();
-  return ["github", "cws", "android"].includes(value) ? value : "github";
+  return ["github", "cws", "edge", "android"].includes(value) ? value : "github";
+}
+
+function isStoreChannel(channel = distributionChannel()) {
+  return channel === "cws" || channel === "edge";
+}
+
+async function cloudState({force = false} = {}) {
+  const now = Date.now();
+  const stored = await chrome.storage.local.get("bmpCloudStateCache");
+  const cached = stored.bmpCloudStateCache || null;
+
+  if (!force && cached?.expiresAt && Number(cached.expiresAt) > now) {
+    return {
+      ...(CLOUD?.sanitizeState(cached.state) || CLOUD.defaultState()),
+      cached: true,
+      unavailable: Boolean(cached.unavailable)
+    };
+  }
+
+  const currentVersion = chrome.runtime.getManifest().version;
+  const channel = distributionChannel();
+
+  try {
+    const data = await api(
+      `/v1/extension-state?extension_version=${encodeURIComponent(currentVersion)}&distribution_channel=${encodeURIComponent(channel)}`,
+      {method: "GET"}
+    );
+    const state = CLOUD.sanitizeState(data);
+    const cache = {
+      state,
+      unavailable: false,
+      lastAttemptAt: now,
+      lastSuccessAt: now,
+      expiresAt: now + state.ttlSeconds * 1000,
+      error: ""
+    };
+    await chrome.storage.local.set({bmpCloudStateCache: cache});
+    return {...state, cached: false, unavailable: false};
+  } catch (e) {
+    const state = CLOUD.defaultState();
+    const cache = {
+      state,
+      unavailable: true,
+      lastAttemptAt: now,
+      lastSuccessAt: Number(cached?.lastSuccessAt || 0),
+      expiresAt: now + CLOUD_FAILURE_BACKOFF_MS,
+      error: String(e?.message || e)
+    };
+    await chrome.storage.local.set({bmpCloudStateCache: cache});
+    return {...state, cached: false, unavailable: true};
+  }
+}
+
+async function executeCloudAction(rawAction) {
+  const action = CLOUD.sanitizeAction(rawAction);
+  if (!action) throw new Error("Aksi cloud tidak valid.");
+
+  if (action.type === "OPEN_URL") {
+    await chrome.tabs.create({url: action.url});
+    return {ok: true};
+  }
+  if (action.type === "OPEN_CHANNEL") {
+    await chrome.tabs.create({url: CFG.TELEGRAM_CHANNEL_URL});
+    return {ok: true};
+  }
+  if (action.type === "OPEN_GROUP") {
+    await chrome.tabs.create({url: CFG.TELEGRAM_GROUP_URL});
+    return {ok: true};
+  }
+  if (action.type === "OPEN_ABOUT") {
+    await chrome.tabs.create({url: chrome.runtime.getURL("about.html")});
+    return {ok: true};
+  }
+  throw new Error("Aksi cloud tidak didukung.");
 }
 
 function versionParts(value) {
@@ -224,7 +300,7 @@ function applyVersionDecision(policy, currentVersion, now = Date.now()) {
   const reportedLatestVersion = String(policy?.latestVersion || currentVersion);
   const reportedMinimumVersion = String(policy?.minimumVersion || "");
   const storeReady = policy?.storeReady === true;
-  const mayEnforceRemoteVersion = channel !== "cws" || storeReady;
+  const mayEnforceRemoteVersion = !isStoreChannel(channel) || storeReady;
   const latestVersion = mayEnforceRemoteVersion ? reportedLatestVersion : currentVersion;
   const minimumVersion = mayEnforceRemoteVersion ? reportedMinimumVersion : "";
   const rawForceAfter = policy?.forceAfter;
@@ -304,7 +380,11 @@ async function startPairing() {
   const version = chrome.runtime.getManifest().version;
   const data = await api("/v1/pair/start", {
     method: "POST",
-    body: JSON.stringify({install_id: installId, extension_version: version})
+    body: JSON.stringify({
+      install_id: installId,
+      extension_version: version,
+      distribution_channel: distributionChannel()
+    })
   });
   const pending = {
     pairId: data.pair_id,
@@ -706,10 +786,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({ok: true, policy: await versionStatus()});
       return;
     }
+    if (msg.type === "GET_CLOUD_STATE") {
+      sendResponse({ok: true, state: await cloudState({force: Boolean(msg.force)})});
+      return;
+    }
+    if (msg.type === "EXECUTE_CLOUD_ACTION") {
+      sendResponse(await executeCloudAction(msg.action));
+      return;
+    }
     if (msg.type === "OPEN_UPDATE") {
       const policy = await versionStatus();
       const url = String(policy?.releaseUrl || "");
-      if (!url && distributionChannel() === "cws") {
+      if (!url && isStoreChannel()) {
         sendResponse({ok: true, managedByStore: true});
         return;
       }
