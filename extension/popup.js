@@ -98,6 +98,28 @@ function renderCloudSurface(state){
         card.append(body);
       }
       appendAction(card,section,"sponsorAction");
+
+      const contact=document.createElement("button");
+      contact.type="button";
+      contact.className="sponsorContact";
+      contact.textContent="Pasang iklan? Hubungi";
+      contact.addEventListener("click",async()=>{
+        contact.disabled=true;
+        try{
+          const result=await send("EXECUTE_CLOUD_ACTION",{action:{
+            type:"OPEN_URL",
+            label:"Hubungi",
+            url:"https://t.me/bukabmp?direct"
+          }});
+          if(!result?.ok)throw new Error(result?.error||"DM channel tidak dapat dibuka.");
+        }catch(e){
+          contact.textContent=String(e?.message||e).slice(0,80);
+        }finally{
+          setTimeout(()=>{contact.disabled=false;contact.textContent="Pasang iklan? Hubungi"},1400);
+        }
+      });
+      card.append(contact);
+
       sponsorRoot.append(card);
       continue;
     }
