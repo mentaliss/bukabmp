@@ -45,6 +45,27 @@ assert.equal(good.sections[0].action.type,"OPEN_URL");
 assert.equal(good.supporter.active,true);
 assert.equal(good.features.supporterCard,true);
 
+const sponsor=CLOUD.sanitizeState({
+  schema_version:1,
+  sections:[{
+    id:"campaign-1",
+    visible:true,
+    kind:"sponsor",
+    title:"Partner belajar",
+    text:"Penawaran sponsor yang ditampilkan sebagai teks aman.",
+    action:{type:"OPEN_URL",label:"Lihat",url:"https://example.com/offer"}
+  },{
+    id:"bad-sponsor-action",
+    visible:true,
+    kind:"sponsor",
+    title:"Bad",
+    action:{type:"OPEN_GROUP",label:"Open"}
+  }]
+});
+assert.equal(sponsor.sections[0].kind,"sponsor");
+assert.equal(sponsor.sections[0].action.type,"OPEN_URL");
+assert.equal(sponsor.sections[1].action,null);
+
 const wrongSchema=CLOUD.sanitizeState({schema_version:99,sections:[{visible:true,title:"x"}]});
 assert.deepEqual(wrongSchema.sections,[]);
 
