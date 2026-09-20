@@ -214,8 +214,11 @@ async function cloudState({force = false} = {}) {
   const cached = stored.bmpCloudStateCache || null;
 
   if (!force && cached?.expiresAt && Number(cached.expiresAt) > now) {
+    const cachedState = cached?.state?.schemaVersion === 1
+      ? cached.state
+      : (CLOUD?.sanitizeState(cached.state) || CLOUD.defaultState());
     return {
-      ...(CLOUD?.sanitizeState(cached.state) || CLOUD.defaultState()),
+      ...cachedState,
       cached: true,
       unavailable: Boolean(cached.unavailable)
     };
