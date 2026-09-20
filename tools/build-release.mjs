@@ -10,6 +10,14 @@ const EXT_SRC = path.join(ROOT, "extension");
 const DIST = path.join(ROOT, "dist");
 const CACHE = path.join(ROOT, ".cache", "vendor");
 const strict = process.argv.includes("--strict");
+const channelArg = process.argv.find(x => x.startsWith("--channel="));
+const channel = String(
+  channelArg ? channelArg.slice("--channel=".length) : (process.env.BMP_DISTRIBUTION_CHANNEL || "github")
+).toLowerCase();
+const allowedChannels = new Set(["github", "cws", "android"]);
+if (!allowedChannels.has(channel)) throw new Error(`Unknown distribution channel: ${channel}`);
+
+const TESSDATA_FAST_COMMIT = "87416418657359cb625c412a48b6e1d6d41c29bd";
 
 function mkdir(p){ fs.mkdirSync(p,{recursive:true}); }
 function rm(p){ fs.rmSync(p,{recursive:true,force:true}); }
@@ -39,16 +47,27 @@ async function ensure(url,target,minBytes=1000){
 
 const manifest=JSON.parse(fs.readFileSync(path.join(EXT_SRC,"manifest.json"),"utf8"));
 const version=manifest.version;
-const out=path.join(DIST,`BMP-Terbuka-v${version}`);
+const outBase=channel==="cws" ? path.join(DIST,"cws") : DIST;
+const out=path.join(outBase,`BMP-Terbuka-v${version}`);
 
 rm(out);
 mkdir(out);
 copyDir(EXT_SRC,out);
 
+// CWS gets a minimum-permission manifest without changing the shared source manifest.
+// The GitHub/manual and Android packages keep their existing permission profile.
+if(channel==="cws"){
+  const manifestPath=path.join(out,"manifest.json");
+  const cwsManifest=JSON.parse(fs.readFileSync(manifestPath,"utf8"));
+  cwsManifest.permissions=(cwsManifest.permissions||[]).filter(p=>p!=="tabs");
+  fs.writeFileSync(manifestPath,JSON.stringify(cwsManifest,null,2)+"\n");
+}
+
 // config.js is generated from template.
 let config=fs.readFileSync(path.join(EXT_SRC,"config.template.js"),"utf8");
 const vals={
   "__BMP_API_BASE_URL__": process.env.BMP_API_BASE_URL || "__BMP_API_BASE_URL__",
+  "__BMP_DISTRIBUTION_CHANNEL__": channel,
   "__BMP_TELEGRAM_CHANNEL_URL__": process.env.BMP_TELEGRAM_CHANNEL_URL || "__BMP_TELEGRAM_CHANNEL_URL__",
   "__BMP_TELEGRAM_GROUP_URL__": process.env.BMP_TELEGRAM_GROUP_URL || "__BMP_TELEGRAM_GROUP_URL__"
 };
@@ -85,10 +104,10 @@ for(const [url,rel,min] of assets){
   fs.copyFileSync(cached,dest);
 }
 
-// Indonesian fast traineddata. Build-time fetch only; gzip locally.
-const trainedRaw=path.join(CACHE,"lang","ind.traineddata");
+// Indonesian fast traineddata is pinned to an immutable upstream commit.
+const trainedRaw=path.join(CACHE,"lang",`ind-${TESSDATA_FAST_COMMIT}.traineddata`);
 await ensure(
-  "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/ind.traineddata",
+  `https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/${TESSDATA_FAST_COMMIT}/ind.traineddata`,
   trainedRaw,
   1000000
 );
@@ -115,12 +134,15 @@ fs.writeFileSync(
   path.join(out,"VENDOR_MANIFEST.json"),
   JSON.stringify({
     generated_at:new Date().toISOString(),
+    distribution_channel:channel,
     tesseract_js:"6.0.1",
     tesseract_js_core:"6.0.0",
     pdf_lib:"1.17.1",
-    tessdata:"tesseract-ocr/tessdata_fast main / ind",
+    tessdata_repository:"tesseract-ocr/tessdata_fast",
+    tessdata_commit:TESSDATA_FAST_COMMIT,
+    tessdata_language:"ind",
     files:vendorFiles
-  },null,2)
+  },null,2)+"\n"
 );
 
 // Release hygiene.
