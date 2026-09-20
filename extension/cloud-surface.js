@@ -12,7 +12,8 @@
     "warning",
     "success",
     "community",
-    "supporter"
+    "supporter",
+    "sponsor"
   ]);
 
   function text(value,max){
@@ -71,7 +72,8 @@
     const title=text(raw.title,96);
     const body=text(raw.text,700);
     if(!title&&!body)return null;
-    const action=sanitizeAction(raw.action);
+    let action=sanitizeAction(raw.action);
+    if(kind==="sponsor"&&action?.type!=="OPEN_URL")action=null;
     return {id,kind,title,text:body,action};
   }
 
