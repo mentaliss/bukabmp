@@ -1,6 +1,6 @@
 # Privacy Policy
 
-BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku client extension BMP Terbuka v1.0.5/CWS candidate. Klaim di bawah dibatasi pada perilaku yang dapat dibuktikan dari source client publik.
+BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku client extension BMP Terbuka v1.0.5/Store candidate. Klaim di bawah dibatasi pada perilaku yang dapat dibuktikan dari source client publik.
 
 ## Data materi
 
@@ -49,7 +49,13 @@ Source repository client ini tidak memuat implementation, database, atau konfigu
 
 ## Pemeriksaan versi
 
-Extension dapat menghubungi activation service untuk memperoleh kebijakan versi. Request mencakup versi extension dan distribution channel. Untuk build Chrome Web Store, remote minimum-version enforcement hanya diterapkan setelah service secara eksplisit menandai versi Store sebagai siap/published; update package tetap dikelola oleh Chrome Web Store/browser.
+Extension dapat menghubungi activation service untuk memperoleh kebijakan versi. Request mencakup versi extension dan distribution channel. Untuk build Chrome Web Store dan Edge Add-ons, remote minimum-version enforcement hanya diterapkan setelah service secara eksplisit menandai versi channel Store tersebut sebagai siap/published; package update tetap dikelola oleh browser/Store.
+
+## Realtime state/content
+
+Kandidat Store dapat meminta `/v1/extension-state` dengan versi extension dan distribution channel. Response yang valid hanya boleh berisi state/plain content yang lolos allowlist client, seperti section visibility, judul/teks, feature flag, dan action dari registry tetap. Payload disimpan sementara di local storage sebagai cache.
+
+Request ini tidak memuat halaman BMP, gambar halaman, teks OCR, PDF, password, NIM, atau cookie/session portal.
 
 ## Telemetry
 
@@ -57,11 +63,11 @@ Client v1.0.5 tidak mengirim isi dokumen, gambar halaman, teks OCR, atau PDF has
 
 ## Cloud-controlled state/content
 
-Arsitektur kandidat CWS memperbolehkan server mengirim data/state yang tervalidasi seperti boolean, teks, label, tanggal, URL HTTPS, dan feature flag untuk code path yang sudah ada di package. Server tidak boleh mengirim JavaScript, arbitrary HTML, remote WASM, atau functionality baru untuk dieksekusi extension.
+Arsitektur kandidat Store memperbolehkan server mengirim data/state yang tervalidasi seperti boolean, teks, label, tanggal, URL HTTPS, dan feature flag untuk code path yang sudah ada di package. Server tidak boleh mengirim JavaScript, arbitrary HTML, remote WASM, atau functionality baru untuk dieksekusi extension.
 
 ## Sharing dan penggunaan data
 
-Client tidak menggunakan isi BMP, hasil OCR, atau PDF untuk advertising atau profiling. Jika fitur sponsor/ads ditambahkan pada release masa depan, privacy disclosure harus diperbarui sebelum fitur tersebut diaktifkan dan tetap mengikuti kebijakan Chrome Web Store.
+Client tidak menggunakan isi BMP, hasil OCR, atau PDF untuk advertising atau profiling. Jika fitur sponsor/ads ditambahkan pada release masa depan, privacy disclosure harus diperbarui sebelum fitur tersebut diaktifkan dan tetap mengikuti kebijakan Store yang relevan.
 
 ## Provider logs
 
