@@ -46,9 +46,62 @@ function setUtilityNotice(text){el("utilityNotice").textContent=text||""}
 function renderCloudSurface(state){
   latestCloudState=state||null;
   const root=el("cloudSurface");
+  const sponsorRoot=el("sponsorSlot");
   root.textContent="";
+  sponsorRoot.textContent="";
   const sections=Array.isArray(state?.sections)?state.sections:[];
+  let sponsorRendered=false;
+
+  function appendAction(card,section,className){
+    if(!section.action?.label)return;
+    const button=document.createElement("button");
+    button.type="button";
+    button.className=className;
+    button.textContent=section.action.label;
+    button.addEventListener("click",async()=>{
+      button.disabled=true;
+      try{
+        const result=await send("EXECUTE_CLOUD_ACTION",{action:section.action});
+        if(!result?.ok)throw new Error(result?.error||"Aksi tidak dapat dijalankan.");
+      }catch(e){
+        button.textContent=String(e?.message||e).slice(0,80);
+      }finally{
+        setTimeout(()=>{button.disabled=false;button.textContent=section.action.label},1400);
+      }
+    });
+    card.append(button);
+  }
+
   for(const section of sections){
+    if(section.kind==="sponsor"){
+      if(sponsorRendered)continue;
+      sponsorRendered=true;
+      const card=document.createElement("aside");
+      card.className="sponsorBanner";
+      card.setAttribute("aria-label","Sponsor");
+
+      const meta=document.createElement("div");
+      meta.className="sponsorMeta";
+      meta.textContent="Sponsor";
+      card.append(meta);
+
+      if(section.title){
+        const title=document.createElement("div");
+        title.className="sponsorTitle";
+        title.textContent=section.title;
+        card.append(title);
+      }
+      if(section.text){
+        const body=document.createElement("div");
+        body.className="sponsorText";
+        body.textContent=section.text;
+        card.append(body);
+      }
+      appendAction(card,section,"sponsorAction");
+      sponsorRoot.append(card);
+      continue;
+    }
+
     const card=document.createElement("section");
     card.className=`cloudSection ${section.kind||"info"}`;
 
@@ -64,24 +117,7 @@ function renderCloudSurface(state){
       body.textContent=section.text;
       card.append(body);
     }
-    if(section.action?.label){
-      const button=document.createElement("button");
-      button.type="button";
-      button.className="cloudAction";
-      button.textContent=section.action.label;
-      button.addEventListener("click",async()=>{
-        button.disabled=true;
-        try{
-          const result=await send("EXECUTE_CLOUD_ACTION",{action:section.action});
-          if(!result?.ok)throw new Error(result?.error||"Aksi tidak dapat dijalankan.");
-        }catch(e){
-          button.textContent=String(e?.message||e).slice(0,80);
-        }finally{
-          setTimeout(()=>{button.disabled=false;button.textContent=section.action.label},1400);
-        }
-      });
-      card.append(button);
-    }
+    appendAction(card,section,"cloudAction");
     root.append(card);
   }
 }
