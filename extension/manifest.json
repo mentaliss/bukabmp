@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "BMP Terbuka",
+  "name": "__MSG_extensionName__",
   "version": "1.0.5",
   "version_name": "1.0.5",
-  "description": "Simpan materi BMP yang dapat Anda akses menjadi PDF yang dapat dicari dengan pemrosesan lokal.",
+  "description": "__MSG_extensionDescription__",
   "minimum_chrome_version": "109",
   "permissions": [
     "storage",
@@ -42,5 +42,6 @@
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
-  }
+  },
+  "default_locale": "id"
 }
