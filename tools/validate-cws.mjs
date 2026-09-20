@@ -63,6 +63,10 @@ const channelPattern=new RegExp(`DISTRIBUTION_CHANNEL:\\s*["']${channel}["']`);
 if(!channelPattern.test(config))fail(`Config must set DISTRIBUTION_CHANNEL to "${channel}".`);
 if(config.includes("__BMP_"))fail("Unresolved build placeholder found in config.js.");
 
+const tessdataRel=channel==="edge"
+  ? "vendor/lang/ind.traineddata"
+  : "vendor/lang/ind.traineddata.gz";
+
 for(const rel of [
   "background.js","cloud-surface.js","content.js","popup.js","offscreen.js",
   "vendor/tesseract.min.js","vendor/worker.min.js","vendor/pdf-lib.min.js",
@@ -70,9 +74,30 @@ for(const rel of [
   "vendor/core/tesseract-core-simd.wasm.js",
   "vendor/core/tesseract-core-lstm.wasm.js",
   "vendor/core/tesseract-core-simd-lstm.wasm.js",
-  "vendor/lang/ind.traineddata.gz",
+  tessdataRel,
   "VENDOR_MANIFEST.json"
 ])mustFile(rel);
+
+if(channel==="edge"){
+  for(const rel of ["vendor/lang/ind.traineddata.gz"]){
+    if(fs.existsSync(path.join(packageDir,rel)))fail(`Edge package must not contain compressed asset: ${rel}`);
+  }
+  const archiveExt=/\.(?:zip|gz|tgz|tar|rar|7z|bz2|xz|crx)$/i;
+  const nestedArchives=[];
+  function scanArchives(dir,rel=""){
+    for(const ent of fs.readdirSync(dir,{withFileTypes:true})){
+      const abs=path.join(dir,ent.name);
+      const r=path.join(rel,ent.name).replaceAll("\\","/");
+      if(ent.isDirectory())scanArchives(abs,r);
+      else if(archiveExt.test(ent.name))nestedArchives.push(r);
+    }
+  }
+  scanArchives(packageDir);
+  if(nestedArchives.length)fail(`Edge package contains nested/compressed archive files: ${nestedArchives.join(", ")}`);
+
+  const edgeOffscreen=fs.readFileSync(mustFile("offscreen.js"),"utf8");
+  if(!edgeOffscreen.includes("gzip: false"))fail("Edge Tesseract loader must use gzip:false.");
+}
 
 for(const rel of ["background.js","cloud-surface.js","content.js","popup.js","offscreen.js"]){
   const code=fs.readFileSync(mustFile(rel),"utf8");
@@ -90,6 +115,7 @@ for(const rel of ["popup.html","offscreen.html","about.html"]){
 const vendorManifest=JSON.parse(fs.readFileSync(mustFile("VENDOR_MANIFEST.json"),"utf8"));
 if(vendorManifest.distribution_channel!==channel)fail("VENDOR_MANIFEST channel mismatch.");
 if(!/^[0-9a-f]{40}$/.test(String(vendorManifest.tessdata_commit||"")))fail("Tessdata must be commit-pinned.");
+if(channel==="edge"&&vendorManifest.tessdata_compression!=="none")fail("Edge tessdata compression must be none.");
 for(const entry of vendorManifest.files||[]){
   const file=mustFile(path.posix.join("vendor",entry.path));
   if(Number(entry.bytes)!==fs.statSync(file).size)fail(`Vendor size mismatch: ${entry.path}`);
