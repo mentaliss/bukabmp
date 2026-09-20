@@ -1,4 +1,4 @@
-name: CWS Candidate
+name: Store and Compatibility Candidate
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  build-cws:
+  candidate:
     runs-on: ubuntu-latest
     env:
       BMP_API_BASE_URL: https://community.bukabmp.workers.dev
@@ -24,32 +24,50 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Validate shared source
+      - name: Validate shared source and cloud contract
         run: npm run validate
 
+      - name: Build GitHub/manual compatibility package
+        run: |
+          npm run build:release
+          npm run validate:github
+
+      - name: Build Android compatibility package
+        run: |
+          npm run build:android
+          npm run validate:android
+
       - name: Build CWS package
-        run: npm run build:cws
+        run: |
+          npm run build:cws
+          npm run validate:cws
 
-      - name: Validate CWS package
-        run: npm run validate:cws
+      - name: Build Edge Add-ons package
+        run: |
+          npm run build:edge
+          npm run validate:edge
 
-      - name: Create flat-root CWS ZIP
+      - name: Create flat-root Store ZIPs
         shell: bash
         run: |
           set -euo pipefail
           VERSION=$(node -p "require('./extension/manifest.json').version")
-          PKG="dist/cws/BMP-Terbuka-v${VERSION}"
-          ZIP="dist/BMP-Terbuka-v${VERSION}-CWS.zip"
 
-          (
-            cd "${PKG}"
-            zip -qr "../../BMP-Terbuka-v${VERSION}-CWS.zip" .
-          )
+          for CHANNEL in cws edge; do
+            UPPER=$(printf '%s' "${CHANNEL}" | tr '[:lower:]' '[:upper:]')
+            PKG="dist/${CHANNEL}/BMP-Terbuka-v${VERSION}"
+            ZIP="dist/BMP-Terbuka-v${VERSION}-${UPPER}.zip"
 
-          test "$(unzip -Z1 "${ZIP}" | grep -xc 'manifest.json')" -eq 1
-          test "$(unzip -Z1 "${ZIP}" | grep -xc 'background.js')" -eq 1
-          unzip -t "${ZIP}"
-          sha256sum "${ZIP}" > "${ZIP}.sha256"
+            (
+              cd "${PKG}"
+              zip -qr "../../BMP-Terbuka-v${VERSION}-${UPPER}.zip" .
+            )
+
+            test "$(unzip -Z1 "${ZIP}" | grep -xc 'manifest.json')" -eq 1
+            test "$(unzip -Z1 "${ZIP}" | grep -xc 'background.js')" -eq 1
+            unzip -t "${ZIP}"
+            sha256sum "${ZIP}" > "${ZIP}.sha256"
+          done
 
       - name: Upload CWS candidate artifact
         uses: actions/upload-artifact@v4
@@ -58,4 +76,13 @@ jobs:
           path: |
             dist/BMP-Terbuka-v*-CWS.zip
             dist/BMP-Terbuka-v*-CWS.zip.sha256
+          if-no-files-found: error
+
+      - name: Upload Edge candidate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bmp-terbuka-edge-candidate
+          path: |
+            dist/BMP-Terbuka-v*-EDGE.zip
+            dist/BMP-Terbuka-v*-EDGE.zip.sha256
           if-no-files-found: error
