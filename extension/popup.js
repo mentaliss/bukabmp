@@ -369,6 +369,8 @@ async function refreshAccess(){
   latestAccess=a;
   el("activationScreen").classList.toggle("active",!a.active);
   el("mainScreen").classList.toggle("active",Boolean(a.active));
+  el("reviewTools").style.display=a.reviewer?"block":"none";
+  if(!a.reviewer)el("reviewResult").textContent="";
 
   const updateBlocked=Boolean(latestVersionPolicy?.updateRequired);
   el("joinChannel").disabled=!a.configReady;
@@ -571,6 +573,24 @@ el("copyShareManual").addEventListener("click",async()=>{
   }
 });
 el("openUpdate").addEventListener("click",()=>send("OPEN_UPDATE"));
+
+el("runReviewSample").addEventListener("click",async()=>{
+  const button=el("runReviewSample");
+  button.disabled=true;
+  el("reviewResult").textContent="Menjalankan OCR lokal pada sampel certification...";
+  try{
+    const r=await send("RUN_REVIEW_SAMPLE");
+    if(!r?.ok)throw new Error(r?.error||"Sampel reviewer gagal.");
+    const recognized=String(r.text||"").replace(/\s+/g," ").trim();
+    el("reviewResult").textContent=recognized
+      ? "PDF searchable tersimpan di Downloads. OCR terbaca: "+recognized.slice(0,180)
+      : "PDF searchable tersimpan di Downloads.";
+  }catch(e){
+    el("reviewResult").textContent=String(e?.message||e);
+  }finally{
+    button.disabled=false;
+  }
+});
 
 el("copyPairCode").addEventListener("click",async()=>{
   const code=el("pairCode").textContent.trim();
