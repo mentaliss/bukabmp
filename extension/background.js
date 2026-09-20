@@ -158,8 +158,12 @@ async function accessStatus() {
     "bmpPendingPair"
   ]);
   const verified = await verifyCommunityToken(store.bmpCommunityToken);
+  const scopes = verified.ok && Array.isArray(verified.payload?.scope)
+    ? verified.payload.scope.map(String)
+    : [];
   return {
     active: Boolean(verified.ok),
+    reviewer: Boolean(verified.ok && scopes.includes("store_review")),
     expiresAt: verified.ok ? Number(verified.payload.exp) * 1000 : null,
     pending: store.bmpPendingPair || null,
     configReady: configReady(),
@@ -476,6 +480,20 @@ async function saveBlobUrl(blobUrl, filename) {
     }).catch(() => {});
   }, 15000);
   return id;
+}
+
+async function runReviewerSample() {
+  const access = await accessStatus();
+  if (!access.reviewer) throw new Error("Mode reviewer tidak aktif untuk instalasi ini.");
+  const probe = await askOffscreen({type: "OCR_ENGINE_PROBE"});
+  if (!probe?.ok) throw new Error(probe?.error || "OCR lokal tidak siap.");
+  const out = await askOffscreen({type: "OCR_REVIEW_SAMPLE"});
+  if (!out?.ok || !out.blobUrl) throw new Error(out?.error || "Sampel reviewer gagal diproses.");
+  await saveBlobUrl(
+    out.blobUrl,
+    "BMP Terbuka/Reviewer/BMP_Terbuka_Reviewer_Sample_Searchable.pdf"
+  );
+  return {ok: true, text: String(out.text || "").trim()};
 }
 
 async function startModule(tabId, state, attempt = 0) {
@@ -803,6 +821,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
       await chrome.tabs.create({url: url || CFG.TELEGRAM_CHANNEL_URL});
       sendResponse({ok: true, managedByStore: false});
+      return;
+    }
+    if (msg.type === "RUN_REVIEW_SAMPLE") {
+      sendResponse(await runReviewerSample());
       return;
     }
     if (msg.type === "GET_CACHE_INFO") {
