@@ -5,6 +5,7 @@ const ACTIVATION_LONG_WAIT_MS = 90_000;
 let activationChecking = false;
 let latestAccess = null;
 let latestVersionPolicy = null;
+let latestCloudState = null;
 let latestState = null;
 let latestCacheInfo = {modules:[],bytes:0,totalBytes:0,detectedLastModule:null};
 let latestCacheCode = "";
@@ -41,6 +42,59 @@ function formatBytes(bytes){
   return `${(n/1024/1024/1024).toFixed(1)} GB`;
 }
 function setUtilityNotice(text){el("utilityNotice").textContent=text||""}
+
+function renderCloudSurface(state){
+  latestCloudState=state||null;
+  const root=el("cloudSurface");
+  root.textContent="";
+  const sections=Array.isArray(state?.sections)?state.sections:[];
+  for(const section of sections){
+    const card=document.createElement("section");
+    card.className=`cloudSection ${section.kind||"info"}`;
+
+    if(section.title){
+      const title=document.createElement("div");
+      title.className="cloudTitle";
+      title.textContent=section.title;
+      card.append(title);
+    }
+    if(section.text){
+      const body=document.createElement("div");
+      body.className="cloudText";
+      body.textContent=section.text;
+      card.append(body);
+    }
+    if(section.action?.label){
+      const button=document.createElement("button");
+      button.type="button";
+      button.className="cloudAction";
+      button.textContent=section.action.label;
+      button.addEventListener("click",async()=>{
+        button.disabled=true;
+        try{
+          const result=await send("EXECUTE_CLOUD_ACTION",{action:section.action});
+          if(!result?.ok)throw new Error(result?.error||"Aksi tidak dapat dijalankan.");
+        }catch(e){
+          button.textContent=String(e?.message||e).slice(0,80);
+        }finally{
+          setTimeout(()=>{button.disabled=false;button.textContent=section.action.label},1400);
+        }
+      });
+      card.append(button);
+    }
+    root.append(card);
+  }
+}
+
+async function refreshCloudSurface({force=false}={}){
+  try{
+    const r=await send("GET_CLOUD_STATE",{force});
+    if(r?.ok)renderCloudSurface(r.state||null);
+    else renderCloudSurface(null);
+  }catch(_){
+    renderCloudSurface(null);
+  }
+}
 
 async function loadDraft(){
   const x=await chrome.storage.local.get(DRAFT_KEY);
@@ -723,11 +777,13 @@ el("about").addEventListener("click",()=>chrome.tabs.create({url:chrome.runtime.
 
 (async()=>{
   await loadDraft();
+  await refreshCloudSurface();
   await refreshAccess();
   await refreshVersion();
   await refreshState();
   await refreshCachePreview();
   setInterval(async()=>{await refreshAccess();await refreshState()},1000);
+  setInterval(()=>refreshCloudSurface().catch(()=>{}),30_000);
   setInterval(async()=>{
     const a=await send("GET_ACCESS_STATUS");
     if(a?.pending&&!a?.active)await checkPendingActivation({quiet:true});
