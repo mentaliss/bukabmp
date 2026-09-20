@@ -5,6 +5,7 @@ const CLOUD = self.BMP_CLOUD_SURFACE;
 const SOURCE_ROOT = "https://pustaka.ut.ac.id";
 const VERSION_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const CLOUD_FAILURE_BACKOFF_MS = 5 * 60 * 1000;
+const CLOUD_CACHE_KEY = "bmpCloudStateCacheV2";
 const DEFAULT_STATE = {
   running: false,
   tabId: null,
@@ -210,8 +211,8 @@ function isStoreChannel(channel = distributionChannel()) {
 
 async function cloudState({force = false} = {}) {
   const now = Date.now();
-  const stored = await chrome.storage.local.get("bmpCloudStateCache");
-  const cached = stored.bmpCloudStateCache || null;
+  const stored = await chrome.storage.local.get(CLOUD_CACHE_KEY);
+  const cached = stored[CLOUD_CACHE_KEY] || null;
 
   if (!force && cached?.expiresAt && Number(cached.expiresAt) > now) {
     const cachedState = cached?.state?.schemaVersion === 1
@@ -241,7 +242,7 @@ async function cloudState({force = false} = {}) {
       expiresAt: now + state.ttlSeconds * 1000,
       error: ""
     };
-    await chrome.storage.local.set({bmpCloudStateCache: cache});
+    await chrome.storage.local.set({[CLOUD_CACHE_KEY]: cache});
     return {...state, cached: false, unavailable: false};
   } catch (e) {
     const state = CLOUD.defaultState();
@@ -253,7 +254,7 @@ async function cloudState({force = false} = {}) {
       expiresAt: now + CLOUD_FAILURE_BACKOFF_MS,
       error: String(e?.message || e)
     };
-    await chrome.storage.local.set({bmpCloudStateCache: cache});
+    await chrome.storage.local.set({[CLOUD_CACHE_KEY]: cache});
     return {...state, cached: false, unavailable: true};
   }
 }
