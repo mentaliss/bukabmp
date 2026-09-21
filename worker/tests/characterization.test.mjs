@@ -65,7 +65,7 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.status, "ok");
-  assert.equal(body.version, "1.0.5-support-bot-v15-minimal-command-menu");
+  assert.equal(body.version, "1.0.5-support-bot-v16-ignore-foreign-commands");
   assert.equal(body.supporter_pass, true);
   assert.equal(body.privacy_gate_enabled, true);
   assert.equal(body.realtime_extension_state, true);
@@ -596,6 +596,43 @@ test("group slash commands other than ask open the standard assistant panel", as
         .map(button => button.callback_data)
         .filter(Boolean);
       assert.ok(callbacks.includes("group:ask"));
+    }
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("foreign and Rose-style group commands are ignored by BMP Terbuka", async () => {
+  const env = baseEnv({
+    SUPPORT_GROUP_ID: "-10042",
+    BOT_V21_UI_ENABLED: "true"
+  });
+  const oldFetch = globalThis.fetch;
+
+  try {
+    for (const [index, text] of ["/rules", "/warn someone", "/info", "/rules@MissRose_bot"].entries()) {
+      const calls = [];
+      globalThis.fetch = telegramFetchRecorder(calls);
+      const response = await webhook(env, {
+        update_id: 4190 + index,
+        message: {
+          message_id: 90 + index,
+          from: {id: 424242, is_bot: false},
+          chat: {id: -10042, type: "supergroup"},
+          text
+        }
+      });
+      assert.equal(response.status, 200);
+      assert.equal(
+        calls.some(call => call.method === "sendMessage"),
+        false,
+        text + " belongs to another bot and must not invoke BMP Terbuka"
+      );
+      assert.equal(
+        calls.some(call => call.method === "deleteMessage"),
+        false,
+        text + " must be left untouched for the target moderation bot"
+      );
     }
   } finally {
     globalThis.fetch = oldFetch;

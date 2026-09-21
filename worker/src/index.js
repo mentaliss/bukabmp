@@ -113,13 +113,19 @@ import {
 import {parseReferralStartArg} from "./features/referral.js";
 import {attributeReferralFromCode} from "./features/referral-service.js";
 
-const APP_VERSION = "1.0.5-support-bot-v15-minimal-command-menu";
+const APP_VERSION = "1.0.5-support-bot-v16-ignore-foreign-commands";
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
 const VERSION_CHECK_AFTER_SECONDS = 24 * 60 * 60;
 const REVIEWER_TOKEN_TTL_SECONDS = 24 * 60 * 60;
 const CLOUD_STATE_DEFAULT_TTL_SECONDS = 5 * 60;
 const DISTRIBUTION_CHANNELS = Object.freeze(["github", "android", "cws", "edge"]);
+const BMP_GROUP_COMMANDS = new Set([
+  "start", "menu", "help", "bmphelp", "verify", "id", "activation",
+  "tutorial", "install", "android", "desktop", "group", "update", "fitur",
+  "storage", "bug", "faq", "quota", "support", "supporter", "supporters",
+  "terms", "paysupport"
+]);
 const TELEGRAM_COMMAND_SCOPE_STATE_KEY = "telegram-command-scopes:minimal-v2";
 
 function json(data, status = 200, extra = {}) {
@@ -597,10 +603,11 @@ async function handleTelegram(env, update) {
     if (
       !isPrivateChat(message) &&
       commandName &&
-      commandName !== "ask"
+      commandName !== "ask" &&
+      BMP_GROUP_COMMANDS.has(commandName)
     ) {
-      // Keep old/typed slash commands harmless but useful in groups. They are not
-      // advertised in autocomplete; they simply open the standard assistant panel.
+      // Only BMP Terbuka commands fall back to our assistant panel. Unknown slash
+      // commands are left alone so moderation bots such as Rose can handle them.
       await sendGroupBotPanel(env, message);
       return;
     }
