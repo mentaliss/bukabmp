@@ -1546,7 +1546,10 @@ async function tokenRefresh(request, env) {
     );
   }
 
-  if (!(await checkActivationRefreshRateLimit(env, token))) {
+  const body = await request.json().catch(() => ({}));
+  const installId = String(body.install_id || "");
+
+  if (!(await checkActivationRefreshRateLimit(env, installId))) {
     return json(
       {
         error: "Terlalu banyak permintaan pembaruan aktivasi. Coba lagi sebentar.",
@@ -1557,12 +1560,11 @@ async function tokenRefresh(request, env) {
     );
   }
 
-  const body = await request.json().catch(() => ({}));
   let result;
   try {
     result = await refreshActivationToken(env, {
       token,
-      installId: String(body.install_id || ""),
+      installId,
       extensionVersion: String(body.extension_version || "")
     });
   } catch (error) {
