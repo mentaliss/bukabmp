@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 
 import {sha256Hex} from "../src/security/crypto.js";
 import {
-  supporterMigrationApply
+  supporterMigrationApply,
+  supporterMigrationCompare
 } from "../src/features/supporter-migration.js";
 
 class MigrationDb {
@@ -42,6 +43,9 @@ class MigrationDb {
         }
         if (sql.startsWith("SELECT * FROM payments")) {
           return db.payments.get(String(args[0])) || null;
+        }
+        if (sql.startsWith("SELECT user_id, source, days_delta, source_ref FROM supporter_events")) {
+          return db.events.get(String(args[0])) || null;
         }
         throw new Error("unexpected first(): " + sql);
       }
@@ -87,9 +91,11 @@ class MigrationDb {
       }
 
       if (sql.startsWith("INSERT INTO supporter_events")) {
-        this.events.set(String(args[0]), {
+        this.events.set(String(args[2]), {
           event_id: String(args[0]),
           user_id: Number(args[1]),
+          source: "migration",
+          days_delta: 0,
           source_ref: String(args[2]),
           created_at: Number(args[3])
         });
@@ -198,4 +204,22 @@ test("supporter migration is transactional, copy-only and idempotent", async () 
   assert.equal(second.already_applied, true);
   assert.equal(db.batchCalls, 1);
   assert.equal(deletes, 0);
+
+  const compare = await supporterMigrationCompare(env);
+  assert.deepEqual(compare, {
+    ok: true,
+    expected: {
+      users: 1,
+      supporter_state: 1,
+      payments: 1,
+      migration_events: 1
+    },
+    matched: {
+      users: 1,
+      supporter_state: 1,
+      payments: 1,
+      migration_events: 1
+    },
+    kv_untouched: true
+  });
 });
