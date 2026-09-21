@@ -116,6 +116,12 @@ Sebelum 1.1.0 dinyatakan siap:
 - bonus Supporter yang sudah tercatat dapat diterapkan melalui refresh;
 - update in-place 1.0.5 → 1.1.0 mempertahankan token, IndexedDB PDF cache, draft, dan state;
 - Edge Stable Android menjalani regression activation → OCR → PDF → download → resume → refresh activation;
+- setelah token v2 tersinkron, status akses hijau tetap tampil tetapi card manajemen aktivasi tidak lagi memenuhi popup;
+- sponsor card dan interstitial membaca campaign realtime dari backend tanpa update extension;
+- START_JOB harus sudah berhasil sebelum timer interstitial dimulai; interstitial tampil dalam jendela 2–5 detik dan kegagalan ads tidak boleh menahan OCR/job;
+- tanpa campaign aktif atau saat fetch ads gagal, house-ad `Space iklan tersedia` tetap tersedia;
+- event ads tidak mengirim Telegram ID, install ID, token aktivasi, kode BMP, atau data dokumen;
+- GitHub/manual, Android, CWS, dan Edge package semuanya lolos build + validator kandidat;
 - Edge Canary hanya fallback/testing;
 - store listing 1.1.0 harus sudah tersedia sebelum minimum-version policy memaksa user update.
 
@@ -135,6 +141,11 @@ Before distribution:
 - BMP-scoped cache clear works;
 - 403/429/login/Request Rejected causes safe stop;
 - Worker outage fails safely;
+- pembayaran Supporter lalu membuka kembali popup memperbarui snapshot Supporter/bonus token v2 tanpa menghapus token lama saat refresh gagal;
+- synced activation tidak menampilkan card manajemen aktivasi; badge akses tetap tampil;
+- campaign sponsor dapat diganti dari backend dan card mengikuti state baru saat popup terbuka;
+- setelah START_JOB sukses, interstitial campaign/house-ad tampil pada jendela 2–5 detik tanpa memblokir job;
+- no-campaign dan backend ads outage tetap menampilkan house-ad lokal;
 - runtime OCR does not load executable code from CDN.
 
 CWS and Edge additionally require clean-install testing and reviewer activation instructions. Automated CI does not substitute for a real authenticated RBV/browser regression.
