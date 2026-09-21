@@ -50,6 +50,7 @@ import {
   supporterPaymentKey,
   supporterWallKey
 } from "./features/supporter-model.js";
+import {getSupporterEntitlement, putSupporterEntitlement} from "./data/supporter.js";
 
 const APP_VERSION = "1.0.5-support-bot-v12-sponsor-surface";
 const TOKEN_ISSUER = "bmp-terbuka-community";
@@ -83,16 +84,6 @@ function corsHeaders(request) {
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Vary": "Origin"
   };
-}
-
-async function getSupporterEntitlement(env, userId) {
-  if (!env.PAIRINGS || !userId) return null;
-  return await env.PAIRINGS.get(supporterEntitlementKey(userId), "json");
-}
-
-async function putSupporterEntitlement(env, userId, record) {
-  if (!env.PAIRINGS || !userId) return;
-  await env.PAIRINGS.put(supporterEntitlementKey(userId), JSON.stringify(record));
 }
 
 async function supportAccessForUser(env, userId) {
