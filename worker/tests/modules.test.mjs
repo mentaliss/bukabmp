@@ -36,6 +36,8 @@ import {
 
 import {mainMenuKeyboard, menuDeepLink} from "../src/menus/main.js";
 
+import {classifyKvKey} from "../src/security/kv-inventory.js";
+
 test("telegram routing helpers preserve command and chat-scope behavior", () => {
   const env = {BOT_USERNAME: "bukabmp_bot", SUPPORT_GROUP_ID: "-10042"};
   assert.deepEqual(parseBotCommand("/ask halo", env), {command: "ask", args: "halo"});
@@ -218,4 +220,14 @@ test("DM main menu keeps personal domains separated", () => {
     {namespace: "menu", action: "account"}
   );
   assert.equal(parseTelegramCallback("menu:admin"), null);
+});
+
+test("KV inventory classifier never needs raw values", () => {
+  assert.equal(classifyKvKey("pair:abc"), "pair");
+  assert.equal(classifyKvKey("supporter:user:123"), "supporter_entitlement");
+  assert.equal(classifyKvKey("supporter-payment:deadbeef"), "supporter_payment_marker");
+  assert.equal(classifyKvKey("supporter-context:123:456"), "supporter_context");
+  assert.equal(classifyKvKey("support-ai-day:123:2026-09-21"), "support_ai_quota");
+  assert.equal(classifyKvKey("telegram-update:123"), "telegram_update_legacy");
+  assert.equal(classifyKvKey("unknown-prefix:123"), "other");
 });
