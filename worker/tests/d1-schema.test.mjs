@@ -78,5 +78,6 @@ test("candidate config binds BOT_DB without enabling D1 authorities", () => {
   assert.equal(wrangler.vars?.BOT_V2_REFERRAL_D1_ENABLED, "true");
   assert.equal(wrangler.vars?.BOT_V2_REFERRAL_SELF_TEST_ENABLED, "false");
   assert.equal(wrangler.vars?.BOT_V2_ACTIVATION_LEDGER_ENABLED, "true");
-  assert.equal(wrangler.vars?.BOT_V21_UI_CANARY_ENABLED, "true");
+  assert.equal(wrangler.vars?.BOT_V21_UI_ENABLED, "true");
+  assert.equal(wrangler.vars?.BOT_V21_UI_CANARY_ENABLED, "false");
 });
