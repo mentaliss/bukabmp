@@ -79,6 +79,7 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(body.bot_v2_supporter_d1_enabled, false);
   assert.equal(body.bot_v2_payment_d1_enabled, false);
   assert.equal(body.bot_v2_referral_d1_enabled, false);
+  assert.equal(body.bot_v2_referral_self_test_enabled, false);
 });
 
 test("health reports candidate D1 binding without enabling write authorities", async () => {
@@ -106,6 +107,7 @@ test("health reports candidate D1 binding without enabling write authorities", a
   assert.equal(body.bot_v2_supporter_d1_enabled, false);
   assert.equal(body.bot_v2_payment_d1_enabled, false);
   assert.equal(body.bot_v2_referral_d1_enabled, false);
+  assert.equal(body.bot_v2_referral_self_test_enabled, false);
 });
 
 test("telegram webhook rejects a bad secret before processing an update", async () => {
@@ -801,5 +803,44 @@ test("supporter migration apply stays locked while migration gate is off", async
   assert.deepEqual(await response.json(), {
     ok: false,
     reason: "migration_disabled"
+  });
+});
+
+test("referral self-test endpoint stays locked by default", async () => {
+  const env = baseEnv({
+    ADMIN_SETUP_TOKEN: "fixture-admin",
+    BOT_DB: {
+      prepare() {
+        throw new Error("D1 must not be touched while self-test gate is off");
+      }
+    },
+    BOT_V2_SUPPORTER_D1_ENABLED: "true",
+    BOT_V2_REFERRAL_D1_ENABLED: "true",
+    BOT_V2_REFERRAL_SELF_TEST_ENABLED: "false",
+    PAIRINGS: {
+      async get() {
+        throw new Error("KV must not be touched while self-test gate is off");
+      }
+    }
+  });
+
+  const response = await worker.fetch(
+    new Request("https://worker.test/admin/referral-self-test", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer fixture-admin",
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        confirm: "RUN_REFERRAL_D1_SELF_TEST_V1"
+      })
+    }),
+    env
+  );
+
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), {
+    ok: false,
+    reason: "self_test_disabled"
   });
 });
