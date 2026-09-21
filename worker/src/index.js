@@ -11,6 +11,9 @@ import {
   telegramBotUsername
 } from "./telegram/router.js";
 import {supportPrivilegedUserIds} from "./security/permissions.js";
+import {b64url, b64urlJson, importSigningKey, randomToken, sha256Hex} from "./security/crypto.js";
+import {checkPairRateLimit} from "./security/rate-limit.js";
+import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
 import {handlePrivacyGate} from "./security/privacy-gate.js";
 import {
   SUPPORTER_ACTIVATION_BONUS_DAYS,
@@ -67,47 +70,6 @@ function corsHeaders(request) {
     "Vary": "Origin"
   };
 }
-
-function b64url(bytes) {
-  let binary = "";
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-function b64urlJson(value) {
-  return b64url(new TextEncoder().encode(JSON.stringify(value)));
-}
-
-function randomToken(bytes = 24) {
-  const out = new Uint8Array(bytes);
-  crypto.getRandomValues(out);
-  return b64url(out);
-}
-
-async function sha256Hex(text) {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(text)
-  );
-  return [...new Uint8Array(digest)]
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-async function importSigningKey(env) {
-  if (!env.SIGNING_PRIVATE_JWK) {
-    throw new Error("SIGNING_PRIVATE_JWK secret belum diset.");
-  }
-  const jwk = JSON.parse(env.SIGNING_PRIVATE_JWK);
-  return await crypto.subtle.importKey(
-    "jwk",
-    jwk,
-    {name: "RSASSA-PKCS1-v1_5", hash: "SHA-256"},
-    false,
-    ["sign"]
-  );
-}
-
 
 async function getSupporterEntitlement(env, userId) {
   if (!env.PAIRINGS || !userId) return null;
@@ -2643,19 +2605,6 @@ async function handleTelegram(env, update) {
   }
 }
 
-async function checkPairRateLimit(request, env) {
-  const ip = request.headers.get("CF-Connecting-IP") || "";
-  if (!ip || !env.MEMBER_HASH_SALT) return true;
-
-  const fingerprint = await sha256Hex(`rate:${ip}:${env.MEMBER_HASH_SALT}`);
-  const key = `rate:${fingerprint}`;
-  const count = Number(await env.PAIRINGS.get(key) || 0);
-  if (count >= 5) return false;
-
-  await env.PAIRINGS.put(key, String(count + 1), {expirationTtl: 60});
-  return true;
-}
-
 function normalizeDistributionChannel(value) {
   const channel = String(value || "github").trim().toLowerCase();
   return DISTRIBUTION_CHANNELS.includes(channel) ? channel : "github";
@@ -3145,8 +3094,7 @@ export default {
       }
 
       if (url.pathname === "/telegram/webhook" && request.method === "POST") {
-        const secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
-        if (!env.TELEGRAM_WEBHOOK_SECRET || secret !== env.TELEGRAM_WEBHOOK_SECRET) {
+        if (!telegramWebhookAuthorized(request, env)) {
           return json({error: "unauthorized"}, 401);
         }
 

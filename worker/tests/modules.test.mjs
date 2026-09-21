@@ -54,3 +54,20 @@ test("supporter model preserves live package and entitlement semantics", () => {
   assert.equal(supporterIsActive({supporter_until: 2000}, 1000), true);
   assert.equal(supporterIsActive({supporter_until: 500}, 1000), false);
 });
+
+import {telegramWebhookAuthorized} from "../src/security/webhook-auth.js";
+import {randomToken, sha256Hex} from "../src/security/crypto.js";
+
+test("security helpers preserve webhook auth and token primitives", async () => {
+  const env = {TELEGRAM_WEBHOOK_SECRET: "fixture-secret"};
+  const good = new Request("https://worker.test/telegram/webhook", {
+    headers: {"X-Telegram-Bot-Api-Secret-Token": "fixture-secret"}
+  });
+  const bad = new Request("https://worker.test/telegram/webhook", {
+    headers: {"X-Telegram-Bot-Api-Secret-Token": "wrong"}
+  });
+  assert.equal(telegramWebhookAuthorized(good, env), true);
+  assert.equal(telegramWebhookAuthorized(bad, env), false);
+  assert.match(randomToken(12), /^[A-Za-z0-9_-]+$/);
+  assert.equal((await sha256Hex("fixture")).length, 64);
+});
