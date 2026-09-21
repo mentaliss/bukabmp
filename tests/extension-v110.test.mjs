@@ -78,14 +78,16 @@ test("activation refresh verifies replacement before swapping stored token", () 
   assert.match(block, /nextExpiry \+ 1000 < previousExpiry/);
 });
 
-test("failed activation refresh uses short retry backoff instead of six-hour lockout", () => {
-  assert.match(background, /ACTIVATION_REFRESH_FAILURE_BACKOFF_MS = 5 \* 60 \* 1000/);
+test("activation refresh keeps entitlement sync prompt without hammering backend", () => {
+  assert.match(background, /ACTIVATION_REFRESH_INTERVAL_MS = 5 \* 60 \* 1000/);
+  assert.match(background, /ACTIVATION_REFRESH_NO_SUPPORTER_INTERVAL_MS = 60 \* 1000/);
+  assert.match(background, /ACTIVATION_REFRESH_FAILURE_BACKOFF_MS = 60 \* 1000/);
   const start = background.indexOf("async function refreshActivation");
   const end = background.indexOf("function viewerUrl", start);
   const block = background.slice(start, end);
+  assert.match(block, /supporterStillActive/);
+  assert.match(block, /successIntervalMs/);
   assert.match(block, /lastError\s*\?/);
-  assert.match(block, /ACTIVATION_REFRESH_FAILURE_BACKOFF_MS/);
-  assert.match(block, /ACTIVATION_REFRESH_INTERVAL_MS/);
 });
 
 test("legacy re-verification does not delete the active token", () => {
@@ -182,6 +184,7 @@ test("popup exposes current realtime surfaces and Edge Stable Android path", () 
   assert.match(popup, /scheduleJobStartedInterstitial/);
   assert.match(popup, /GET_CLOUD_STATE/);
   assert.match(popup, /force:true/);
+  assert.match(popup, /refreshCloudSurface\(\{force:true\}\)/);
   assert.match(popup, /delayMinMs\|\|2000/);
   assert.match(popup, /delayMaxMs\|\|5000/);
   assert.match(popup, /Space iklan tersedia/);
