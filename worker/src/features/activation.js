@@ -2,7 +2,11 @@ import {tg} from "../telegram/api.js";
 import {b64url, b64urlJson, importSigningKey, sha256Hex} from "../security/crypto.js";
 import {auditErrorName, auditRef} from "../security/audit.js";
 import {getSupporterEntitlement, putSupporterEntitlement} from "../data/supporter.js";
-import {SUPPORTER_ACTIVATION_MAX_DAYS} from "./supporter-model.js";
+import {
+  SUPPORTER_ACTIVATION_MAX_DAYS,
+  SUPPORTER_MEMBER_TAG,
+  supporterIsActive
+} from "./supporter-model.js";
 import {qualifyReferralAfterActivation} from "./referral-service.js";
 import {recordSuccessfulActivation} from "../data/d1/activation-ledger.js";
 
@@ -10,6 +14,77 @@ const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
 export const TOKEN_TTL_DAYS = 14;
 export const PAIR_TTL_SECONDS = 15 * 60;
+export const TOKEN_SCHEMA_VERSION = 2;
+export const TOKEN_REFRESH_MIN_VERSION = "1.1.0";
+
+function supporterTokenSnapshot(record, now = Date.now()) {
+  const active = supporterIsActive(record, now);
+  const until = active ? Number(record?.supporter_until || 0) : 0;
+  return {
+    active,
+    until,
+    label: active ? SUPPORTER_MEMBER_TAG : ""
+  };
+}
+
+function versionParts(value) {
+  return String(value || "")
+    .split(".")
+    .slice(0, 4)
+    .map(x => Number.parseInt(x, 10))
+    .map(x => Number.isFinite(x) ? x : 0);
+}
+
+function versionAtLeast(value, minimum) {
+  const a = versionParts(value);
+  const b = versionParts(minimum);
+  const n = Math.max(a.length, b.length, 3);
+  for (let i = 0; i < n; i++) {
+    const av = a[i] || 0;
+    const bv = b[i] || 0;
+    if (av > bv) return true;
+    if (av < bv) return false;
+  }
+  return true;
+}
+
+function b64urlToBytes(value) {
+  const normalized = String(value || "")
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - normalized.length % 4) % 4);
+  const raw = atob(padded);
+  return Uint8Array.from(raw, char => char.charCodeAt(0));
+}
+
+function decodeB64urlJson(value) {
+  return JSON.parse(
+    new TextDecoder().decode(b64urlToBytes(value))
+  );
+}
+
+async function importVerifyKey(env) {
+  if (!env.SIGNING_PRIVATE_JWK) {
+    throw new Error("SIGNING_PRIVATE_JWK secret belum diset.");
+  }
+  const privateJwk = JSON.parse(env.SIGNING_PRIVATE_JWK);
+  const publicJwk = {
+    kty: privateJwk.kty,
+    n: privateJwk.n,
+    e: privateJwk.e,
+    alg: "RS256",
+    ext: true,
+    key_ops: ["verify"]
+  };
+  return await crypto.subtle.importKey(
+    "jwk",
+    publicJwk,
+    {name: "RSASSA-PKCS1-v1_5", hash: "SHA-256"},
+    false,
+    ["verify"]
+  );
+}
+
 
 async function activationExpiryForIssue(env, telegramUserId) {
   const now = Date.now();
@@ -17,7 +92,12 @@ async function activationExpiryForIssue(env, telegramUserId) {
   const maxExpiry = now + SUPPORTER_ACTIVATION_MAX_DAYS * 86400000;
   const record = await getSupporterEntitlement(env, telegramUserId);
 
-  if (!record) return baseExpiry;
+  if (!record) {
+    return {
+      expiryMs: baseExpiry,
+      supporter: supporterTokenSnapshot(null, now)
+    };
+  }
 
   const trackedExpiry = Number(record.activation_until || 0);
   const pendingDays = Math.max(0, Math.min(
@@ -33,21 +113,38 @@ async function activationExpiryForIssue(env, telegramUserId) {
   record.activation_bonus_pending_days = 0;
   record.last_activation_issued_at = now;
   await putSupporterEntitlement(env, telegramUserId, record);
-  return target;
+  return {
+    expiryMs: target,
+    supporter: supporterTokenSnapshot(record, now)
+  };
 }
 
-async function issueToken(env, installId, telegramUserId) {
+async function signCommunityToken(
+  env,
+  installId,
+  telegramUserId,
+  expiryMs,
+  supporter = null
+) {
   const now = Math.floor(Date.now() / 1000);
-  const expiryMs = await activationExpiryForIssue(env, telegramUserId);
   const header = {alg: "RS256", typ: "JWT"};
   const payload = {
     iss: TOKEN_ISSUER,
     aud: TOKEN_AUDIENCE,
+    sub: "tg:" + String(telegramUserId),
+    token_version: TOKEN_SCHEMA_VERSION,
     install_id: installId,
     iat: now,
-    exp: Math.max(now + 60, Math.floor(expiryMs / 1000)),
+    exp: Math.max(now + 60, Math.floor(Number(expiryMs) / 1000)),
     scope: ["community_access"],
-    member_ref: await sha256Hex("tg:" + telegramUserId + ":" + (env.MEMBER_HASH_SALT || ""))
+    supporter_active: supporter?.active === true,
+    supporter_until: supporter?.active
+      ? Math.max(0, Math.floor(Number(supporter.until || 0) / 1000))
+      : 0,
+    supporter_label: supporter?.active ? String(supporter.label || SUPPORTER_MEMBER_TAG) : "",
+    member_ref: await sha256Hex(
+      "tg:" + telegramUserId + ":" + (env.MEMBER_HASH_SALT || "")
+    )
   };
 
   const h = b64urlJson(header);
@@ -60,6 +157,181 @@ async function issueToken(env, installId, telegramUserId) {
     new TextEncoder().encode(signingInput)
   );
   return signingInput + "." + b64url(new Uint8Array(sig));
+}
+
+export async function issueToken(env, installId, telegramUserId) {
+  const issue = await activationExpiryForIssue(env, telegramUserId);
+  return await signCommunityToken(
+    env,
+    installId,
+    telegramUserId,
+    issue.expiryMs,
+    issue.supporter
+  );
+}
+
+async function verifyIssuedToken(env, token) {
+  try {
+    const parts = String(token || "").split(".");
+    if (parts.length !== 3) return {ok: false, reason: "format"};
+
+    const header = decodeB64urlJson(parts[0]);
+    const payload = decodeB64urlJson(parts[1]);
+    if (header?.alg !== "RS256") return {ok: false, reason: "alg"};
+    if (payload?.iss !== TOKEN_ISSUER) return {ok: false, reason: "issuer"};
+    if (payload?.aud !== TOKEN_AUDIENCE) return {ok: false, reason: "audience"};
+
+    const now = Math.floor(Date.now() / 1000);
+    if (!Number(payload?.exp) || Number(payload.exp) <= now) {
+      return {ok: false, reason: "expired", payload};
+    }
+    if (
+      !Array.isArray(payload?.scope) ||
+      !payload.scope.map(String).includes("community_access")
+    ) {
+      return {ok: false, reason: "scope"};
+    }
+
+    const key = await importVerifyKey(env);
+    const valid = await crypto.subtle.verify(
+      "RSASSA-PKCS1-v1_5",
+      key,
+      b64urlToBytes(parts[2]),
+      new TextEncoder().encode(parts[0] + "." + parts[1])
+    );
+    return valid
+      ? {ok: true, payload}
+      : {ok: false, reason: "signature"};
+  } catch {
+    return {ok: false, reason: "invalid"};
+  }
+}
+
+async function activationExpiryForRefresh(
+  env,
+  telegramUserId,
+  currentExpiryMs
+) {
+  const now = Date.now();
+  const maxExpiry = now + SUPPORTER_ACTIVATION_MAX_DAYS * 86400000;
+  const current = Number(currentExpiryMs || 0);
+  const record = await getSupporterEntitlement(env, telegramUserId);
+
+  if (!record) {
+    return {
+      expiryMs: current,
+      changed: false,
+      supporterBonusApplied: false,
+      supporter: supporterTokenSnapshot(null, now)
+    };
+  }
+
+  const trackedExpiry = Number(record.activation_until || 0);
+  const pendingDays = Math.max(0, Math.min(
+    SUPPORTER_ACTIVATION_MAX_DAYS - TOKEN_TTL_DAYS,
+    Number(record.activation_bonus_pending_days || 0)
+  ));
+
+  let target = Math.max(
+    current,
+    trackedExpiry > now ? trackedExpiry : 0
+  );
+  if (pendingDays > 0) {
+    target += pendingDays * 86400000;
+  }
+  target = Math.min(Math.max(current, target), maxExpiry);
+
+  const changed = target > current + 1000;
+  const supporterBonusApplied = Boolean(
+    pendingDays > 0 ||
+    trackedExpiry > current + 1000
+  );
+
+  if (
+    pendingDays > 0 ||
+    Number(record.activation_until || 0) !== target
+  ) {
+    record.activation_until = target;
+    record.activation_bonus_pending_days = 0;
+    record.last_activation_issued_at = now;
+    await putSupporterEntitlement(env, telegramUserId, record);
+  }
+
+  return {
+    expiryMs: target,
+    changed,
+    supporterBonusApplied,
+    supporter: supporterTokenSnapshot(record, now)
+  };
+}
+
+export async function refreshActivationToken(
+  env,
+  {
+    token,
+    installId,
+    extensionVersion
+  }
+) {
+  if (!versionAtLeast(extensionVersion, TOKEN_REFRESH_MIN_VERSION)) {
+    return {
+      ok: false,
+      reason: "update_required",
+      minimumVersion: TOKEN_REFRESH_MIN_VERSION
+    };
+  }
+
+  const verified = await verifyIssuedToken(env, token);
+  if (!verified.ok) {
+    return {ok: false, reason: "invalid_token"};
+  }
+
+  const payload = verified.payload;
+  if (
+    Number(payload?.token_version || 0) < TOKEN_SCHEMA_VERSION ||
+    !/^tg:\d+$/.test(String(payload?.sub || ""))
+  ) {
+    return {ok: false, reason: "legacy_token"};
+  }
+
+  if (
+    !/^[0-9a-fA-F-]{20,64}$/.test(String(installId || "")) ||
+    String(payload.install_id || "") !== String(installId)
+  ) {
+    return {ok: false, reason: "device_mismatch"};
+  }
+
+  const userId = Number(String(payload.sub).slice(3));
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    return {ok: false, reason: "invalid_subject"};
+  }
+
+  const membership = await checkMembership(env, userId);
+  if (!membership.channel || !membership.group) {
+    return {ok: false, reason: "membership_required"};
+  }
+
+  const currentExpiryMs = Number(payload.exp) * 1000;
+  const expiry = await activationExpiryForRefresh(
+    env,
+    userId,
+    currentExpiryMs
+  );
+  const refreshedToken = await signCommunityToken(
+    env,
+    installId,
+    userId,
+    expiry.expiryMs,
+    expiry.supporter
+  );
+
+  return {
+    ok: true,
+    token: refreshedToken,
+    expiresAt: expiry.expiryMs,
+    changed: expiry.changed,
+    supporterBonusApplied: expiry.supporterBonusApplied
+  };
 }
 
 export function memberOk(member) {
