@@ -65,11 +65,14 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.status, "ok");
-  assert.equal(body.version, "1.0.5-support-bot-v17-activation-refresh-v110");
+  assert.equal(body.version, "1.0.5-support-bot-v18-realtime-ads-v110");
   assert.equal(body.supporter_pass, true);
   assert.equal(body.privacy_gate_enabled, true);
   assert.equal(body.realtime_extension_state, true);
   assert.equal(body.extension_state_status_badge, true);
+  assert.equal(body.realtime_ads_contract, true);
+  assert.equal(body.ad_event_ingest, true);
+  assert.equal(body.ads_analytics_bound, false);
   assert.equal(body.telegram_command_menu_mode, "legacy");
   assert.equal(body.supporter_packages.day.stars, 2);
   assert.equal(body.supporter_packages.month.stars, 50);
@@ -108,6 +111,82 @@ test("extension state exposes a sanitized status badge contract", async () => {
     kind: "success",
     text: "Akses komunitas aktif"
   });
+});
+
+test("extension state exposes a realtime ad campaign without user identifiers", async () => {
+  const response = await worker.fetch(
+    new Request("https://worker.test/v1/extension-state?distribution_channel=edge"),
+    baseEnv({
+      EXTENSION_EDGE_STATE_JSON: JSON.stringify({
+        schema_version: 1,
+        ads: {
+          enabled: true,
+          campaign_id: "campaign-sep-2026",
+          revision: 3,
+          sponsor_label: "Sponsor",
+          advertiser: "Contoh Partner",
+          headline: "Belajar lebih nyaman",
+          body: "Materi sponsor realtime.",
+          disclaimer: "Konten berbayar.",
+          cta: {label: "Lihat", url: "https://example.com/offer"},
+          placements: {card: true, interstitial: true},
+          interstitial: {
+            enabled: true,
+            trigger: "job_started",
+            delay_min_ms: 2000,
+            delay_max_ms: 5000
+          }
+        }
+      })
+    })
+  );
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.ads.active, true);
+  assert.equal(body.ads.campaign_id, "campaign-sep-2026");
+  assert.equal(body.ads.revision, 3);
+  assert.equal(body.ads.placements.card, true);
+  assert.equal(body.ads.placements.interstitial, true);
+  assert.equal(body.ads.interstitial.enabled, true);
+  assert.equal(body.ads.interstitial.delay_min_ms, 2000);
+  assert.equal(body.ads.interstitial.delay_max_ms, 5000);
+  assert.equal(body.ads.cta.url, "https://example.com/offer");
+  const serialized = JSON.stringify(body.ads);
+  assert.doesNotMatch(serialized, /telegram|install_id|member_ref|token/i);
+});
+
+test("ad event ingest accepts coarse campaign metrics without a user identifier", async () => {
+  const points = [];
+  const response = await worker.fetch(
+    new Request("https://worker.test/v1/ad-event", {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({
+        event_type: "impression",
+        placement: "interstitial",
+        campaign_id: "campaign-sep-2026",
+        revision: 3,
+        distribution_channel: "edge",
+        extension_version: "1.1.0"
+      })
+    }),
+    baseEnv({
+      ADS_ANALYTICS: {
+        writeDataPoint(point) {
+          points.push(point);
+        }
+      }
+    })
+  );
+  assert.equal(response.status, 202);
+  assert.deepEqual(await response.json(), {
+    ok: true,
+    analytics_written: true
+  });
+  assert.equal(points.length, 1);
+  const serialized = JSON.stringify(points[0]);
+  assert.match(serialized, /campaign-sep-2026/);
+  assert.doesNotMatch(serialized, /telegram|install_id|member_ref|token/i);
 });
 
 test("health reports candidate D1 binding without enabling write authorities", async () => {
