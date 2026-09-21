@@ -8,6 +8,7 @@ const CLOUD_FAILURE_BACKOFF_MS = 5 * 60 * 1000;
 const CLOUD_CACHE_KEY = "bmpCloudStateCacheV3";
 const ACTIVATION_REFRESH_META_KEY = "bmpActivationRefreshMetaV110";
 const ACTIVATION_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const ACTIVATION_REFRESH_FAILURE_BACKOFF_MS = 5 * 60 * 1000;
 const DEFAULT_STATE = {
   running: false,
   tabId: null,
@@ -535,15 +536,23 @@ async function refreshActivation({force = false} = {}) {
   const now = Date.now();
   const meta = store[ACTIVATION_REFRESH_META_KEY] || {};
   const lastAttemptAt = Number(meta.lastAttemptAt || 0);
+  const lastSuccessAt = Number(meta.lastSuccessAt || 0);
+  const lastError = String(meta.lastError || "");
+  const retryAfterMs = lastError
+    ? ACTIVATION_REFRESH_FAILURE_BACKOFF_MS
+    : ACTIVATION_REFRESH_INTERVAL_MS;
+  const throttleAnchor = lastError
+    ? lastAttemptAt
+    : (lastSuccessAt || lastAttemptAt);
   if (
     !force &&
-    lastAttemptAt > 0 &&
-    now - lastAttemptAt < ACTIVATION_REFRESH_INTERVAL_MS
+    throttleAnchor > 0 &&
+    now - throttleAnchor < retryAfterMs
   ) {
     return {
       status: "throttled",
       expiresAt: Number(verified.payload.exp) * 1000,
-      nextAt: lastAttemptAt + ACTIVATION_REFRESH_INTERVAL_MS
+      nextAt: throttleAnchor + retryAfterMs
     };
   }
 
