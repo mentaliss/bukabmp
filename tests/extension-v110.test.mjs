@@ -78,6 +78,16 @@ test("activation refresh verifies replacement before swapping stored token", () 
   assert.match(block, /nextExpiry \+ 1000 < previousExpiry/);
 });
 
+test("failed activation refresh uses short retry backoff instead of six-hour lockout", () => {
+  assert.match(background, /ACTIVATION_REFRESH_FAILURE_BACKOFF_MS = 5 \* 60 \* 1000/);
+  const start = background.indexOf("async function refreshActivation");
+  const end = background.indexOf("function viewerUrl", start);
+  const block = background.slice(start, end);
+  assert.match(block, /lastError\s*\?/);
+  assert.match(block, /ACTIVATION_REFRESH_FAILURE_BACKOFF_MS/);
+  assert.match(block, /ACTIVATION_REFRESH_INTERVAL_MS/);
+});
+
 test("legacy re-verification does not delete the active token", () => {
   const start = background.indexOf(
     'if (msg.type === "START_PAIRING")'
@@ -115,6 +125,13 @@ test("interstitial countdown starts before realtime fetch so backend latency can
   assert.match(block, /delayMaxMs\|\|5000/);
 });
 
+test("activation management card starts hidden to avoid synced-state flash", () => {
+  assert.match(
+    popupHtml,
+    /id="activationManage" class="cacheCard" style="display:none"/
+  );
+});
+
 test("synced activation hides the whole management card until action is required", () => {
   const start = popup.indexOf("if(a.active&&!a.reviewer)");
   const end = popup.indexOf("return a;", start);
@@ -127,6 +144,21 @@ test("synced activation hides the whole management card until action is required
   assert.doesNotMatch(syncedBlock, /Akun dan aktivasi sudah tersinkron/);
   assert.match(block, /activationManage"\)\.style\.display="block"/);
   assert.match(block, /Verifikasi ulang/);
+});
+
+test("sponsor card impression is emitted only when the main screen is actually visible", () => {
+  const helperStart = popup.indexOf("function reportVisibleCardImpression");
+  const helperEnd = popup.indexOf("function hideAdInterstitial", helperStart);
+  const helper = popup.slice(helperStart, helperEnd);
+  assert.match(helper, /latestAccess\?\.active/);
+  assert.match(helper, /mainScreen/);
+  assert.match(helper, /reportAdEvent\("impression"/);
+
+  const renderStart = popup.indexOf("function renderCloudSurface");
+  const renderEnd = popup.indexOf("async function refreshCloudSurface", renderStart);
+  const renderBlock = popup.slice(renderStart, renderEnd);
+  assert.doesNotMatch(renderBlock, /reportAdEvent\("impression",cardAd/);
+  assert.match(renderBlock, /reportVisibleCardImpression\(\)/);
 });
 
 test("popup exposes current realtime surfaces and Edge Stable Android path", () => {
