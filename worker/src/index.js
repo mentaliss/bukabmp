@@ -113,14 +113,14 @@ import {
 import {parseReferralStartArg} from "./features/referral.js";
 import {attributeReferralFromCode} from "./features/referral-service.js";
 
-const APP_VERSION = "1.0.5-support-bot-v14-hidden-command-menu-kb";
+const APP_VERSION = "1.0.5-support-bot-v15-minimal-command-menu";
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
 const VERSION_CHECK_AFTER_SECONDS = 24 * 60 * 60;
 const REVIEWER_TOKEN_TTL_SECONDS = 24 * 60 * 60;
 const CLOUD_STATE_DEFAULT_TTL_SECONDS = 5 * 60;
 const DISTRIBUTION_CHANNELS = Object.freeze(["github", "android", "cws", "edge"]);
-const TELEGRAM_COMMAND_SCOPE_STATE_KEY = "telegram-command-scopes:hidden-v1";
+const TELEGRAM_COMMAND_SCOPE_STATE_KEY = "telegram-command-scopes:minimal-v2";
 
 function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data, null, 2), {
@@ -599,13 +599,9 @@ async function handleTelegram(env, update) {
       commandName &&
       commandName !== "ask"
     ) {
-      // Keep group chats clean when users invoke legacy/private-only bot commands.
-      // Deletion is best-effort because Telegram only permits it when the bot has
-      // sufficient moderation rights; either way, never emit a legacy group reply.
-      await tg(env, "deleteMessage", {
-        chat_id: chatId,
-        message_id: message.message_id
-      }).catch(() => {});
+      // Keep old/typed slash commands harmless but useful in groups. They are not
+      // advertised in autocomplete; they simply open the standard assistant panel.
+      await sendGroupBotPanel(env, message);
       return;
     }
 
@@ -1741,6 +1737,22 @@ async function adminReferralSelfTest(request, env) {
 }
 
 
+function telegramPrivateCommands() {
+  return [
+    {command: "start", description: "Buka BMP Terbuka"},
+    {command: "menu", description: "Buka menu utama"},
+    {command: "help", description: "Buka bantuan"},
+    {command: "verify", description: "Verifikasi kode aktivasi"},
+    {command: "ask", description: "Tanya BMP Terbuka Assistant"}
+  ];
+}
+
+function telegramGroupCommands() {
+  return [
+    {command: "ask", description: "Tanya BMP Terbuka Assistant"}
+  ];
+}
+
 async function syncTelegramCommandScopes(env) {
   const scopesToClear = [
     {type: "default"},
@@ -1753,14 +1765,30 @@ async function syncTelegramCommandScopes(env) {
     await tg(env, "deleteMyCommands", {scope});
   }
 
+  const privateCommands = telegramPrivateCommands();
+  const groupCommands = telegramGroupCommands();
+
+  await tg(env, "setMyCommands", {
+    scope: {type: "all_private_chats"},
+    commands: privateCommands
+  });
+  await tg(env, "setMyCommands", {
+    scope: {type: "all_group_chats"},
+    commands: groupCommands
+  });
+  await tg(env, "setMyCommands", {
+    scope: {type: "all_chat_administrators"},
+    commands: groupCommands
+  });
+
   return {
-    private_commands: [],
-    group_commands: []
+    private_commands: privateCommands.map(item => item.command),
+    group_commands: groupCommands.map(item => item.command)
   };
 }
 
-async function ensureTelegramCommandScopesHidden(env) {
-  if (String(env.TELEGRAM_COMMAND_MENU_HIDDEN || "").toLowerCase() !== "true") {
+async function ensureTelegramCommandScopesCurrent(env) {
+  if (String(env.TELEGRAM_COMMAND_MENU_MODE || "").toLowerCase() !== "minimal") {
     return;
   }
 
@@ -1843,7 +1871,7 @@ export default {
           store_channels: ["cws", "edge"],
           realtime_extension_state: true,
           extension_state_status_badge: true,
-          telegram_command_menu_hidden: String(env.TELEGRAM_COMMAND_MENU_HIDDEN || "").toLowerCase() === "true",
+          telegram_command_menu_mode: String(env.TELEGRAM_COMMAND_MENU_MODE || "legacy").toLowerCase(),
           reviewer_activation_configured: Boolean(env.STORE_REVIEWER_SECRET),
           bot_v2_d1_bound: d1.bound,
           bot_v2_d1_readable: d1.readable,
@@ -1892,9 +1920,9 @@ export default {
 
         const update = await request.json();
 
-        // The UI now exposes help through buttons/AI instead of Telegram's slash-command
-        // autocomplete. Clean stale BotFather/API command menus once per deployment state.
-        await ensureTelegramCommandScopesHidden(env).catch(error => {
+        // Keep Telegram's command menu intentionally small while preserving typed
+        // legacy commands for compatibility.
+        await ensureTelegramCommandScopesCurrent(env).catch(error => {
           console.error("telegram_command_scope_cleanup_failed", {
             error_name: auditErrorName(error)
           });

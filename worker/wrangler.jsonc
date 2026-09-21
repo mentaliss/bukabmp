@@ -33,6 +33,6 @@
     "BOT_V2_ACTIVATION_LEDGER_ENABLED": "true",
     "BOT_V21_UI_CANARY_ENABLED": "false",
     "BOT_V21_UI_ENABLED": "true",
-    "TELEGRAM_COMMAND_MENU_HIDDEN": "true"
+    "TELEGRAM_COMMAND_MENU_MODE": "minimal"
   }
 }
