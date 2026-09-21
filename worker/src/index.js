@@ -112,8 +112,9 @@ import {
 } from "./features/payment.js";
 import {parseReferralStartArg} from "./features/referral.js";
 import {attributeReferralFromCode} from "./features/referral-service.js";
+import {recordAdEvent, sanitizeAdsState} from "./features/ads.js";
 
-const APP_VERSION = "1.0.5-support-bot-v17-activation-refresh-v110";
+const APP_VERSION = "1.0.5-support-bot-v18-realtime-ads-v110";
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
 const VERSION_CHECK_AFTER_SECONDS = 24 * 60 * 60;
@@ -1363,6 +1364,7 @@ function sanitizeExtensionState(raw) {
     sections: [],
     supporter: {active: false, until: null, label: ""},
     status_badge: {visible: false, kind: "info", text: ""},
+    ads: sanitizeAdsState(null),
     features: {supporter_card: false, community_banner: false}
   };
   if (!raw || typeof raw !== "object" || Number(raw.schema_version) !== 1) return out;
@@ -1403,6 +1405,8 @@ function sanitizeExtensionState(raw) {
     text: badgeText
   };
 
+  out.ads = sanitizeAdsState(raw.ads);
+
   const features = raw.features && typeof raw.features === "object" ? raw.features : {};
   out.features = {
     supporter_card: features.supporter_card === true,
@@ -1426,6 +1430,19 @@ async function extensionState(request, env, url) {
     }
   }
   return json(sanitizeExtensionState(state), 200, corsHeaders(request));
+}
+
+async function adEvent(request, env) {
+  const contentLength = Number(request.headers.get("Content-Length") || 0);
+  if (Number.isFinite(contentLength) && contentLength > 8192) {
+    return json({error: "payload_too_large"}, 413, corsHeaders(request));
+  }
+  const body = await request.json().catch(() => null);
+  const result = await recordAdEvent(env, body);
+  if (!result.ok) {
+    return json({error: result.reason || "invalid_event"}, 400, corsHeaders(request));
+  }
+  return json(result, 202, corsHeaders(request));
 }
 
 async function adminExtensionState(request, env, url) {
@@ -1957,6 +1974,9 @@ export default {
           store_channels: ["cws", "edge"],
           realtime_extension_state: true,
           extension_state_status_badge: true,
+          realtime_ads_contract: true,
+          ad_event_ingest: true,
+          ads_analytics_bound: Boolean(env.ADS_ANALYTICS && typeof env.ADS_ANALYTICS.writeDataPoint === "function"),
           telegram_command_menu_mode: String(env.TELEGRAM_COMMAND_MENU_MODE || "legacy").toLowerCase(),
           reviewer_activation_configured: Boolean(env.STORE_REVIEWER_SECRET),
           bot_v2_d1_bound: d1.bound,
@@ -1981,6 +2001,10 @@ export default {
 
       if (url.pathname === "/v1/extension-state" && request.method === "GET") {
         return await extensionState(request, env, url);
+      }
+
+      if (url.pathname === "/v1/ad-event" && request.method === "POST") {
+        return await adEvent(request, env);
       }
 
       if (url.pathname === "/review" && request.method === "GET") {
