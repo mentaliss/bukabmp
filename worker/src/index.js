@@ -20,6 +20,7 @@ import {claimTelegramUpdate} from "./security/idempotency.js";
 import {d1MigrationEnabled, d1PaymentEnabled, d1ReadProbe, d1ReferralEnabled, d1ReplayEnabled, d1SupporterEnabled, d1WritesEnabled} from "./data/d1/mode.js";
 import {kvInventorySummary} from "./security/kv-inventory.js";
 import {supporterMigrationApply, supporterMigrationCompare, supporterMigrationDryRun} from "./features/supporter-migration.js";
+import {runReferralSelfTest} from "./features/referral-self-test.js";
 import {handlePrivacyGate} from "./security/privacy-gate.js";
 import {auditErrorName} from "./security/audit.js";
 import {normalizeSupportQuery, redactSensitiveSupportText} from "./security/redaction.js";
@@ -1204,6 +1205,19 @@ async function adminSupporterMigrationApply(request, env) {
 }
 
 
+async function adminReferralSelfTest(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  if (!env.ADMIN_SETUP_TOKEN || auth !== `Bearer ${env.ADMIN_SETUP_TOKEN}`) {
+    return json({error: "unauthorized"}, 401, corsHeaders(request));
+  }
+
+  const body = await request.json().catch(() => null);
+  const result = await runReferralSelfTest(env, body?.confirm);
+  const status = result.ok ? 200 : 409;
+  return json(result, status, corsHeaders(request));
+}
+
+
 async function adminSetWebhook(request, env) {
   const auth = request.headers.get("Authorization") || "";
   if (!env.ADMIN_SETUP_TOKEN || auth !== `Bearer ${env.ADMIN_SETUP_TOKEN}`) {
@@ -1364,6 +1378,10 @@ export default {
 
       if (url.pathname === "/admin/supporter-migration-apply" && request.method === "POST") {
         return await adminSupporterMigrationApply(request, env);
+      }
+
+      if (url.pathname === "/admin/referral-self-test" && request.method === "POST") {
+        return await adminReferralSelfTest(request, env);
       }
 
       if (url.pathname === "/admin/set-webhook" && request.method === "POST") {
