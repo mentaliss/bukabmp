@@ -299,6 +299,52 @@ test("sequential Telegram Stars redelivery does not double-credit Supporter", as
   }
 });
 
+test("payment backend failure tells user not to pay again", async () => {
+  const env = baseEnv({
+    BOT_DB: {
+      prepare() {
+        throw new Error("fixture d1 outage");
+      }
+    },
+    BOT_V2_SUPPORTER_D1_ENABLED: "true",
+    BOT_V2_PAYMENT_D1_ENABLED: "true"
+  });
+
+  const calls = [];
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = telegramFetchRecorder(calls);
+  try {
+    const response = await webhook(env, {
+      update_id: 2003,
+      message: {
+        message_id: 6,
+        from: {id: 424242, is_bot: false},
+        chat: {id: 424242, type: "private"},
+        successful_payment: {
+          currency: "XTR",
+          total_amount: 2,
+          invoice_payload: "support:v1:day:424242:AbCdEf12",
+          telegram_payment_charge_id: "fixture-charge-error"
+        }
+      }
+    });
+
+    assert.equal(response.status, 200);
+    const replies = calls
+      .filter(call => call.method === "sendMessage")
+      .map(call => String(call.body.text || ""));
+    assert.ok(replies.some(text =>
+      text.includes("Jangan bayar ulang") &&
+      text.includes("/paysupport")
+    ));
+    assert.ok(replies.every(text =>
+      !text.includes("Aktivasi belum selesai")
+    ));
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
 test("store version policy does not force an unpublished Edge minimum", async () => {
   const env = baseEnv({
     EXTENSION_EDGE_LATEST_VERSION: "1.0.6",
