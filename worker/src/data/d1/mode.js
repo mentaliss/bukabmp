@@ -18,6 +18,11 @@ export function d1ReplayEnabled(env) {
     envFlagEnabled(env, "BOT_V2_D1_REPLAY_ENABLED");
 }
 
+export function d1MigrationEnabled(env) {
+  return d1BindingAvailable(env) &&
+    envFlagEnabled(env, "BOT_V2_D1_MIGRATION_ENABLED");
+}
+
 export async function d1ReadProbe(env) {
   if (!d1BindingAvailable(env)) {
     return {bound: false, readable: false};
