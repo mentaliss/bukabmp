@@ -71,3 +71,18 @@ test("security helpers preserve webhook auth and token primitives", async () => 
   assert.match(randomToken(12), /^[A-Za-z0-9_-]+$/);
   assert.equal((await sha256Hex("fixture")).length, 64);
 });
+
+import {
+  androidHelpText,
+  groupHelpText,
+  supportHelpText,
+  updateHelpText
+} from "../src/menus/help.js";
+
+test("help menu module preserves current user-visible copy", () => {
+  assert.match(supportHelpText(), /Group Terbuka/);
+  assert.match(supportHelpText({privileged: true}), /DM \+ Group Terbuka/);
+  assert.match(androidHelpText(), /Microsoft Edge Canary/);
+  assert.equal(groupHelpText(), "Group Terbuka: https://t.me/bukabmp/13");
+  assert.match(updateHelpText(), /^Versi terbaru: v1\.0\.5/);
+});
