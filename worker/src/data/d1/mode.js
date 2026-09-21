@@ -33,6 +33,11 @@ export function d1PaymentEnabled(env) {
     envFlagEnabled(env, "BOT_V2_PAYMENT_D1_ENABLED");
 }
 
+export function d1ReferralEnabled(env) {
+  return d1SupporterEnabled(env) &&
+    envFlagEnabled(env, "BOT_V2_REFERRAL_D1_ENABLED");
+}
+
 export async function d1ReadProbe(env) {
   if (!d1BindingAvailable(env)) {
     return {bound: false, readable: false};
