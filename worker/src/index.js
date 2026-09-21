@@ -57,6 +57,7 @@ import {getSupporterEntitlement, putSupporterEntitlement} from "./data/supporter
 import {PAIR_TTL_SECONDS, TOKEN_TTL_DAYS, verifyPairForUser} from "./features/activation.js";
 import {
   SUPPORT_AI_MAX_CALLS_PER_DAY,
+  SUPPORT_AI_MODEL,
   runSupportAi,
   supportActorId,
   supportAiAllowed,
