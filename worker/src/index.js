@@ -113,7 +113,7 @@ import {
 import {parseReferralStartArg} from "./features/referral.js";
 import {attributeReferralFromCode} from "./features/referral-service.js";
 
-const APP_VERSION = "1.0.5-support-bot-v12-sponsor-surface";
+const APP_VERSION = "1.0.5-support-bot-v13-command-cleanup-badge-state";
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
 const VERSION_CHECK_AFTER_SECONDS = 24 * 60 * 60;
@@ -598,6 +598,13 @@ async function handleTelegram(env, update) {
       commandName &&
       commandName !== "ask"
     ) {
+      // Keep group chats clean when users invoke legacy/private-only bot commands.
+      // Deletion is best-effort because Telegram only permits it when the bot has
+      // sufficient moderation rights; either way, never emit a legacy group reply.
+      await tg(env, "deleteMessage", {
+        chat_id: chatId,
+        message_id: message.message_id
+      }).catch(() => {});
       return;
     }
 
@@ -1351,6 +1358,7 @@ function sanitizeExtensionState(raw) {
     ttl_seconds: CLOUD_STATE_DEFAULT_TTL_SECONDS,
     sections: [],
     supporter: {active: false, until: null, label: ""},
+    status_badge: {visible: false, kind: "info", text: ""},
     features: {supporter_card: false, community_banner: false}
   };
   if (!raw || typeof raw !== "object" || Number(raw.schema_version) !== 1) return out;
@@ -1381,6 +1389,16 @@ function sanitizeExtensionState(raw) {
     until: safeCloudText(supporter.until, 64) || null,
     label: safeCloudText(supporter.label, 64)
   };
+  const badge = raw.status_badge && typeof raw.status_badge === "object" ? raw.status_badge : {};
+  const badgeKindRaw = safeCloudText(badge.kind, 24).toLowerCase();
+  const badgeKind = ["info", "success", "warning", "community", "supporter"].includes(badgeKindRaw) ? badgeKindRaw : "info";
+  const badgeText = safeCloudText(badge.text, 160);
+  out.status_badge = {
+    visible: badge.visible === true && Boolean(badgeText),
+    kind: badgeKind,
+    text: badgeText
+  };
+
   const features = raw.features && typeof raw.features === "object" ? raw.features : {};
   out.features = {
     supporter_card: features.supporter_card === true,
@@ -1837,6 +1855,7 @@ export default {
           supporter_context_turns: SUPPORTER_CONTEXT_MAX_TURNS,
           store_channels: ["cws", "edge"],
           realtime_extension_state: true,
+          extension_state_status_badge: true,
           reviewer_activation_configured: Boolean(env.STORE_REVIEWER_SECRET),
           bot_v2_d1_bound: d1.bound,
           bot_v2_d1_readable: d1.readable,
