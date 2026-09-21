@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {d1BindingAvailable, d1ReplayEnabled, d1WritesEnabled} from "../src/data/d1/mode.js";
+import {d1BindingAvailable, d1PaymentEnabled, d1ReplayEnabled, d1SupporterEnabled, d1WritesEnabled} from "../src/data/d1/mode.js";
 import {qualifyReferralForActivatedUser} from "../src/data/d1/referral-qualification.js";
 import {applySupporterPaymentTransaction} from "../src/data/d1/payment-transaction.js";
 import {ensureReferralUser} from "../src/features/referral-service.js";
@@ -194,4 +194,30 @@ test("atomic replay guard can be enabled independently from general D1 writes", 
   assert.equal(first.authority, "d1");
   assert.equal(second.process, false);
   assert.equal(second.duplicate, true);
+});
+
+test("supporter/payment D1 gates are independent from referral write authority", () => {
+  const db = {prepare() {}};
+
+  assert.equal(d1SupporterEnabled({BOT_DB: db}), false);
+  assert.equal(d1PaymentEnabled({BOT_DB: db}), false);
+
+  assert.equal(d1SupporterEnabled({
+    BOT_DB: db,
+    BOT_V2_SUPPORTER_D1_ENABLED: "true"
+  }), true);
+
+  assert.equal(d1PaymentEnabled({
+    BOT_DB: db,
+    BOT_V2_PAYMENT_D1_ENABLED: "true"
+  }), false);
+
+  const env = {
+    BOT_DB: db,
+    BOT_V2_SUPPORTER_D1_ENABLED: "true",
+    BOT_V2_PAYMENT_D1_ENABLED: "true"
+  };
+  assert.equal(d1SupporterEnabled(env), true);
+  assert.equal(d1PaymentEnabled(env), true);
+  assert.equal(d1WritesEnabled(env), false);
 });
