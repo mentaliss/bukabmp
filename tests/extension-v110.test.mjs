@@ -91,6 +91,27 @@ test("legacy re-verification does not delete the active token", () => {
   assert.doesNotMatch(block, /bmpCommunityToken/);
 });
 
+test("job start schedules sponsor only after START_JOB succeeds", () => {
+  const start = popup.indexOf('el("start").addEventListener');
+  const end = popup.indexOf('el("selectAllExport")', start);
+  const block = popup.slice(start, end);
+  const requestAt = block.indexOf('send("START_JOB"');
+  const scheduleAt = block.indexOf("scheduleJobStartedInterstitial");
+  assert.ok(requestAt >= 0);
+  assert.ok(scheduleAt > requestAt);
+  assert.match(block, /if\(!res\?\.ok\)/);
+  assert.match(block, /else\{\s*scheduleJobStartedInterstitial/);
+});
+
+test("synced activation keeps status card but hides redundant manual refresh CTA", () => {
+  const start = popup.indexOf("if(a.active&&!a.reviewer)");
+  const end = popup.indexOf("return a;", start);
+  const block = popup.slice(start, end);
+  assert.match(block, /Akun dan aktivasi sudah tersinkron/);
+  assert.match(block, /refreshActivation"\)\.style\.display="none"/);
+  assert.match(block, /refreshActivation"\)\.style\.display="block"/);
+});
+
 test("popup exposes current realtime surfaces and Edge Stable Android path", () => {
   assert.match(popupHtml, /id="refreshActivation"/);
   assert.match(popup, /REFRESH_ACTIVATION/);
@@ -106,7 +127,19 @@ test("popup exposes current realtime surfaces and Edge Stable Android path", () 
     popupHtml.indexOf('id="sponsorSlot"') <
     popupHtml.indexOf('id="activationManage"')
   );
+  assert.match(popupHtml, /id="adInterstitial"/);
+  assert.match(popupHtml, /id="adInterstitialClose"/);
+  assert.match(popupHtml, /id="adInterstitialCta"/);
+  assert.match(popup, /scheduleJobStartedInterstitial/);
+  assert.match(popup, /GET_CLOUD_STATE/);
+  assert.match(popup, /force:true/);
+  assert.match(popup, /delayMinMs\|\|2000/);
+  assert.match(popup, /delayMaxMs\|\|5000/);
   assert.match(popup, /Space iklan tersedia/);
+  assert.match(popup, /Pasang iklan\? Hubungi/);
+  assert.match(background, /REPORT_AD_EVENT/);
+  assert.match(background, /\/v1\/ad-event/);
+  assert.match(popup, /refreshActivation"\)\.style\.display="none"/);
   assert.match(install, /Android — Microsoft Edge Stable/);
   assert.match(install, /Chrome Android bukan jalur instalasi resmi/);
 });

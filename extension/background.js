@@ -288,6 +288,46 @@ async function cloudState({force = false} = {}) {
   }
 }
 
+async function reportAdEvent({
+  eventType,
+  placement,
+  campaignId,
+  revision
+} = {}) {
+  const type = String(eventType || "").toLowerCase();
+  const place = String(placement || "").toLowerCase();
+  const id = String(campaignId || "").trim();
+  if (!["impression", "click", "dismiss"].includes(type)) {
+    return {ok: false, error: "invalid_event_type"};
+  }
+  if (!["card", "interstitial"].includes(place)) {
+    return {ok: false, error: "invalid_placement"};
+  }
+  if (!/^[a-z0-9][a-z0-9_.:-]{0,63}$/i.test(id)) {
+    return {ok: false, error: "invalid_campaign"};
+  }
+
+  const currentVersion = chrome.runtime.getManifest().version;
+  try {
+    return await api("/v1/ad-event", {
+      method: "POST",
+      body: JSON.stringify({
+        event_type: type,
+        placement: place,
+        campaign_id: id,
+        revision: Math.max(0, Math.floor(Number(revision) || 0)),
+        distribution_channel: distributionChannel(),
+        extension_version: currentVersion
+      })
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      error: String(error?.message || error).slice(0, 160)
+    };
+  }
+}
+
 async function executeCloudAction(rawAction) {
   const action = CLOUD.sanitizeAction(rawAction);
   if (!action) throw new Error("Aksi cloud tidak valid.");
@@ -952,6 +992,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     if (msg.type === "GET_CLOUD_STATE") {
       sendResponse({ok: true, state: await cloudState({force: Boolean(msg.force)})});
+      return;
+    }
+    if (msg.type === "REPORT_AD_EVENT") {
+      sendResponse(await reportAdEvent({
+        eventType: msg.eventType,
+        placement: msg.placement,
+        campaignId: msg.campaignId,
+        revision: msg.revision
+      }));
       return;
     }
     if (msg.type === "EXECUTE_CLOUD_ACTION") {
