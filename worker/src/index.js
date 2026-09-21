@@ -85,7 +85,7 @@ import {
   supporterWallKey
 } from "./features/supporter-model.js";
 import {getSupporterEntitlement, putSupporterEntitlement} from "./data/supporter.js";
-import {PAIR_TTL_SECONDS, TOKEN_REFRESH_MIN_VERSION, TOKEN_TTL_DAYS, refreshActivationToken, verifyPairForUser} from "./features/activation.js";
+import {PAIR_TTL_SECONDS, TOKEN_REFRESH_MIN_VERSION, TOKEN_TTL_DAYS, activationTokenExpiryFloor, refreshActivationToken, verifyPairForUser} from "./features/activation.js";
 import {
   formatSupporterContext,
   rememberSupporterTurn,
@@ -112,9 +112,9 @@ import {
 } from "./features/payment.js";
 import {parseReferralStartArg} from "./features/referral.js";
 import {attributeReferralFromCode} from "./features/referral-service.js";
-import {recordAdEvent, sanitizeAdsState} from "./features/ads.js";
+import {recordAdEvent, sanitizeAdEvent, sanitizeAdsState} from "./features/ads.js";
 
-const APP_VERSION = "1.0.5-support-bot-v19-realtime-ads-hardening-v110";
+const APP_VERSION = "1.0.5-support-bot-v20-v110-final-audit";
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
 const VERSION_CHECK_AFTER_SECONDS = 24 * 60 * 60;
@@ -1419,17 +1419,25 @@ function extensionStateKey(channel) {
   return `extension-state:${normalizeDistributionChannel(channel)}`;
 }
 
-async function extensionState(request, env, url) {
-  const channel = normalizeDistributionChannel(url.searchParams.get("distribution_channel"));
+async function readExtensionState(env, channel) {
   let state = null;
   if (env.PAIRINGS) state = await env.PAIRINGS.get(extensionStateKey(channel), "json");
   if (!state) {
-    const raw = envString(env, channelEnvName(channel, "STATE_JSON"), envString(env, "EXTENSION_STATE_JSON", ""));
+    const raw = envString(
+      env,
+      channelEnvName(channel, "STATE_JSON"),
+      envString(env, "EXTENSION_STATE_JSON", "")
+    );
     if (raw) {
       try { state = JSON.parse(raw); } catch { state = null; }
     }
   }
-  return json(sanitizeExtensionState(state), 200, corsHeaders(request));
+  return sanitizeExtensionState(state);
+}
+
+async function extensionState(request, env, url) {
+  const channel = normalizeDistributionChannel(url.searchParams.get("distribution_channel"));
+  return json(await readExtensionState(env, channel), 200, corsHeaders(request));
 }
 
 async function adEvent(request, env) {
@@ -1441,7 +1449,30 @@ async function adEvent(request, env) {
     return json({error: "payload_too_large"}, 413, corsHeaders(request));
   }
   const body = await request.json().catch(() => null);
-  const result = await recordAdEvent(env, body);
+  const event = sanitizeAdEvent(body);
+  if (!event) {
+    return json({error: "invalid_event"}, 400, corsHeaders(request));
+  }
+
+  // Accept metrics only for the campaign that is currently eligible on the
+  // reported distribution channel. This prevents arbitrary campaign IDs from
+  // polluting analytics and safely ignores late events from a replaced campaign.
+  const state = await readExtensionState(env, event.distribution_channel);
+  const ads = state.ads || {};
+  const placementEnabled = event.placement === "card"
+    ? ads.placements?.card === true
+    : ads.placements?.interstitial === true && ads.interstitial?.enabled === true;
+  const currentCampaign = Boolean(
+    ads.active === true &&
+    placementEnabled &&
+    String(ads.campaign_id || "") === event.campaign_id &&
+    Number(ads.revision || 0) === Number(event.revision || 0)
+  );
+  if (!currentCampaign) {
+    return json({ok: true, ignored: true, reason: "stale_or_inactive_campaign"}, 202, corsHeaders(request));
+  }
+
+  const result = await recordAdEvent(env, event);
   if (!result.ok) {
     return json({error: result.reason || "invalid_event"}, 400, corsHeaders(request));
   }
@@ -1608,10 +1639,17 @@ async function pairStart(request, env) {
   const pairId = randomToken(9);
   const pollSecret = randomToken(24);
   const now = Date.now();
+  const minimumExpiryMs = await activationTokenExpiryFloor(
+    env,
+    String(body.current_token || ""),
+    installId
+  );
+
   const record = {
     install_id: installId,
     extension_version: extensionVersion,
     distribution_channel: distributionChannel,
+    minimum_expiry_ms: minimumExpiryMs,
     poll_secret_hash: await sha256Hex(pollSecret),
     status: "pending",
     created_at: now
@@ -1980,6 +2018,7 @@ export default {
           realtime_ads_contract: true,
           ad_event_ingest: true,
           ad_event_rate_limited: true,
+          ad_event_campaign_validated: true,
           ads_analytics_bound: Boolean(env.ADS_ANALYTICS && typeof env.ADS_ANALYTICS.writeDataPoint === "function"),
           telegram_command_menu_mode: String(env.TELEGRAM_COMMAND_MENU_MODE || "legacy").toLowerCase(),
           reviewer_activation_configured: Boolean(env.STORE_REVIEWER_SECRET),
