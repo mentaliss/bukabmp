@@ -103,6 +103,18 @@ test("job start schedules sponsor only after START_JOB succeeds", () => {
   assert.match(block, /else\{\s*scheduleJobStartedInterstitial/);
 });
 
+test("interstitial countdown starts before realtime fetch so backend latency cannot delay the ad", () => {
+  const start = popup.indexOf("async function scheduleJobStartedInterstitial");
+  const end = popup.indexOf("function renderCloudSurface", start);
+  const block = popup.slice(start, end);
+  const timerAt = block.indexOf("setTimeout");
+  const fetchAt = block.indexOf('send("GET_CLOUD_STATE"');
+  assert.ok(timerAt >= 0);
+  assert.ok(fetchAt > timerAt);
+  assert.match(block, /delayMinMs\|\|2000/);
+  assert.match(block, /delayMaxMs\|\|5000/);
+});
+
 test("synced activation keeps status card but hides redundant manual refresh CTA", () => {
   const start = popup.indexOf("if(a.active&&!a.reviewer)");
   const end = popup.indexOf("return a;", start);
