@@ -236,9 +236,7 @@ async function applySuccessfulSupporterPaymentD1(
   const record = {
     ...(currentRecord || {user_id: userId}),
     ...(state || {}),
-    user_id: userId,
-    username: String(message?.from?.username || currentRecord?.username || ""),
-    first_name: String(message?.from?.first_name || currentRecord?.first_name || "")
+    user_id: userId
   };
   if (!record.wall_mode) record.wall_mode = "private";
 
@@ -261,8 +259,8 @@ async function applySuccessfulSupporterPaymentD1(
     await env.PAIRINGS.put(supporterWallKey(userId), JSON.stringify({
       user_id: userId,
       mode: record.wall_mode,
-      username: record.username || "",
-      first_name: record.first_name || "",
+      username: String(message?.from?.username || ""),
+      first_name: String(message?.from?.first_name || ""),
       supporter_until: record.supporter_until
     }));
   }
@@ -370,8 +368,6 @@ export async function applySuccessfulSupporterPayment(env, message) {
   record.payment_count = Math.max(0, Number(record.payment_count || 0)) + 1;
   record.last_payment_at = now;
   record.last_package_id = pkg.id;
-  record.username = String(message?.from?.username || record.username || "");
-  record.first_name = String(message?.from?.first_name || record.first_name || "");
   if (!record.wall_mode) record.wall_mode = "private";
 
   const knownActivation = Number(record.activation_until || 0);
@@ -395,8 +391,8 @@ export async function applySuccessfulSupporterPayment(env, message) {
     await env.PAIRINGS.put(supporterWallKey(userId), JSON.stringify({
       user_id: userId,
       mode: record.wall_mode,
-      username: record.username || "",
-      first_name: record.first_name || "",
+      username: String(message?.from?.username || ""),
+      first_name: String(message?.from?.first_name || ""),
       supporter_until: record.supporter_until
     }));
   }
