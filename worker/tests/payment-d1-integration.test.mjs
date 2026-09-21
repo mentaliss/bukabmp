@@ -268,7 +268,7 @@ test("D1 payment path credits once and mirrors rollback state to KV", async () =
   const mirror = await kv.get("supporter:user:424242", "json");
   assert.equal(mirror.total_stars, 2);
   assert.equal(mirror.payment_count, 1);
-  assert.equal(mirror.username, "fixture-user");
+  assert.equal(mirror.username, undefined);
 
   const marker = await kv.get(
     "supporter-payment:" + chargeRef,
