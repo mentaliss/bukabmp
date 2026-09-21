@@ -1,6 +1,7 @@
 import {tg} from "../telegram/api.js";
 import {isAnonymousAdminMessage, isNormalBotMessage, isOfficialSupportGroup} from "../telegram/router.js";
 import {randomToken, sha256Hex} from "../security/crypto.js";
+import {auditErrorName, auditRef} from "../security/audit.js";
 import {TOKEN_TTL_DAYS} from "./activation.js";
 import {getSupporterEntitlement, putSupporterEntitlement} from "../data/supporter.js";
 import {
@@ -102,9 +103,9 @@ export async function tryApplySupporterTag(env, userId, active) {
     return {ok: true, active: false};
   } catch (error) {
     console.warn("supporter_tag_update_failed", {
-      userId: String(userId),
+      user_ref: await auditRef(env, "telegram-user", userId),
       active,
-      error: String(error?.message || error)
+      error_name: auditErrorName(error)
     });
     return {ok: false, reason: "telegram_error"};
   }
@@ -133,14 +134,16 @@ export async function applySuccessfulSupporterPayment(env, message) {
   const userId = String(message?.from?.id || "");
   const parsed = parseSupportInvoicePayload(payment?.invoice_payload);
   if (!payment || !userId || !parsed || parsed.user_id !== userId) {
-    console.warn("supporter_payment_invalid_message", {userId});
+    console.warn("supporter_payment_invalid_message", {
+      user_ref: await auditRef(env, "telegram-user", userId)
+    });
     return false;
   }
 
   const pkg = supporterPackage(parsed.package_id);
   if (!pkg || payment.currency !== "XTR" || Number(payment.total_amount) !== pkg.stars) {
     console.warn("supporter_payment_amount_mismatch", {
-      userId,
+      user_ref: await auditRef(env, "telegram-user", userId),
       package_id: parsed.package_id
     });
     return false;
@@ -163,7 +166,7 @@ export async function applySuccessfulSupporterPayment(env, message) {
   const invoice = await env.PAIRINGS.get(supporterInvoiceKey(parsed.nonce), "json");
   if (!invoice || String(invoice.user_id) !== userId || invoice.package_id !== pkg.id) {
     console.warn("supporter_payment_invoice_missing", {
-      userId,
+      user_ref: await auditRef(env, "telegram-user", userId),
       package_id: pkg.id
     });
     return false;
