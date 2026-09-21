@@ -37,6 +37,7 @@ import {
 import {mainMenuKeyboard, menuDeepLink} from "../src/menus/main.js";
 
 import {classifyKvKey} from "../src/security/kv-inventory.js";
+import {v21UiCanaryCount, v21UiCanaryEnabled, v21UiCanaryUser} from "../src/features/ui-canary.js";
 
 test("telegram routing helpers preserve command and chat-scope behavior", () => {
   const env = {BOT_USERNAME: "bukabmp_bot", SUPPORT_GROUP_ID: "-10042"};
@@ -248,5 +249,25 @@ test("KV inventory classifier never needs raw values", () => {
   assert.equal(classifyKvKey("supporter-context:123:456"), "supporter_context");
   assert.equal(classifyKvKey("support-ai-day:123:2026-09-21"), "support_ai_quota");
   assert.equal(classifyKvKey("telegram-update:123"), "telegram_update_legacy");
+  assert.equal(classifyKvKey("bot-menu:123"), "bot_menu");
   assert.equal(classifyKvKey("unknown-prefix:123"), "other");
+});
+
+test("V2.1 UI canary reuses the privileged user allowlist", () => {
+  const env = {
+    SUPPORT_PRIVILEGED_USER_IDS: "111111, 222222",
+    BOT_V21_UI_CANARY_ENABLED: "true"
+  };
+  assert.equal(v21UiCanaryEnabled(env), true);
+  assert.equal(v21UiCanaryCount(env), 2);
+  assert.equal(v21UiCanaryUser(env, 111111), true);
+  assert.equal(v21UiCanaryUser(env, "222222"), true);
+  assert.equal(v21UiCanaryUser(env, 424242), false);
+  assert.equal(
+    v21UiCanaryUser({
+      ...env,
+      BOT_V21_UI_CANARY_ENABLED: "false"
+    }, 111111),
+    false
+  );
 });
