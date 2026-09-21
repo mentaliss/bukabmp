@@ -23,6 +23,9 @@ import {
   supporterTermsText
 } from "../src/menus/supporter.js";
 
+import {parseTelegramCallback} from "../src/telegram/callbacks.js";
+import {claimTelegramUpdate, telegramUpdateKey} from "../src/security/idempotency.js";
+
 test("telegram routing helpers preserve command and chat-scope behavior", () => {
   const env = {BOT_USERNAME: "bukabmp_bot", SUPPORT_GROUP_ID: "-10042"};
   assert.deepEqual(parseBotCommand("/ask halo", env), {command: "ask", args: "halo"});
@@ -107,4 +110,41 @@ test("supporter menu module preserves live packages and benefits", () => {
   assert.match(terms, /\+14 hari/);
   assert.match(terms, /maksimum 60 hari/);
   assert.match(terms, /one-time, bukan subscription otomatis/);
+});
+
+test("callback parser only accepts known namespaces", () => {
+  assert.deepEqual(
+    parseTelegramCallback("verify:AbCdEf123456"),
+    {namespace: "activation", action: "verify", pairId: "AbCdEf123456"}
+  );
+  assert.deepEqual(
+    parseTelegramCallback("support:select:day"),
+    {namespace: "supporter", action: "select", packageId: "day"}
+  );
+  assert.deepEqual(
+    parseTelegramCallback("support:buy:month"),
+    {namespace: "supporter", action: "buy", packageId: "month"}
+  );
+  assert.deepEqual(
+    parseTelegramCallback("support:terms"),
+    {namespace: "supporter", action: "terms"}
+  );
+  assert.equal(parseTelegramCallback("support:buy:year"), null);
+  assert.equal(parseTelegramCallback("admin:delete:user"), null);
+  assert.equal(parseTelegramCallback("verify:bad!"), null);
+});
+
+test("KV replay helper rejects a sequential duplicate update id", async () => {
+  const kv = new Map();
+  const env = {
+    PAIRINGS: {
+      async get(key) { return kv.get(String(key)) ?? null; },
+      async put(key, value) { kv.set(String(key), String(value)); }
+    }
+  };
+  const first = await claimTelegramUpdate(env, 12345);
+  const second = await claimTelegramUpdate(env, 12345);
+  assert.equal(first.process, true);
+  assert.equal(second.process, false);
+  assert.equal(telegramUpdateKey(12345), "telegram-update:12345");
 });
