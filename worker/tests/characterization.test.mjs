@@ -69,6 +69,7 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(body.supporter_pass, true);
   assert.equal(body.privacy_gate_enabled, true);
   assert.equal(body.realtime_extension_state, true);
+  assert.equal(body.extension_state_status_badge, true);
   assert.equal(body.supporter_packages.day.stars, 2);
   assert.equal(body.supporter_packages.month.stars, 50);
   assert.equal(body.bot_v2_d1_bound, false);
@@ -83,6 +84,29 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(body.bot_v2_activation_ledger_enabled, false);
   assert.equal(body.bot_v21_ui_canary_enabled, false);
   assert.equal(body.bot_v21_ui_canary_user_count, 0);
+});
+
+test("extension state exposes a sanitized status badge contract", async () => {
+  const response = await worker.fetch(
+    new Request("https://worker.test/v1/extension-state?distribution_channel=edge"),
+    baseEnv({
+      EXTENSION_EDGE_STATE_JSON: JSON.stringify({
+        schema_version: 1,
+        status_badge: {
+          visible: true,
+          kind: "success",
+          text: "Akses komunitas aktif"
+        }
+      })
+    })
+  );
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.deepEqual(body.status_badge, {
+    visible: true,
+    kind: "success",
+    text: "Akses komunitas aktif"
+  });
 });
 
 test("health reports candidate D1 binding without enabling write authorities", async () => {
@@ -534,34 +558,41 @@ test("private start without pair code opens the V2.1 control panel for canary us
   }
 });
 
-test("group slash commands other than ask are silent", async () => {
+test("group slash commands other than ask are removed without replies", async () => {
   const env = baseEnv({
     SUPPORT_GROUP_ID: "-10042",
     BOT_V21_UI_ENABLED: "true"
   });
   const oldFetch = globalThis.fetch;
 
-  for (const [index, text] of ["/menu", "/tutorial", "/terms", "/paysupport"].entries()) {
-    const calls = [];
-    globalThis.fetch = telegramFetchRecorder(calls);
-    const response = await webhook(env, {
-      update_id: 4100 + index,
-      message: {
-        message_id: 50 + index,
-        from: {id: 424242, is_bot: false},
-        chat: {id: -10042, type: "supergroup"},
-        text
-      }
-    });
-    assert.equal(response.status, 200);
-    assert.equal(
-      calls.some(call => call.method === "sendMessage"),
-      false,
-      text + " must not produce a group reply"
-    );
+  try {
+    for (const [index, text] of ["/menu", "/tutorial", "/terms", "/paysupport"].entries()) {
+      const calls = [];
+      globalThis.fetch = telegramFetchRecorder(calls);
+      const messageId = 50 + index;
+      const response = await webhook(env, {
+        update_id: 4100 + index,
+        message: {
+          message_id: messageId,
+          from: {id: 424242, is_bot: false},
+          chat: {id: -10042, type: "supergroup"},
+          text
+        }
+      });
+      assert.equal(response.status, 200);
+      assert.equal(
+        calls.some(call => call.method === "sendMessage"),
+        false,
+        text + " must not produce a group reply"
+      );
+      assert.ok(
+        calls.some(call => call.method === "deleteMessage" && call.body.chat_id === -10042 && call.body.message_id === messageId),
+        text + " should be removed from the group when moderation rights allow it"
+      );
+    }
+  } finally {
+    globalThis.fetch = oldFetch;
   }
-
-  globalThis.fetch = oldFetch;
 });
 
 test("legacy tutorial command in DM opens current extension UI", async () => {
