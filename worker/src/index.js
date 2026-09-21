@@ -17,9 +17,9 @@ import {b64url, b64urlJson, importSigningKey, randomToken, sha256Hex} from "./se
 import {checkPairRateLimit} from "./security/rate-limit.js";
 import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
 import {claimTelegramUpdate} from "./security/idempotency.js";
-import {d1ReadProbe, d1ReplayEnabled, d1WritesEnabled} from "./data/d1/mode.js";
+import {d1MigrationEnabled, d1ReadProbe, d1ReplayEnabled, d1WritesEnabled} from "./data/d1/mode.js";
 import {kvInventorySummary} from "./security/kv-inventory.js";
-import {supporterMigrationDryRun} from "./features/supporter-migration.js";
+import {supporterMigrationApply, supporterMigrationDryRun} from "./features/supporter-migration.js";
 import {handlePrivacyGate} from "./security/privacy-gate.js";
 import {auditErrorName} from "./security/audit.js";
 import {normalizeSupportQuery, redactSensitiveSupportText} from "./security/redaction.js";
@@ -1179,6 +1179,19 @@ async function adminSupporterMigrationDryRun(request, env) {
 }
 
 
+async function adminSupporterMigrationApply(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  if (!env.ADMIN_SETUP_TOKEN || auth !== `Bearer ${env.ADMIN_SETUP_TOKEN}`) {
+    return json({error: "unauthorized"}, 401, corsHeaders(request));
+  }
+
+  const body = await request.json().catch(() => null);
+  const result = await supporterMigrationApply(env, body?.confirm);
+  const status = result.ok ? 200 : 409;
+  return json(result, status, corsHeaders(request));
+}
+
+
 async function adminSetWebhook(request, env) {
   const auth = request.headers.get("Authorization") || "";
   if (!env.ADMIN_SETUP_TOKEN || auth !== `Bearer ${env.ADMIN_SETUP_TOKEN}`) {
@@ -1244,7 +1257,8 @@ export default {
           bot_v2_d1_bound: d1.bound,
           bot_v2_d1_readable: d1.readable,
           bot_v2_d1_write_enabled: d1WritesEnabled(env),
-          bot_v2_d1_replay_enabled: d1ReplayEnabled(env)
+          bot_v2_d1_replay_enabled: d1ReplayEnabled(env),
+          bot_v2_d1_migration_enabled: d1MigrationEnabled(env)
         }, 200, corsHeaders(request));
       }
 
@@ -1322,6 +1336,10 @@ export default {
 
       if (url.pathname === "/admin/supporter-migration-dry-run" && request.method === "GET") {
         return await adminSupporterMigrationDryRun(request, env);
+      }
+
+      if (url.pathname === "/admin/supporter-migration-apply" && request.method === "POST") {
+        return await adminSupporterMigrationApply(request, env);
       }
 
       if (url.pathname === "/admin/set-webhook" && request.method === "POST") {
