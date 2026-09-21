@@ -140,8 +140,8 @@
     const interstitialRaw=raw.interstitial&&typeof raw.interstitial==="object"
       ?raw.interstitial
       :{};
-    const delayMinMs=boundedInt(interstitialRaw.delay_min_ms,2000,500,15000);
-    const delayMaxMs=boundedInt(interstitialRaw.delay_max_ms,5000,delayMinMs,30000);
+    const delayMinMs=boundedInt(interstitialRaw.delay_min_ms,2000,2000,5000);
+    const delayMaxMs=boundedInt(interstitialRaw.delay_max_ms,5000,delayMinMs,5000);
 
     const houseRaw=raw.house&&typeof raw.house==="object"?raw.house:{};
     const defaultHouse=fallback.house;
@@ -156,7 +156,9 @@
     const headline=text(raw.headline,120);
     const body=text(raw.body,700);
     const imageUrl=httpsUrl(raw.image_url);
-    const hasCreative=Boolean(headline||body||imageUrl);
+    // 1.1.0 intentionally renders text creative only. imageUrl is reserved
+    // until assets can be served through a first-party/proxied path.
+    const hasCreative=Boolean(headline||body);
     const active=Boolean(
       raw.active===true&&
       enabled&&
