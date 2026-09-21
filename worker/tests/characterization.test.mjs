@@ -648,12 +648,29 @@ test("supporter migration dry-run summarizes authority without exposing records"
 
   const db = {
     prepare(sql) {
-      assert.match(sql, /^SELECT COUNT\(\*\) AS count FROM (users|supporter_state|payments)$/);
-      return {
-        async first() {
-          return {count: 0};
-        }
-      };
+      if (/^SELECT COUNT\(\*\) AS count FROM (users|supporter_state|payments)$/.test(sql)) {
+        return {
+          async first() {
+            return {count: 0};
+          }
+        };
+      }
+      if (
+        sql.startsWith("SELECT telegram_user_id FROM users") ||
+        sql.startsWith("SELECT * FROM supporter_state") ||
+        sql.startsWith("SELECT * FROM payments")
+      ) {
+        return {
+          bind() {
+            return {
+              async first() {
+                return null;
+              }
+            };
+          }
+        };
+      }
+      throw new Error("unexpected migration dry-run query");
     }
   };
 
