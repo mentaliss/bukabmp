@@ -1,4 +1,4 @@
-import {envFlagEnabled} from "../data/d1/mode.js";
+import {d1ReferralSelfTestEnabled} from "../data/d1/mode.js";
 import {requireBotDb} from "../data/d1/client.js";
 import {
   attributeReferralFromCode,
@@ -16,10 +16,6 @@ const IDS = Object.freeze([
 ]);
 
 export const REFERRAL_SELF_TEST_CONFIRMATION = "RUN_REFERRAL_D1_SELF_TEST_V1";
-
-function selfTestEnabled(env) {
-  return envFlagEnabled(env, "BOT_V2_REFERRAL_SELF_TEST_ENABLED");
-}
 
 async function cleanup(env) {
   const db = requireBotDb(env);
@@ -89,7 +85,7 @@ async function cleanupVerified(env) {
 }
 
 export async function runReferralSelfTest(env, confirmation) {
-  if (!selfTestEnabled(env)) {
+  if (!d1ReferralSelfTestEnabled(env)) {
     return {ok: false, reason: "self_test_disabled"};
   }
   if (String(confirmation || "") !== REFERRAL_SELF_TEST_CONFIRMATION) {
