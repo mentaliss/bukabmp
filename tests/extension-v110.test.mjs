@@ -91,10 +91,19 @@ test("legacy re-verification does not delete the active token", () => {
   assert.doesNotMatch(block, /bmpCommunityToken/);
 });
 
-test("popup exposes refresh UX and Edge Stable is the Android primary path", () => {
+test("popup exposes current realtime surfaces and Edge Stable Android path", () => {
   assert.match(popupHtml, /id="refreshActivation"/);
   assert.match(popup, /REFRESH_ACTIVATION/);
-  assert.match(popup, /Aktifkan pembaruan 1\.1\.0/);
+  assert.match(popup, /Aktifkan pembaruan/);
+  assert.doesNotMatch(popup, /Aktifkan pembaruan 1\.1\.0/);
+  assert.match(popupHtml, /id="cloudStatusBadge"/);
+  assert.match(popupHtml, /id="supporterBadge"/);
+  assert.match(popupHtml, /id="sponsorSlot"/);
+  assert.ok(
+    popupHtml.indexOf('id="sponsorSlot"') <
+    popupHtml.indexOf('id="activationManage"')
+  );
+  assert.match(popup, /Space iklan tersedia/);
   assert.match(install, /Android — Microsoft Edge Stable/);
   assert.match(install, /Chrome Android bukan jalur instalasi resmi/);
 });
