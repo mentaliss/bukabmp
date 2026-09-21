@@ -393,80 +393,124 @@ async function handleSupportMessage(env, message) {
     return true;
   }
   if (currentCommand === "terms") {
-    await sendSupportReply(env, message, supporterTermsText());
+    await sendSupporterTermsPanel(
+      env,
+      message.chat.id,
+      message.from?.id
+    );
     return true;
   }
   if (currentCommand === "paysupport") {
-    await handlePaymentSupportCommand(env, message, invocation.command?.args || "");
+    const args = String(invocation.command?.args || "").trim();
+    if (args) {
+      await handlePaymentSupportCommand(env, message, args);
+    } else {
+      await sendSupporterPaymentPanel(
+        env,
+        message.chat.id,
+        message.from?.id
+      );
+    }
     return true;
   }
   if (currentCommand === "supporter") {
     const arg = String(invocation.command?.args || "").trim().toLowerCase();
     if (["public", "anonymous", "private"].includes(arg)) {
-      await sendSupportReply(
+      await setSupporterWallMode(env, message, arg);
+      await sendSupporterWallPanel(
         env,
-        message,
-        await setSupporterWallMode(env, message, arg)
+        message.chat.id,
+        message.from?.id
       );
     } else {
-      await sendSupportReply(env, message, await supporterStatusText(env, message?.from?.id));
+      await sendSupporterStatusPanel(
+        env,
+        message.chat.id,
+        message.from?.id
+      );
     }
     return true;
   }
   if (currentCommand === "supporters") {
-    await sendSupportReply(env, message, await supporterWallText(env));
+    await sendSupporterWallPanel(
+      env,
+      message.chat.id,
+      message.from?.id
+    );
     return true;
   }
-  if (currentCommand === "help" || currentCommand === "bmphelp" || currentCommand === "faq") {
-    await sendSupportReply(env, message, supportHelpText(access));
+  if (
+    currentCommand === "help" ||
+    currentCommand === "bmphelp" ||
+    currentCommand === "faq" ||
+    currentCommand === "group"
+  ) {
+    await sendHelpPanel(
+      env,
+      message.chat.id,
+      access,
+      message.from?.id
+    );
     return true;
   }
   if (currentCommand === "tutorial") {
-    await sendSupportReply(env, message, tutorialText());
+    await sendExtensionPage(
+      env,
+      message.chat.id,
+      message.from?.id,
+      null,
+      "start"
+    );
     return true;
   }
-  if (currentCommand === "install") {
-    await sendSupportReply(env, message, installText());
-    return true;
-  }
-  if (currentCommand === "android") {
-    await sendSupportReply(env, message, androidHelpText());
-    return true;
-  }
-  if (currentCommand === "desktop") {
-    await sendSupportReply(env, message, desktopHelpText());
-    return true;
-  }
-  if (currentCommand === "group") {
-    await sendSupportReply(env, message, groupHelpText());
-    return true;
-  }
-  if (currentCommand === "update") {
-    await sendSupportReply(env, message, updateHelpText());
+  if (
+    currentCommand === "install" ||
+    currentCommand === "android" ||
+    currentCommand === "desktop" ||
+    currentCommand === "update"
+  ) {
+    await sendExtensionPage(
+      env,
+      message.chat.id,
+      message.from?.id,
+      null,
+      "install"
+    );
     return true;
   }
   if (currentCommand === "fitur") {
-    await sendSupportReply(env, message, featuresText());
+    await sendExtensionMenu(
+      env,
+      message.chat.id,
+      message.from?.id
+    );
     return true;
   }
   if (currentCommand === "storage") {
-    await sendSupportReply(env, message, storageText());
+    await sendExtensionPage(
+      env,
+      message.chat.id,
+      message.from?.id,
+      null,
+      "storage"
+    );
     return true;
   }
   if (currentCommand === "bug") {
-    await sendSupportReply(env, message, bugReportText());
+    await sendReportHelpPanel(
+      env,
+      message.chat.id,
+      message.from?.id,
+      null
+    );
     return true;
   }
   if (currentCommand === "quota") {
-    if (privileged) {
-      const label = access.source === "supporter"
-        ? `unlimited (Supporter Pass aktif sampai ${formatWibDateTime(access.supporter?.supporter_until)}).`
-        : "unlimited (akun khusus).";
-      await sendSupportReply(env, message, `Kuota AI support: ${label}`);
-    } else {
-      const status = await supportAiQuotaStatus(env, supportActorId(message));
-      await sendSupportReply(env, message, `Sisa kuota AI hari ini: ${status.remaining} dari ${SUPPORT_AI_MAX_CALLS_PER_DAY}`);
-    }
+    await sendAiQuotaPanel(
+      env,
+      message.chat.id,
+      message.from
+    );
     return true;
   }
 
@@ -495,7 +539,7 @@ async function handleSupportMessage(env, message) {
     : await supportAiAllowed(env, supportActorId(message));
 
   if (!quota.allowed) {
-    await sendSupportReply(env, message, "Kuota AI support hari ini sudah habis (sisa 0 dari 6). Coba lagi besok. FAQ yang bisa dijawab langsung dari basis pengetahuan serta command seperti /tutorial, /install, /android, /desktop, /storage, /fitur, dan /bug tetap bisa dipakai tanpa kuota AI. Supporter Pass dapat diaktifkan lewat /support.");
+    await sendSupportReply(env, message, "Kuota AI support hari ini sudah habis (sisa 0 dari 6). Coba lagi besok. FAQ yang bisa dijawab langsung dari basis pengetahuan tetap tersedia tanpa kuota AI. Buka menu utama untuk Bantuan, Ekstensi, atau Supporter.");
     return true;
   }
 
@@ -515,11 +559,11 @@ async function handleSupportMessage(env, message) {
         await rememberSupporterTurn(env, message.from.id, message.chat.id, query, aiAnswer);
       }
     } else {
-      await sendSupportReply(env, message, "Jawaban AI belum berhasil dibuat. Coba gunakan command /bmphelp atau kirim pertanyaan BMP Terbuka dengan konteks yang lebih spesifik.");
+      await sendSupportReply(env, message, "Jawaban AI belum berhasil dibuat. Buka menu Bantuan atau kirim pertanyaan BMP Terbuka dengan konteks yang lebih spesifik.");
     }
   } catch (e) {
     console.error("support_ai_failed", {error_name: auditErrorName(e)});
-    await sendSupportReply(env, message, "AI support sedang tidak tersedia. Command bantuan seperti /tutorial, /storage, dan /bug tetap bisa dipakai.");
+    await sendSupportReply(env, message, "AI support sedang tidak tersedia. Menu Bantuan dan Ekstensi tetap bisa dipakai.");
   }
   return true;
 }
@@ -548,6 +592,14 @@ async function handleTelegram(env, update) {
     await reconcileSupporterTagOnMessage(env, message).catch(() => {});
 
     const v21Canary = v21UiCanaryUser(env, userId);
+
+    if (
+      !isPrivateChat(message) &&
+      commandName &&
+      commandName !== "ask"
+    ) {
+      return;
+    }
 
     if (
       !isPrivateChat(message) &&
@@ -1670,6 +1722,67 @@ async function adminReferralSelfTest(request, env) {
 }
 
 
+function telegramPrivateCommands() {
+  return [
+    {command: "start", description: "Buka BMP Terbuka"},
+    {command: "menu", description: "Buka menu utama"},
+    {command: "verify", description: "Verifikasi kode aktivasi"},
+    {command: "ask", description: "Tanya BMP Terbuka Assistant"}
+  ];
+}
+
+function telegramGroupCommands() {
+  return [
+    {command: "ask", description: "Tanya BMP Terbuka Assistant"}
+  ];
+}
+
+async function syncTelegramCommandScopes(env) {
+  const scopesToClear = [
+    {type: "default"},
+    {type: "all_private_chats"},
+    {type: "all_group_chats"},
+    {type: "all_chat_administrators"}
+  ];
+
+  for (const scope of scopesToClear) {
+    await tg(env, "deleteMyCommands", {scope}).catch(() => {});
+  }
+
+  const privateCommands = telegramPrivateCommands();
+  const groupCommands = telegramGroupCommands();
+
+  await tg(env, "setMyCommands", {
+    scope: {type: "all_private_chats"},
+    commands: privateCommands
+  });
+  await tg(env, "setMyCommands", {
+    scope: {type: "all_group_chats"},
+    commands: groupCommands
+  });
+  await tg(env, "setMyCommands", {
+    scope: {type: "all_chat_administrators"},
+    commands: groupCommands
+  });
+
+  return {
+    private_commands: privateCommands.map(item => item.command),
+    group_commands: groupCommands.map(item => item.command)
+  };
+}
+
+
+async function adminSyncTelegramCommands(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  if (!env.ADMIN_SETUP_TOKEN || auth !== `Bearer ${env.ADMIN_SETUP_TOKEN}`) {
+    return json({error: "unauthorized"}, 401, corsHeaders(request));
+  }
+
+  const commands = await syncTelegramCommandScopes(env);
+  return json({ok: true, ...commands}, 200, corsHeaders(request));
+}
+
+
 async function adminSetWebhook(request, env) {
   const auth = request.headers.get("Authorization") || "";
   if (!env.ADMIN_SETUP_TOKEN || auth !== `Bearer ${env.ADMIN_SETUP_TOKEN}`) {
@@ -1686,15 +1799,8 @@ async function adminSetWebhook(request, env) {
     allowed_updates: ["message", "edited_message", "callback_query", "pre_checkout_query"],
     drop_pending_updates: true
   });
-  await tg(env, "setMyCommands", {
-    commands: [
-      {command: "start", description: "Buka BMP Terbuka"},
-      {command: "menu", description: "Buka menu akun"},
-      {command: "ask", description: "Tanya BMP Terbuka Assistant"},
-      {command: "help", description: "Bantuan BMP Terbuka"}
-    ]
-  }).catch(() => {});
-  return json({ok: true, webhook, result});
+  const commands = await syncTelegramCommandScopes(env);
+  return json({ok: true, webhook, result, ...commands});
 }
 
 export default {
@@ -1847,6 +1953,10 @@ export default {
 
       if (url.pathname === "/admin/activation-ledger-migration-apply" && request.method === "POST") {
         return await adminActivationLedgerMigrationApply(request, env);
+      }
+
+      if (url.pathname === "/admin/sync-commands" && request.method === "POST") {
+        return await adminSyncTelegramCommands(request, env);
       }
 
       if (url.pathname === "/admin/set-webhook" && request.method === "POST") {
