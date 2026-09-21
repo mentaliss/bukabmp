@@ -9,6 +9,7 @@ const KV_FAMILIES = Object.freeze([
   ["telegram_update_legacy", "telegram-update:"],
   ["bot_menu", "bot-menu:"],
   ["pair_rate_limit", "rate:"],
+  ["activation_refresh_rate", "activation-refresh-rate:"],
   ["reviewer_rate_limit", "review-rate:"],
   ["extension_state", "extension-state:"]
 ]);
