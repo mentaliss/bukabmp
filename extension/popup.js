@@ -454,6 +454,32 @@ async function refreshAccess(){
   if(a.active&&a.expiresAt){
     el("accessBadge").textContent=`● Akses komunitas aktif hingga ${formatDate(a.expiresAt)}`;
   }
+
+  if(a.active&&!a.reviewer){
+    const pendingRefresh=Boolean(a.pending);
+    el("activationManage").style.display="block";
+    el("refreshActivation").disabled=Boolean(latestVersionPolicy?.updateRequired);
+    if(pendingRefresh){
+      el("activationManageText").textContent=
+        "Menunggu verifikasi ulang satu kali untuk mengaktifkan pembaruan token 1.1.0.";
+      el("activationManageCode").textContent=a.pending?.pairId
+        ? `Kode verifikasi: ${a.pending.pairId}`
+        : "";
+      el("refreshActivation").textContent="Buka Telegram lagi";
+    }else if(a.refreshEligible){
+      el("activationManageText").textContent=
+        "Pembaruan token 1.1.0 aktif. Bonus masa aktivasi Supporter dapat diterapkan tanpa menunggu token lama kedaluwarsa.";
+      el("activationManageCode").textContent="";
+      el("refreshActivation").textContent="Perbarui aktivasi";
+    }else{
+      el("activationManageText").textContent=
+        "Token ini dibuat sebelum fitur pembaruan 1.1.0. Verifikasi ulang satu kali untuk mengaktifkannya; token aktif saat ini tidak dihapus.";
+      el("activationManageCode").textContent="";
+      el("refreshActivation").textContent="Aktifkan pembaruan 1.1.0";
+    }
+  }else{
+    el("activationManage").style.display="none";
+  }
   return a;
 }
 async function refreshState(){
@@ -664,7 +690,7 @@ el("copyPairCode").addEventListener("click",async()=>{
 async function checkPendingActivation({quiet=false}={}){
   if(activationChecking)return await send("GET_ACCESS_STATUS");
   const a=await send("GET_ACCESS_STATUS");
-  if(a?.active||!a?.pending)return a;
+  if(!a?.pending)return a;
 
   activationChecking=true;
   el("checkActivation").disabled=true;
@@ -727,6 +753,64 @@ el("retryActivation").addEventListener("click",async()=>{
   }
 });
 el("checkActivation").addEventListener("click",()=>checkPendingActivation({quiet:false}));
+
+async function refreshActivationNow({quiet=false,force=true}={}){
+  const access=latestAccess||await send("GET_ACCESS_STATUS");
+  if(!access?.active||access?.reviewer)return access;
+
+  const button=el("refreshActivation");
+  button.disabled=true;
+  try{
+    if(access.pending){
+      await send("OPEN_PENDING_TELEGRAM");
+      if(!quiet){
+        el("activationManageText").textContent=
+          "Telegram dibuka lagi. Selesaikan verifikasi lalu kembali ke popup.";
+      }
+      return access;
+    }
+
+    if(!access.refreshEligible){
+      if(!quiet){
+        el("activationManageText").textContent=
+          "Menyiapkan verifikasi ulang satu kali. Token aktif saat ini tetap berlaku selama proses.";
+      }
+      const r=await send("START_PAIRING");
+      if(!r?.ok)throw new Error(r?.error||"Verifikasi ulang tidak dapat dimulai.");
+      await refreshAccess();
+      return latestAccess;
+    }
+
+    if(!quiet){
+      el("activationManageText").textContent="Memeriksa pembaruan aktivasi...";
+    }
+    const r=await send("REFRESH_ACTIVATION",{force});
+    if(!r?.ok)throw new Error(r?.error||"Aktivasi belum dapat diperbarui.");
+    const result=r.result||{};
+    await refreshAccess();
+    if(!quiet){
+      el("activationManageText").textContent=result.status==="throttled"
+        ? "Aktivasi sudah diperiksa baru-baru ini."
+        : result.changed
+          ? `Aktivasi diperbarui sampai ${formatDate(result.expiresAt)}.`
+          : "Aktivasi sudah menggunakan masa berlaku terbaru.";
+    }
+    return latestAccess;
+  }catch(e){
+    if(!quiet){
+      el("activationManageText").textContent=
+        "Pembaruan aktivasi belum berhasil: "+String(e?.message||e);
+    }
+    return latestAccess;
+  }finally{
+    button.disabled=Boolean(latestVersionPolicy?.updateRequired);
+  }
+}
+
+el("refreshActivation").addEventListener("click",()=>refreshActivationNow({
+  quiet:false,
+  force:true
+}));
 
 el("start").addEventListener("click",async()=>{
   if(latestVersionPolicy?.updateRequired){
@@ -858,12 +942,15 @@ el("about").addEventListener("click",()=>chrome.tabs.create({url:chrome.runtime.
   await refreshCloudSurface();
   await refreshAccess();
   await refreshVersion();
+  if(latestAccess?.active&&latestAccess?.refreshEligible&&!latestAccess?.reviewer){
+    await refreshActivationNow({quiet:true,force:false});
+  }
   await refreshState();
   await refreshCachePreview();
   setInterval(async()=>{await refreshAccess();await refreshState()},1000);
   setInterval(()=>refreshCloudSurface().catch(()=>{}),30_000);
   setInterval(async()=>{
     const a=await send("GET_ACCESS_STATUS");
-    if(a?.pending&&!a?.active)await checkPendingActivation({quiet:true});
+    if(a?.pending)await checkPendingActivation({quiet:true});
   },2000);
 })();
