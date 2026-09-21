@@ -17,6 +17,7 @@ import {checkPairRateLimit} from "./security/rate-limit.js";
 import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
 import {claimTelegramUpdate} from "./security/idempotency.js";
 import {handlePrivacyGate} from "./security/privacy-gate.js";
+import {auditErrorName} from "./security/audit.js";
 import {
   SUPPORT_GROUP_JOIN_URL,
   androidHelpText,
@@ -1774,7 +1775,7 @@ async function handleSupportMessage(env, message) {
       await sendSupportReply(env, message, "Jawaban AI belum berhasil dibuat. Coba gunakan command /bmphelp atau kirim pertanyaan BMP Terbuka dengan konteks yang lebih spesifik.");
     }
   } catch (e) {
-    console.error("support_ai_failed", {error: String(e?.stack || e)});
+    console.error("support_ai_failed", {error_name: auditErrorName(e)});
     await sendSupportReply(env, message, "AI support sedang tidak tersedia. Command bantuan seperti /tutorial, /storage, dan /bug tetap bisa dipakai.");
   }
   return true;
@@ -2442,8 +2443,8 @@ export default {
           await handleTelegram(env, update);
         } catch (e) {
           console.error("telegram_update_failed", {
-            update_id: update?.update_id,
-            error: String(e?.stack || e)
+            update_id: update?.update_id ?? null,
+            error_name: auditErrorName(e)
           });
 
           const chatId =
@@ -2477,7 +2478,9 @@ export default {
 
       return json({error: "not_found"}, 404, corsHeaders(request));
     } catch (e) {
-      console.error(e);
+      console.error("worker_request_failed", {
+        error_name: auditErrorName(e)
+      });
       return json({error: "internal_error"}, 500, corsHeaders(request));
     }
   }
