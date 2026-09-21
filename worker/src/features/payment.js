@@ -3,7 +3,12 @@ import {isAnonymousAdminMessage, isNormalBotMessage, isOfficialSupportGroup} fro
 import {randomToken, sha256Hex} from "../security/crypto.js";
 import {auditErrorName, auditRef} from "../security/audit.js";
 import {TOKEN_TTL_DAYS} from "./activation.js";
-import {getSupporterEntitlement, putSupporterEntitlement} from "../data/supporter.js";
+import {d1PaymentEnabled} from "../data/d1/mode.js";
+import {applySupporterPaymentTransaction, getPaymentByChargeRef} from "../data/d1/payment-transaction.js";
+import {d1SupporterRowToRecord} from "../data/d1/supporter-state.js";
+import {createUserIfMissing, getUserById} from "../data/d1/users.js";
+import {createOpaqueReferralCode} from "./referral.js";
+import {getSupporterEntitlement, mirrorSupporterEntitlementToKv, putSupporterEntitlement} from "../data/supporter.js";
 import {
   SUPPORTER_ACTIVATION_BONUS_DAYS,
   SUPPORTER_ACTIVATION_MAX_DAYS,
@@ -129,6 +134,177 @@ export async function reconcileSupporterTagOnMessage(env, message) {
   }
 }
 
+async function ensurePaymentD1User(env, userId) {
+  const id = Number(userId);
+  const existing = await getUserById(env, id);
+  if (existing) return existing;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const user = await createUserIfMissing(env, {
+      telegramUserId: id,
+      referralCode: createOpaqueReferralCode()
+    });
+    if (user) return user;
+  }
+
+  throw new Error("payment_user_create_failed");
+}
+
+async function sendAlreadyProcessed(env, message, userId) {
+  const existingEntitlement = await getSupporterEntitlement(env, userId);
+  await tg(env, "sendMessage", {
+    chat_id: message.chat.id,
+    text: `Pembayaran ini sudah diproses. Supporter aktif sampai ${formatWibDateTime(existingEntitlement?.supporter_until)}.`
+  }).catch(() => {});
+}
+
+async function applySuccessfulSupporterPaymentD1(
+  env,
+  message,
+  parsed,
+  pkg,
+  chargeId,
+  chargeHash
+) {
+  const userId = String(message?.from?.id || "");
+  const paymentKey = supporterPaymentKey(chargeHash);
+
+  const existingD1 = await getPaymentByChargeRef(env, chargeHash);
+  if (existingD1) {
+    await sendAlreadyProcessed(env, message, userId);
+    return true;
+  }
+
+  // A legacy KV marker always wins over re-processing. This preserves
+  // idempotency during rollback/cutover even if D1 is temporarily behind.
+  const existingKvPayment = await env.PAIRINGS.get(paymentKey, "json");
+  if (existingKvPayment?.processed_at) {
+    console.warn("supporter_payment_legacy_marker_without_d1");
+    await sendAlreadyProcessed(env, message, userId);
+    return true;
+  }
+
+  const invoice = await env.PAIRINGS.get(
+    supporterInvoiceKey(parsed.nonce),
+    "json"
+  );
+  if (
+    !invoice ||
+    String(invoice.user_id) !== userId ||
+    invoice.package_id !== pkg.id
+  ) {
+    console.warn("supporter_payment_invoice_missing", {
+      user_ref: await auditRef(env, "telegram-user", userId),
+      package_id: pkg.id
+    });
+    return false;
+  }
+
+  await ensurePaymentD1User(env, userId);
+
+  const currentRecord = await getSupporterEntitlement(env, userId);
+  const now = Date.now();
+  let state;
+
+  try {
+    const rawState = await applySupporterPaymentTransaction(env, {
+      paymentEventId: "pay_" + randomToken(18),
+      supporterEventId: "support_pay_" + randomToken(18),
+      telegramChargeRef: chargeHash,
+      userId,
+      packageId: pkg.id,
+      stars: pkg.stars,
+      days: pkg.days,
+      activationBonusDays: SUPPORTER_ACTIVATION_BONUS_DAYS,
+      activationMaxDays: SUPPORTER_ACTIVATION_MAX_DAYS,
+      tokenTtlDays: TOKEN_TTL_DAYS,
+      seed: currentRecord || {},
+      processedAt: now
+    });
+    state = d1SupporterRowToRecord(rawState);
+  } catch (error) {
+    // Concurrent delivery can lose the unique payment insert race. If the
+    // charge now exists, treat this delivery as the duplicate it is.
+    const raced = await getPaymentByChargeRef(env, chargeHash).catch(() => null);
+    if (raced) {
+      await sendAlreadyProcessed(env, message, userId);
+      return true;
+    }
+    throw error;
+  }
+
+  const record = {
+    ...(currentRecord || {user_id: userId}),
+    ...(state || {}),
+    user_id: userId,
+    username: String(message?.from?.username || currentRecord?.username || ""),
+    first_name: String(message?.from?.first_name || currentRecord?.first_name || "")
+  };
+  if (!record.wall_mode) record.wall_mode = "private";
+
+  try {
+    await mirrorSupporterEntitlementToKv(env, userId, record);
+    await env.PAIRINGS.put(paymentKey, JSON.stringify({
+      processed_at: now,
+      user_id: userId,
+      package_id: pkg.id,
+      stars: pkg.stars,
+      telegram_payment_charge_id: chargeId
+    }));
+  } catch (error) {
+    console.warn("supporter_payment_kv_mirror_failed", {
+      error_name: auditErrorName(error)
+    });
+  }
+
+  if (["public", "anonymous"].includes(record.wall_mode)) {
+    await env.PAIRINGS.put(supporterWallKey(userId), JSON.stringify({
+      user_id: userId,
+      mode: record.wall_mode,
+      username: record.username || "",
+      first_name: record.first_name || "",
+      supporter_until: record.supporter_until
+    }));
+  }
+
+  if (env.PAIRINGS.delete) {
+    await env.PAIRINGS.delete(
+      supporterInvoiceKey(parsed.nonce)
+    ).catch(() => {});
+  }
+
+  const tag = await tryApplySupporterTag(env, userId, true);
+  record.tag_applied = Boolean(tag.ok && tag.active);
+  await putSupporterEntitlement(env, userId, record);
+
+  const activationText = Number(record.activation_until || 0) > now
+    ? `Target masa aktivasi extension sekarang sampai ${formatWibDateTime(record.activation_until)}. Token di perangkat tidak berubah; target ini diterapkan saat aktivasi/verifikasi berikutnya.`
+    : `Bonus aktivasi +${SUPPORTER_ACTIVATION_BONUS_DAYS} hari sudah disimpan dan akan diterapkan saat token aktivasi berikutnya diterbitkan (maksimum ${SUPPORTER_ACTIVATION_MAX_DAYS} hari).`;
+
+  await tg(env, "sendMessage", {
+    chat_id: message.chat.id,
+    text: [
+      "✅ BMP Supporter Pass aktif.",
+      "",
+      `Paket: ${pkg.stars} ⭐ / ${pkg.days} hari`,
+      `Aktif sampai: ${formatWibDateTime(record.supporter_until)}`,
+      "DM bot + AI unlimited: aktif",
+      "Priority support: aktif",
+      `Konteks troubleshooting: sampai ${SUPPORTER_CONTEXT_MAX_TURNS} turn / 6 jam`,
+      tag.ok && tag.active
+        ? `Tag grup: ${SUPPORTER_MEMBER_TAG}`
+        : "Tag grup: belum diterapkan (permission/status member tidak mendukung).",
+      "",
+      activationText,
+      "",
+      "Supporter Wall default-nya private. Gunakan /supporter public, /supporter anonymous, atau /supporter private untuk mengatur."
+    ].join("\n"),
+    disable_web_page_preview: true
+  });
+
+  return true;
+}
+
 export async function applySuccessfulSupporterPayment(env, message) {
   const payment = message?.successful_payment;
   const userId = String(message?.from?.id || "");
@@ -152,6 +328,18 @@ export async function applySuccessfulSupporterPayment(env, message) {
   const chargeId = String(payment.telegram_payment_charge_id || "");
   if (!chargeId) return false;
   const chargeHash = await sha256Hex(`support-payment:${chargeId}`);
+
+  if (d1PaymentEnabled(env)) {
+    return await applySuccessfulSupporterPaymentD1(
+      env,
+      message,
+      parsed,
+      pkg,
+      chargeId,
+      chargeHash
+    );
+  }
+
   const paymentKey = supporterPaymentKey(chargeHash);
   const existingPayment = await env.PAIRINGS.get(paymentKey, "json");
   if (existingPayment?.processed_at) {
