@@ -38,6 +38,11 @@ export function d1ReferralEnabled(env) {
     envFlagEnabled(env, "BOT_V2_REFERRAL_D1_ENABLED");
 }
 
+export function d1ReferralSelfTestEnabled(env) {
+  return d1ReferralEnabled(env) &&
+    envFlagEnabled(env, "BOT_V2_REFERRAL_SELF_TEST_ENABLED");
+}
+
 export async function d1ReadProbe(env) {
   if (!d1BindingAvailable(env)) {
     return {bound: false, readable: false};
