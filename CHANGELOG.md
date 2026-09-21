@@ -2,6 +2,13 @@
 
 Semua perubahan penting pada source extension publik dicatat di sini.
 
+## [1.1.0] - Unreleased
+
+### In development
+- Pembaruan token aktivasi untuk menerapkan entitlement Supporter tanpa menunggu token lama kedaluwarsa.
+- Jalur distribusi Edge/Android akan divalidasi ulang sebelum release publik.
+- Release ini belum dipublikasikan ke Edge Add-ons atau GitHub Releases.
+
 ## [1.0.5] - 2026-09-18
 
 ### Added
