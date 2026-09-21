@@ -14,6 +14,11 @@ export function parseTelegramCallback(data) {
     return {namespace: "supporter", action: "terms"};
   }
 
+  const menu = value.match(/^menu:(main|account|supporter|referral|activation|help)$/);
+  if (menu) {
+    return {namespace: "menu", action: menu[1]};
+  }
+
   const select = value.match(/^support:select:(day|month)$/);
   if (select) {
     return {namespace: "supporter", action: "select", packageId: select[1]};
