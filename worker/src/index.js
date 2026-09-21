@@ -348,18 +348,22 @@ async function handleSupportMessage(env, message) {
 
   let invocation = supportInvocation(message, env);
   const command = invocation.command?.command || "";
-  const commerceDmCommand = privateChat && ["support", "supporter", "supporters", "terms", "paysupport"].includes(command);
+  const dmUtilityCommand = privateChat && new Set([
+    "support", "supporter", "supporters", "terms", "paysupport",
+    "help", "bmphelp", "faq", "tutorial", "install", "android",
+    "desktop", "group", "update", "fitur", "storage", "bug", "quota"
+  ]).has(command);
 
-  // Regular users are Group-only for support. Commerce/status commands remain
-  // available in DM so anyone can buy/check a Supporter Pass.
-  if (privateChat && !privileged && !commerceDmCommand) {
+  // Regular users use AI in Group Terbuka, but deterministic help/account
+  // utilities remain available in DM.
+  if (privateChat && !privileged && !dmUtilityCommand) {
     const text = String(message?.text || "").trim();
     if (!text) return false;
     await sendSupportReply(env, message, [
       "Support BMP Terbuka tersedia di Group Terbuka.",
       SUPPORT_GROUP_JOIN_URL,
       "",
-      "DM bot tetap digunakan untuk aktivasi/verifikasi extension dan Supporter Pass (/support)."
+      "DM bot tetap bisa dipakai untuk menu akun, panduan extension, aktivasi/verifikasi, dan Supporter. AI reguler digunakan di Group Terbuka."
     ].join("\n"));
     return true;
   }
