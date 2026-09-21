@@ -37,7 +37,7 @@ import {
 import {mainMenuKeyboard, menuDeepLink} from "../src/menus/main.js";
 
 import {classifyKvKey} from "../src/security/kv-inventory.js";
-import {v21UiCanaryCount, v21UiCanaryEnabled, v21UiCanaryUser} from "../src/features/ui-canary.js";
+import {v21UiCanaryCount, v21UiCanaryEnabled, v21UiCanaryUser, v21UiGlobalEnabled} from "../src/features/ui-canary.js";
 
 test("telegram routing helpers preserve command and chat-scope behavior", () => {
   const env = {BOT_USERNAME: "bukabmp_bot", SUPPORT_GROUP_ID: "-10042"};
@@ -270,4 +270,17 @@ test("V2.1 UI canary reuses the privileged user allowlist", () => {
     }, 111111),
     false
   );
+});
+
+test("global V2.1 UI rollout overrides the canary allowlist", () => {
+  const env = {
+    SUPPORT_PRIVILEGED_USER_IDS: "111111, 222222",
+    BOT_V21_UI_ENABLED: "true",
+    BOT_V21_UI_CANARY_ENABLED: "false"
+  };
+  assert.equal(v21UiGlobalEnabled(env), true);
+  assert.equal(v21UiCanaryEnabled(env), false);
+  assert.equal(v21UiCanaryCount(env), 0);
+  assert.equal(v21UiCanaryUser(env, 111111), true);
+  assert.equal(v21UiCanaryUser(env, 424242), true);
 });
