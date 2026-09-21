@@ -6,58 +6,177 @@ import {
   formatWibDateTime,
   supporterPackage
 } from "../features/supporter-model.js";
+import {
+  supporterStatusText,
+  supporterWallText
+} from "../features/supporter.js";
+import {renderMenu} from "./ui.js";
 
 export function supporterDeepLink(env) {
   return "https://t.me/" + telegramBotUsername(env) + "?start=support";
 }
 
 export function supportMenuText(access = null) {
-  const lines = [
-    "⭐ BMP Supporter Pass",
+  const status = access?.source === "supporter" && access.supporter
+    ? "Aktif sampai " + formatWibDateTime(access.supporter.supporter_until)
+    : "Belum aktif";
+
+  return [
+    "⭐ Supporter",
     "",
-    "Semua fitur inti BMP Terbuka tetap gratis. Supporter Pass memberi benefit support tambahan:",
+    "Status: " + status,
+    "",
+    "Supporter Pass adalah dukungan opsional. Semua fitur inti BMP Terbuka tetap gratis.",
+    "",
+    "Benefit:",
     "• DM bot + AI support unlimited",
-    "• tag BMP Supporter di grup (jika bot punya izin Manage Tags)",
     "• priority support",
     "• konteks troubleshooting sampai 6 turn / 6 jam",
+    "• tag BMP Supporter di grup bila permission Telegram mendukung",
     "• Supporter Wall opsional",
-    "• bonus masa aktivasi extension +14 hari saat token aktivasi berikutnya diterbitkan, maksimum 60 hari",
-    "",
-    "Paket:",
-    "• 2 ⭐ — 1 hari",
-    "• 50 ⭐ — 30 hari"
-  ];
-  if (access?.source === "supporter" && access.supporter) {
-    lines.push("", "Supporter kamu aktif sampai " + formatWibDateTime(access.supporter.supporter_until) + ".");
-  }
-  return lines.join("\n");
+    "• bonus target aktivasi +" + SUPPORTER_ACTIVATION_BONUS_DAYS + " hari, maksimum " + SUPPORTER_ACTIVATION_MAX_DAYS + " hari"
+  ].join("\n");
 }
 
-export async function sendSupporterMenu(env, message, access = null) {
+export async function sendSupporterMenu(
+  env,
+  message,
+  access = null,
+  messageId = null
+) {
   if (isPrivateChat(message)) {
-    await tg(env, "sendMessage", {
-      chat_id: message.chat.id,
+    return await renderMenu(env, {
+      chatId: message.chat.id,
+      userId: message.from?.id,
+      messageId,
       text: supportMenuText(access),
-      reply_markup: {
+      replyMarkup: {
         inline_keyboard: [
-          [{text: "⭐ 2 Stars — 1 Hari", callback_data: "support:select:day"}],
-          [{text: "⭐ 50 Stars — 30 Hari", callback_data: "support:select:month"}],
+          [{text: "⭐ Paket & Benefit", callback_data: "support:packages"}],
+          [
+            {text: "👤 Status Saya", callback_data: "support:status"},
+            {text: "🏆 Supporter Wall", callback_data: "support:wall"}
+          ],
+          [
+            {text: "💳 Bantuan Pembayaran", callback_data: "support:payment"},
+            {text: "📄 Terms", callback_data: "support:terms"}
+          ],
           [{text: "◀ Menu Utama", callback_data: "menu:main"}]
         ]
-      },
-      disable_web_page_preview: true
+      }
     });
-    return;
   }
 
   await tg(env, "sendMessage", {
     chat_id: message.chat.id,
-    text: "⭐ Supporter Pass tersedia mulai 2 Stars. Aktivasi dan pembayaran dilakukan lewat DM bot.",
+    text: "⭐ Supporter Pass tersedia mulai 2 Stars. Status, paket, dan pembayaran dibuka lewat DM bot.",
     reply_parameters: {message_id: message.message_id},
     reply_markup: {
-      inline_keyboard: [[{text: "Buka Supporter Pass", url: supporterDeepLink(env)}]]
+      inline_keyboard: [[{text: "Buka Supporter", url: supporterDeepLink(env)}]]
     },
     disable_web_page_preview: true
+  });
+}
+
+export async function sendSupporterPackages(
+  env,
+  chatId,
+  userId,
+  messageId = null
+) {
+  return await renderMenu(env, {
+    chatId,
+    userId,
+    messageId,
+    text: [
+      "⭐ Paket Supporter",
+      "",
+      "• 2 ⭐ — 1 hari",
+      "• 50 ⭐ — 30 hari",
+      "",
+      "Pembelian one-time, bukan subscription otomatis.",
+      "Tekan paket untuk melihat konfirmasi sebelum invoice dibuat."
+    ].join("\n"),
+    replyMarkup: {
+      inline_keyboard: [
+        [{text: "⭐ 2 Stars — 1 Hari", callback_data: "support:select:day"}],
+        [{text: "⭐ 50 Stars — 30 Hari", callback_data: "support:select:month"}],
+        [{text: "◀ Supporter", callback_data: "menu:supporter"}]
+      ]
+    }
+  });
+}
+
+export async function sendSupporterStatusPanel(
+  env,
+  chatId,
+  userId,
+  messageId = null
+) {
+  return await renderMenu(env, {
+    chatId,
+    userId,
+    messageId,
+    text: await supporterStatusText(env, userId),
+    replyMarkup: {
+      inline_keyboard: [
+        [{text: "◀ Supporter", callback_data: "menu:supporter"}],
+        [{text: "◀ Menu Utama", callback_data: "menu:main"}]
+      ]
+    }
+  });
+}
+
+export async function sendSupporterWallPanel(
+  env,
+  chatId,
+  userId,
+  messageId = null
+) {
+  return await renderMenu(env, {
+    chatId,
+    userId,
+    messageId,
+    text: await supporterWallText(env),
+    replyMarkup: {
+      inline_keyboard: [
+        [
+          {text: "Public", callback_data: "support:wall:public"},
+          {text: "Anonymous", callback_data: "support:wall:anonymous"},
+          {text: "Private", callback_data: "support:wall:private"}
+        ],
+        [{text: "◀ Supporter", callback_data: "menu:supporter"}]
+      ]
+    }
+  });
+}
+
+export async function sendSupporterPaymentPanel(
+  env,
+  chatId,
+  userId,
+  messageId = null
+) {
+  return await renderMenu(env, {
+    chatId,
+    userId,
+    messageId,
+    text: [
+      "💳 Bantuan Pembayaran",
+      "",
+      "Kalau pembayaran Telegram Stars berhasil tetapi Supporter belum aktif, jangan bayar ulang.",
+      "",
+      "Kirim:",
+      "/paysupport diikuti penjelasan singkat masalah.",
+      "",
+      "Jangan kirim password, OTP, token, cookie, atau data kartu."
+    ].join("\n"),
+    replyMarkup: {
+      inline_keyboard: [
+        [{text: "◀ Supporter", callback_data: "menu:supporter"}],
+        [{text: "◀ Menu Utama", callback_data: "menu:main"}]
+      ]
+    }
   });
 }
 
@@ -77,24 +196,52 @@ export function supporterTermsText() {
   ].join("\n");
 }
 
-export async function sendSupporterPackageConfirmation(env, userId, chatId, packageId) {
+export async function sendSupporterTermsPanel(
+  env,
+  chatId,
+  userId,
+  messageId = null
+) {
+  return await renderMenu(env, {
+    chatId,
+    userId,
+    messageId,
+    text: supporterTermsText(),
+    replyMarkup: {
+      inline_keyboard: [
+        [{text: "◀ Supporter", callback_data: "menu:supporter"}],
+        [{text: "◀ Menu Utama", callback_data: "menu:main"}]
+      ]
+    }
+  });
+}
+
+export async function sendSupporterPackageConfirmation(
+  env,
+  userId,
+  chatId,
+  packageId,
+  messageId = null
+) {
   const pkg = supporterPackage(packageId);
   if (!pkg) return;
-  await tg(env, "sendMessage", {
-    chat_id: chatId,
+  return await renderMenu(env, {
+    chatId,
+    userId,
+    messageId,
     text: [
       "⭐ " + pkg.title,
       "",
       pkg.stars + " Stars untuk " + pkg.days + " hari Supporter Pass.",
       "Termasuk bonus target aktivasi +" + SUPPORTER_ACTIVATION_BONUS_DAYS + " hari (maks. " + SUPPORTER_ACTIVATION_MAX_DAYS + " hari), diterapkan pada token aktivasi berikutnya jika token lama belum dapat diperbarui.",
       "",
-      "Baca /terms sebelum melanjutkan."
+      "Baca Terms sebelum melanjutkan."
     ].join("\n"),
-    reply_markup: {
+    replyMarkup: {
       inline_keyboard: [
         [{text: "📄 Baca Terms", callback_data: "support:terms"}],
         [{text: "✅ Saya setuju & bayar " + pkg.stars + " ⭐", callback_data: "support:buy:" + pkg.id}],
-        [{text: "◀ Supporter", callback_data: "menu:supporter"}]
+        [{text: "◀ Paket Supporter", callback_data: "support:packages"}]
       ]
     }
   });
