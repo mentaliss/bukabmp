@@ -169,7 +169,7 @@ export async function verifyPairForUser(env, pairId, userId, chatId) {
   });
 
   // Referral qualification is secondary to activation. It is explicitly gated
-  // behind BOT_V2_D1_WRITE_ENABLED and can never block a successful activation.
+  // behind BOT_V2_REFERRAL_D1_ENABLED and can never block a successful activation.
   qualifyReferralAfterActivation(env, userId).catch(async error => {
     console.error("referral_qualification_failed", {
       user_ref: await auditRef(env, "telegram-user", userId),
