@@ -2051,7 +2051,7 @@ async function handleTelegram(env, update) {
         return;
       }
     }
-  }}
+  }
 }
 
 function normalizeDistributionChannel(value) {
