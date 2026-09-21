@@ -38,6 +38,7 @@ import {mainMenuKeyboard, menuDeepLink} from "../src/menus/main.js";
 
 import {classifyKvKey} from "../src/security/kv-inventory.js";
 import {v21UiCanaryCount, v21UiCanaryEnabled, v21UiCanaryUser, v21UiGlobalEnabled} from "../src/features/ui-canary.js";
+import {checkActivationRefreshRateLimit} from "../src/security/rate-limit.js";
 
 test("telegram routing helpers preserve command and chat-scope behavior", () => {
   const env = {BOT_USERNAME: "bukabmp_bot", SUPPORT_GROUP_ID: "-10042"};
@@ -104,7 +105,7 @@ import {
 test("help menu module preserves current user-visible copy", () => {
   assert.match(supportHelpText(), /Group Terbuka/);
   assert.match(supportHelpText({privileged: true}), /bertanya langsung lewat DM/);
-  assert.match(androidHelpText(), /Microsoft Edge Canary/);
+  assert.match(androidHelpText(), /Microsoft Edge Stable/);
   assert.match(groupHelpText(), /Cara join Group Terbuka/);
   assert.match(groupHelpText(), /https:\/\/t\.me\/bukabmp\/13/);
   assert.match(groupHelpText(), /Join\/Gabung/);
@@ -125,6 +126,7 @@ test("supporter menu module preserves live packages and benefits", () => {
   assert.match(terms, /\+14 hari/);
   assert.match(terms, /maksimum 60 hari/);
   assert.match(terms, /one-time, bukan subscription otomatis/);
+  assert.match(terms, /v1\.1\.0/);
 });
 
 test("callback parser only accepts known namespaces", () => {
@@ -285,4 +287,25 @@ test("global V2.1 UI rollout overrides the canary allowlist", () => {
   assert.equal(v21UiCanaryCount(env), 0);
   assert.equal(v21UiCanaryUser(env, 111111), true);
   assert.equal(v21UiCanaryUser(env, 424242), true);
+});
+
+test("activation refresh limiter allows three requests per minute", async () => {
+  const map = new Map();
+  const env = {
+    MEMBER_HASH_SALT: "fixture-salt",
+    PAIRINGS: {
+      async get(key) {
+        return map.get(String(key)) ?? null;
+      },
+      async put(key, value) {
+        map.set(String(key), String(value));
+      }
+    }
+  };
+
+  assert.equal(await checkActivationRefreshRateLimit(env, "token-a"), true);
+  assert.equal(await checkActivationRefreshRateLimit(env, "token-a"), true);
+  assert.equal(await checkActivationRefreshRateLimit(env, "token-a"), true);
+  assert.equal(await checkActivationRefreshRateLimit(env, "token-a"), false);
+  assert.equal(await checkActivationRefreshRateLimit(env, "token-b"), true);
 });
