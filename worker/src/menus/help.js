@@ -1,48 +1,34 @@
 import {SUPPORTER_CONTEXT_MAX_TURNS} from "../features/supporter-model.js";
 
-const SUPPORT_ANDROID_INSTALL_TEXT_URL = "https://t.me/bukabmp/11?comment=168";
-const SUPPORT_ANDROID_USAGE_VIDEO_V104_URL = "https://t.me/bukabmp/11?comment=294";
-const SUPPORT_DESKTOP_USAGE_VIDEO_V104_URL = "https://t.me/c/4381494564/18";
+export const SUPPORT_ANDROID_INSTALL_TEXT_URL = "https://t.me/bukabmp/11?comment=168";
+export const SUPPORT_ANDROID_USAGE_VIDEO_V104_URL = "https://t.me/bukabmp/11?comment=294";
+export const SUPPORT_DESKTOP_USAGE_VIDEO_V104_URL = "https://t.me/c/4381494564/18";
 export const SUPPORT_GROUP_JOIN_URL = "https://t.me/bukabmp/13";
-const SUPPORT_RELEASE_URL = "https://github.com/mentaliss/bukabmp/releases/latest";
+export const SUPPORT_RELEASE_URL = "https://github.com/mentaliss/bukabmp/releases/latest";
 
 export function supportHelpText(access = null) {
-  const privileged = Boolean(access?.privileged);
   const supporter = access?.source === "supporter";
-  const accessLine = supporter
-    ? "⭐ Supporter aktif: DM + Group, AI unlimited, priority support, dan konteks troubleshooting sampai " + SUPPORTER_CONTEXT_MAX_TURNS + " turn / 6 jam."
-    : privileged
-      ? "Akun khusus: support aktif di DM + Group Terbuka, dengan kuota AI unlimited."
-      : "Support tersedia di Group Terbuka. Kuota AI support maksimal 6 pertanyaan per hari per user. Command dan FAQ yang bisa dijawab langsung tidak memakai kuota AI.";
-
+  const privileged = Boolean(access?.privileged);
   return [
-    "🤖 BMP Terbuka Assistant",
+    "🤖 Bantuan Bot & AI",
+    "",
+    "Bot membantu penggunaan BMP Terbuka, bukan topik umum.",
+    "",
+    "Di Group Terbuka:",
+    "• ketik /ask diikuti pertanyaan;",
+    "• mention @bukabmp_bot;",
+    "• atau reply pesan bot.",
     "",
     privileged
-      ? "Kamu bisa bertanya langsung lewat DM, atau di Group Terbuka gunakan /ask, mention @bukabmp_bot, atau reply pesan bot."
-      : "Di Group Terbuka gunakan /ask, mention @bukabmp_bot, atau reply pesan bot.",
+      ? "Kamu juga bisa bertanya langsung lewat DM."
+      : "Akun reguler menggunakan AI di Group Terbuka.",
+    supporter
+      ? "Supporter aktif: AI unlimited + konteks troubleshooting lebih panjang."
+      : privileged
+        ? "Akses AI: unlimited."
+        : "Kuota AI reguler: maksimal 6 pertanyaan AI per hari.",
     "",
-    accessLine,
-    "",
-    "Command cepat:",
-    "/bmphelp — menu bantuan bot",
-    "/tutorial — cara pakai v1.0.5",
-    "/install — instalasi Android/Desktop",
-    "/android — Android + tutorial",
-    "/desktop — Desktop + tutorial",
-    "/group — cara join Group Terbuka",
-    "/update — versi terbaru",
-    "/fitur — fitur v1.0.5",
-    "/storage — penyimpanan/resume/export",
-    "/bug — format laporan kendala",
-    "/quota — cek sisa kuota AI hari ini",
-    "/support — Supporter Pass via Telegram Stars",
-    "/supporter — status/Supporter Wall",
-    "/supporters — lihat Supporter Wall",
-    "/terms — terms Supporter Pass",
-    "/paysupport — bantuan pembayaran",
-    "",
-    "Untuk rules group, ketik /rules (Rose)."
+    "Menu utama menyediakan tombol Tanya AI, Ekstensi, Supporter, Referral, dan Bantuan. Slash command lama tetap tersedia sebagai shortcut, tetapi tidak perlu dihafal."
   ].join("\n");
 }
 
