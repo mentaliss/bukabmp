@@ -25,6 +25,7 @@
   "vars": {
     "BOT_V2_D1_REPLAY_ENABLED": "true",
     "BOT_V2_SUPPORTER_D1_ENABLED": "true",
-    "BOT_V2_PAYMENT_D1_ENABLED": "true"
+    "BOT_V2_PAYMENT_D1_ENABLED": "true",
+    "BOT_V2_D1_MIGRATION_ENABLED": "false"
   }
 }
