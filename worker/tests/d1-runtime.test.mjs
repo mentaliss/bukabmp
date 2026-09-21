@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {d1BindingAvailable, d1PaymentEnabled, d1ReplayEnabled, d1SupporterEnabled, d1WritesEnabled} from "../src/data/d1/mode.js";
+import {d1BindingAvailable, d1PaymentEnabled, d1ReferralEnabled, d1ReplayEnabled, d1SupporterEnabled, d1WritesEnabled} from "../src/data/d1/mode.js";
 import {qualifyReferralForActivatedUser} from "../src/data/d1/referral-qualification.js";
 import {applySupporterPaymentTransaction} from "../src/data/d1/payment-transaction.js";
 import {ensureReferralUser} from "../src/features/referral-service.js";
@@ -220,4 +220,36 @@ test("supporter/payment D1 gates are independent from referral write authority",
   assert.equal(d1SupporterEnabled(env), true);
   assert.equal(d1PaymentEnabled(env), true);
   assert.equal(d1WritesEnabled(env), false);
+});
+
+test("referral D1 gate is independent from the legacy general write gate", async () => {
+  const throwingDb = {
+    prepare() {
+      throw new Error("referral D1 must remain untouched");
+    }
+  };
+
+  assert.equal(d1ReferralEnabled({
+    BOT_DB: throwingDb,
+    BOT_V2_SUPPORTER_D1_ENABLED: "true"
+  }), false);
+
+  assert.equal(d1ReferralEnabled({
+    BOT_DB: throwingDb,
+    BOT_V2_SUPPORTER_D1_ENABLED: "true",
+    BOT_V2_D1_WRITE_ENABLED: "true"
+  }), false);
+
+  assert.equal(d1ReferralEnabled({
+    BOT_DB: throwingDb,
+    BOT_V2_SUPPORTER_D1_ENABLED: "true",
+    BOT_V2_REFERRAL_D1_ENABLED: "true"
+  }), true);
+
+  const disabled = await ensureReferralUser({
+    BOT_DB: throwingDb,
+    BOT_V2_SUPPORTER_D1_ENABLED: "true",
+    BOT_V2_D1_WRITE_ENABLED: "true"
+  }, 424242);
+  assert.deepEqual(disabled, {available: false, user: null});
 });
