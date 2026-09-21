@@ -170,10 +170,25 @@ async function accessStatus() {
     Number(verified.payload?.token_version || 0) >= 2 &&
     /^tg:\d+$/.test(String(verified.payload?.sub || ""))
   );
+  const supporterUntil = verified.ok
+    ? Number(verified.payload?.supporter_until || 0) * 1000
+    : 0;
+  const supporterActive = Boolean(
+    verified.ok &&
+    verified.payload?.supporter_active === true &&
+    supporterUntil > Date.now()
+  );
   return {
     active: Boolean(verified.ok),
     reviewer: Boolean(verified.ok && scopes.includes("store_review")),
     expiresAt: verified.ok ? Number(verified.payload.exp) * 1000 : null,
+    supporter: {
+      active: supporterActive,
+      until: supporterActive ? supporterUntil : null,
+      label: supporterActive
+        ? String(verified.payload?.supporter_label || "BMP Supporter")
+        : ""
+    },
     refreshEligible,
     tokenVersion: verified.ok
       ? Number(verified.payload?.token_version || 1)
