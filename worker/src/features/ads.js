@@ -121,7 +121,9 @@ export function sanitizeAdsState(raw, nowMs = Date.now()) {
   const minDelay = boundedInt(interstitial.delay_min_ms, 2000, 500, 15000);
   const maxDelay = boundedInt(interstitial.delay_max_ms, 5000, minDelay, 30000);
   out.interstitial = {
-    enabled: interstitial.enabled === true,
+    enabled:
+      interstitial.enabled === true &&
+      out.placements.interstitial,
     trigger: "job_started",
     delay_min_ms: minDelay,
     delay_max_ms: maxDelay
@@ -138,20 +140,15 @@ export function sanitizeAdsState(raw, nowMs = Date.now()) {
     out.image_url
   );
 
+  // Active is runtime eligibility only. Keep configured placements and
+  // interstitial settings intact while a campaign is scheduled for later,
+  // otherwise an admin POST would erase the future placement configuration.
   out.active = Boolean(
     out.enabled &&
     out.campaign_id &&
     hasCreative &&
     inWindow
   );
-
-  if (!out.active) {
-    out.placements.card = false;
-    out.placements.interstitial = false;
-    out.interstitial.enabled = false;
-  } else if (!out.placements.interstitial) {
-    out.interstitial.enabled = false;
-  }
 
   return out;
 }
