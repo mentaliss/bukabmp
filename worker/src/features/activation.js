@@ -1,5 +1,6 @@
 import {tg} from "../telegram/api.js";
 import {b64url, b64urlJson, importSigningKey, sha256Hex} from "../security/crypto.js";
+import {auditErrorName, auditRef} from "../security/audit.js";
 import {getSupporterEntitlement, putSupporterEntitlement} from "../data/supporter.js";
 import {SUPPORTER_ACTIVATION_MAX_DAYS} from "./supporter-model.js";
 
@@ -125,9 +126,9 @@ export async function verifyPairForUser(env, pairId, userId, chatId) {
     memberships = await checkMembership(env, userId);
   } catch (error) {
     console.error("membership_check_failed", {
-      pairId,
-      userId,
-      error: String(error?.message || error)
+      pair_ref: await auditRef(env, "pair", pairId),
+      user_ref: await auditRef(env, "telegram-user", userId),
+      error_name: auditErrorName(error)
     });
     await tg(env, "sendMessage", {
       chat_id: chatId,
@@ -146,8 +147,8 @@ export async function verifyPairForUser(env, pairId, userId, chatId) {
     token = await issueToken(env, record.install_id, userId);
   } catch (error) {
     console.error("token_issue_failed", {
-      pairId,
-      error: String(error?.message || error)
+      pair_ref: await auditRef(env, "pair", pairId),
+      error_name: auditErrorName(error)
     });
     await tg(env, "sendMessage", {
       chat_id: chatId,
