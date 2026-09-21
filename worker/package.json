@@ -1,0 +1,12 @@
+{
+  "name": "bmp-terbuka-community-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "preview": "wrangler versions upload"
+  },
+  "devDependencies": {
+    "wrangler": "^4.68.0"
+  }
+}
