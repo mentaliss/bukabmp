@@ -60,4 +60,5 @@ test("candidate config binds BOT_DB without enabling D1 authorities", () => {
   assert.equal(wrangler.vars?.BOT_V2_D1_MIGRATION_ENABLED, "false");
   assert.equal(wrangler.vars?.BOT_V2_SUPPORTER_D1_ENABLED, "true");
   assert.equal(wrangler.vars?.BOT_V2_PAYMENT_D1_ENABLED, "true");
+  assert.equal(wrangler.vars?.BOT_V2_REFERRAL_D1_ENABLED, undefined);
 });
