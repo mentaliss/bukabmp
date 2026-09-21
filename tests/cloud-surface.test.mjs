@@ -126,8 +126,23 @@ const unsafeAds=CLOUD.sanitizeState({
   }
 });
 assert.equal(unsafeAds.ads.cta,null);
-assert.equal(unsafeAds.ads.interstitial.delayMinMs,500);
-assert.equal(unsafeAds.ads.interstitial.delayMaxMs,30000);
+assert.equal(unsafeAds.ads.interstitial.delayMinMs,2000);
+assert.equal(unsafeAds.ads.interstitial.delayMaxMs,5000);
+
+const imageOnly=CLOUD.sanitizeState({
+  schema_version:1,
+  ads:{
+    enabled:true,
+    active:true,
+    campaign_id:"image-only",
+    image_url:"https://example.com/ad.png",
+    placements:{card:true,interstitial:true},
+    interstitial:{enabled:true}
+  }
+});
+assert.equal(imageOnly.ads.active,false);
+assert.equal(imageOnly.ads.placements.card,false);
+assert.equal(imageOnly.ads.placements.interstitial,false);
 
 const malformedBadge=CLOUD.sanitizeState({
   schema_version:1,
