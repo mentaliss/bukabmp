@@ -17,7 +17,7 @@ import {b64url, b64urlJson, importSigningKey, randomToken, sha256Hex} from "./se
 import {checkPairRateLimit} from "./security/rate-limit.js";
 import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
 import {claimTelegramUpdate} from "./security/idempotency.js";
-import {d1MigrationEnabled, d1PaymentEnabled, d1ReadProbe, d1ReferralEnabled, d1ReplayEnabled, d1SupporterEnabled, d1WritesEnabled} from "./data/d1/mode.js";
+import {d1MigrationEnabled, d1PaymentEnabled, d1ReadProbe, d1ReferralEnabled, d1ReferralSelfTestEnabled, d1ReplayEnabled, d1SupporterEnabled, d1WritesEnabled} from "./data/d1/mode.js";
 import {kvInventorySummary} from "./security/kv-inventory.js";
 import {supporterMigrationApply, supporterMigrationCompare, supporterMigrationDryRun} from "./features/supporter-migration.js";
 import {runReferralSelfTest} from "./features/referral-self-test.js";
@@ -1287,7 +1287,8 @@ export default {
           bot_v2_d1_migration_enabled: d1MigrationEnabled(env),
           bot_v2_supporter_d1_enabled: d1SupporterEnabled(env),
           bot_v2_payment_d1_enabled: d1PaymentEnabled(env),
-          bot_v2_referral_d1_enabled: d1ReferralEnabled(env)
+          bot_v2_referral_d1_enabled: d1ReferralEnabled(env),
+          bot_v2_referral_self_test_enabled: d1ReferralSelfTestEnabled(env)
         }, 200, corsHeaders(request));
       }
 
