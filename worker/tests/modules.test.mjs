@@ -17,6 +17,12 @@ import {
   supporterIsActive
 } from "../src/features/supporter-model.js";
 
+import {
+  supportMenuText,
+  supporterDeepLink,
+  supporterTermsText
+} from "../src/menus/supporter.js";
+
 test("telegram routing helpers preserve command and chat-scope behavior", () => {
   const env = {BOT_USERNAME: "bukabmp_bot", SUPPORT_GROUP_ID: "-10042"};
   assert.deepEqual(parseBotCommand("/ask halo", env), {command: "ask", args: "halo"});
@@ -85,4 +91,20 @@ test("help menu module preserves current user-visible copy", () => {
   assert.match(androidHelpText(), /Microsoft Edge Canary/);
   assert.equal(groupHelpText(), "Group Terbuka: https://t.me/bukabmp/13");
   assert.match(updateHelpText(), /^Versi terbaru: v1\.0\.5/);
+});
+
+test("supporter menu module preserves live packages and benefits", () => {
+  assert.equal(
+    supporterDeepLink({BOT_USERNAME: "bukabmp_bot"}),
+    "https://t.me/bukabmp_bot?start=support"
+  );
+  const menu = supportMenuText();
+  assert.match(menu, /2 ⭐ — 1 hari/);
+  assert.match(menu, /50 ⭐ — 30 hari/);
+  assert.match(menu, /DM bot \+ AI support unlimited/);
+
+  const terms = supporterTermsText();
+  assert.match(terms, /\+14 hari/);
+  assert.match(terms, /maksimum 60 hari/);
+  assert.match(terms, /one-time, bukan subscription otomatis/);
 });
