@@ -10,10 +10,12 @@ import {
   supportInvocation,
   telegramBotUsername
 } from "./telegram/router.js";
+import {parseTelegramCallback} from "./telegram/callbacks.js";
 import {supportPrivilegedUserIds} from "./security/permissions.js";
 import {b64url, b64urlJson, importSigningKey, randomToken, sha256Hex} from "./security/crypto.js";
 import {checkPairRateLimit} from "./security/rate-limit.js";
 import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
+import {claimTelegramUpdate} from "./security/idempotency.js";
 import {handlePrivacyGate} from "./security/privacy-gate.js";
 import {
   SUPPORT_GROUP_JOIN_URL,
@@ -1974,44 +1976,82 @@ async function handleTelegram(env, update) {
 
   if (update.callback_query) {
     const q = update.callback_query;
-    const data = String(q.data || "");
-    if (data.startsWith("verify:")) {
-      const pairId = data.slice("verify:".length);
+    const callback = parseTelegramCallback(q.data);
+
+    if (!callback) {
+      await tg(env, "answerCallbackQuery", {
+        callback_query_id: q.id,
+        text: "Aksi tidak dikenali."
+      }).catch(() => {});
+      return;
+    }
+
+    if (callback.namespace === "activation" && callback.action === "verify") {
+      if (!q.message || !isPrivateChat(q.message)) {
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id,
+          text: "Verifikasi aktivasi hanya lewat DM bot."
+        }).catch(() => {});
+        return;
+      }
       await tg(env, "answerCallbackQuery", {
         callback_query_id: q.id,
         text: "Memeriksa keanggotaan..."
       }).catch(() => {});
-      await verifyPairForUser(env, pairId, q.from.id, q.message.chat.id);
+      await verifyPairForUser(env, callback.pairId, q.from.id, q.message.chat.id);
       return;
     }
-    if (data.startsWith("support:select:")) {
-      const packageId = data.slice("support:select:".length);
-      const pkg = supporterPackage(packageId);
-      if (!pkg || !q.message || !isPrivateChat(q.message)) {
-        await tg(env, "answerCallbackQuery", {callback_query_id: q.id, text: "Buka /support lewat DM bot."}).catch(() => {});
+
+    if (callback.namespace === "supporter") {
+      if (!q.message || !isPrivateChat(q.message)) {
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id,
+          text: "Buka Supporter lewat DM bot."
+        }).catch(() => {});
         return;
       }
-      await tg(env, "answerCallbackQuery", {callback_query_id: q.id}).catch(() => {});
-      await sendSupporterPackageConfirmation(env, q.from.id, q.message.chat.id, packageId);
-      return;
-    }
-    if (data === "support:terms") {
-      await tg(env, "answerCallbackQuery", {callback_query_id: q.id}).catch(() => {});
-      if (q.message?.chat?.id) await tg(env, "sendMessage", {chat_id: q.message.chat.id, text: supporterTermsText()});
-      return;
-    }
-    if (data.startsWith("support:buy:")) {
-      const packageId = data.slice("support:buy:".length);
-      const pkg = supporterPackage(packageId);
-      if (!pkg || !q.message || !isPrivateChat(q.message)) {
-        await tg(env, "answerCallbackQuery", {callback_query_id: q.id, text: "Buka /support lewat DM bot."}).catch(() => {});
+
+      if (callback.action === "select") {
+        const pkg = supporterPackage(callback.packageId);
+        if (!pkg) {
+          await tg(env, "answerCallbackQuery", {
+            callback_query_id: q.id,
+            text: "Paket tidak valid."
+          }).catch(() => {});
+          return;
+        }
+        await tg(env, "answerCallbackQuery", {callback_query_id: q.id}).catch(() => {});
+        await sendSupporterPackageConfirmation(env, q.from.id, q.message.chat.id, callback.packageId);
         return;
       }
-      await tg(env, "answerCallbackQuery", {callback_query_id: q.id, text: `Membuat invoice ${pkg.stars} Stars...`}).catch(() => {});
-      await sendSupporterInvoice(env, q.from.id, q.message.chat.id, packageId);
-      return;
+
+      if (callback.action === "terms") {
+        await tg(env, "answerCallbackQuery", {callback_query_id: q.id}).catch(() => {});
+        await tg(env, "sendMessage", {
+          chat_id: q.message.chat.id,
+          text: supporterTermsText()
+        });
+        return;
+      }
+
+      if (callback.action === "buy") {
+        const pkg = supporterPackage(callback.packageId);
+        if (!pkg) {
+          await tg(env, "answerCallbackQuery", {
+            callback_query_id: q.id,
+            text: "Paket tidak valid."
+          }).catch(() => {});
+          return;
+        }
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id,
+          text: `Membuat invoice ${pkg.stars} Stars...`
+        }).catch(() => {});
+        await sendSupporterInvoice(env, q.from.id, q.message.chat.id, callback.packageId);
+        return;
+      }
     }
-  }
+  }}
 }
 
 function normalizeDistributionChannel(value) {
@@ -2508,6 +2548,10 @@ export default {
         }
 
         const update = await request.json();
+        const claim = await claimTelegramUpdate(env, update?.update_id);
+        if (!claim.process) {
+          return json({ok: true});
+        }
 
         try {
           await handleTelegram(env, update);
