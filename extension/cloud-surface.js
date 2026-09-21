@@ -44,6 +44,7 @@
       generatedAt:"",
       ttlSeconds:300,
       sections:[],
+      statusBadge:{visible:false,kind:"info",text:""},
       supporter:{active:false,until:null,label:""},
       features:{supporterCard:false,communityBanner:false}
     };
@@ -126,6 +127,12 @@
       if(section)sections.push(section);
     }
 
+    const badgeRaw=raw.status_badge&&typeof raw.status_badge==="object"?raw.status_badge:{};
+    const badgeKindRaw=text(badgeRaw.kind,24).toLowerCase();
+    const badgeKind=new Set(["info","success","warning","community","supporter"]).has(badgeKindRaw)
+      ? badgeKindRaw
+      : "info";
+    const badgeText=text(badgeRaw.text,160);
     const supporterRaw=raw.supporter&&typeof raw.supporter==="object"?raw.supporter:{};
     const featuresRaw=raw.features&&typeof raw.features==="object"?raw.features:{};
 
@@ -134,6 +141,11 @@
       generatedAt:isoDate(raw.generated_at)||"",
       ttlSeconds,
       sections,
+      statusBadge:{
+        visible:badgeRaw.visible===true&&Boolean(badgeText),
+        kind:badgeKind,
+        text:badgeText
+      },
       supporter:{
         active:supporterRaw.active===true,
         until:isoDate(supporterRaw.until),
