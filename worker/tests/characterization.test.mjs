@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
+import {issueToken} from "../src/features/activation.js";
 import {sha256Hex} from "../src/security/crypto.js";
 
 class MemoryKV {
@@ -65,7 +66,7 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.status, "ok");
-  assert.equal(body.version, "1.0.5-support-bot-v19-realtime-ads-hardening-v110");
+  assert.equal(body.version, "1.0.5-support-bot-v20-v110-final-audit");
   assert.equal(body.supporter_pass, true);
   assert.equal(body.privacy_gate_enabled, true);
   assert.equal(body.realtime_extension_state, true);
@@ -73,6 +74,7 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(body.realtime_ads_contract, true);
   assert.equal(body.ad_event_ingest, true);
   assert.equal(body.ad_event_rate_limited, true);
+  assert.equal(body.ad_event_campaign_validated, true);
   assert.equal(body.ads_analytics_bound, false);
   assert.equal(body.telegram_command_menu_mode, "legacy");
   assert.equal(body.supporter_packages.day.stars, 2);
@@ -172,6 +174,21 @@ test("ad event ingest accepts coarse campaign metrics without a user identifier"
       })
     }),
     baseEnv({
+      EXTENSION_EDGE_STATE_JSON: JSON.stringify({
+        schema_version: 1,
+        ads: {
+          enabled: true,
+          campaign_id: "campaign-sep-2026",
+          revision: 3,
+          headline: "Belajar lebih nyaman",
+          placements: {card: true, interstitial: true},
+          interstitial: {
+            enabled: true,
+            delay_min_ms: 2000,
+            delay_max_ms: 5000
+          }
+        }
+      }),
       ADS_ANALYTICS: {
         writeDataPoint(point) {
           points.push(point);
@@ -266,6 +283,89 @@ test("pair start preserves activation contract and stores only pending pair stat
   assert.equal(record.status, "pending");
   assert.equal(record.install_id, "01234567-89ab-cdef-01234567");
   assert.equal("token" in record, false);
+});
+
+test("pair start records a verified expiry floor from the active device token", async () => {
+  const keyPair = await crypto.subtle.generateKey({
+    name: "RSASSA-PKCS1-v1_5",
+    modulusLength: 2048,
+    publicExponent: new Uint8Array([1, 0, 1]),
+    hash: "SHA-256"
+  }, true, ["sign", "verify"]);
+  const privateJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
+  const installId = "01234567-89ab-cdef-01234567";
+  const env = baseEnv({
+    MEMBER_HASH_SALT: "test-salt",
+    SIGNING_PRIVATE_JWK: JSON.stringify(privateJwk)
+  });
+  const activeToken = await issueToken(env, installId, 424242);
+  const activePayload = JSON.parse(Buffer.from(
+    activeToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/") +
+      "=".repeat((4 - activeToken.split(".")[1].length % 4) % 4),
+    "base64"
+  ).toString("utf8"));
+
+  const response = await worker.fetch(new Request("https://worker.test/v1/pair/start", {
+    method: "POST",
+    headers: {"content-type": "application/json"},
+    body: JSON.stringify({
+      extension_version: "1.1.0",
+      distribution_channel: "edge",
+      install_id: installId,
+      current_token: activeToken
+    })
+  }), env);
+
+  assert.equal(response.status, 200);
+  const pairKeys = env.PAIRINGS.keys().filter(key => key.startsWith("pair:"));
+  assert.equal(pairKeys.length, 1);
+  const record = await env.PAIRINGS.get(pairKeys[0], "json");
+  assert.ok(
+    Number(record.minimum_expiry_ms || 0) + 1000 >=
+      Number(activePayload.exp) * 1000
+  );
+});
+
+test("ad metric ingest ignores stale or fabricated campaign IDs", async () => {
+  const points = [];
+  const response = await worker.fetch(
+    new Request("https://worker.test/v1/ad-event", {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({
+        event_type: "click",
+        placement: "card",
+        campaign_id: "fabricated-campaign",
+        revision: 999,
+        distribution_channel: "edge",
+        extension_version: "1.1.0"
+      })
+    }),
+    baseEnv({
+      EXTENSION_EDGE_STATE_JSON: JSON.stringify({
+        schema_version: 1,
+        ads: {
+          enabled: true,
+          campaign_id: "real-campaign",
+          revision: 1,
+          headline: "Sponsor",
+          placements: {card: true, interstitial: false}
+        }
+      }),
+      ADS_ANALYTICS: {
+        writeDataPoint(point) {
+          points.push(point);
+        }
+      }
+    })
+  );
+  assert.equal(response.status, 202);
+  assert.deepEqual(await response.json(), {
+    ok: true,
+    ignored: true,
+    reason: "stale_or_inactive_campaign"
+  });
+  assert.equal(points.length, 0);
 });
 
 test("membership verification still turns a valid pair into a signed activation", async () => {
