@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {d1BindingAvailable, d1PaymentEnabled, d1ReferralEnabled, d1ReplayEnabled, d1SupporterEnabled, d1WritesEnabled} from "../src/data/d1/mode.js";
+import {d1BindingAvailable, d1PaymentEnabled, d1ReferralEnabled, d1ReferralSelfTestEnabled, d1ReplayEnabled, d1SupporterEnabled, d1WritesEnabled} from "../src/data/d1/mode.js";
 import {qualifyReferralForActivatedUser} from "../src/data/d1/referral-qualification.js";
 import {applySupporterPaymentTransaction} from "../src/data/d1/payment-transaction.js";
 import {ensureReferralUser, qualifyReferralAfterActivation} from "../src/features/referral-service.js";
@@ -307,4 +307,19 @@ test("qualified referral reward mirrors D1 supporter state to KV rollback copy",
   assert.equal(mirrored.user_id, "1001");
   assert.equal(mirrored.supporter_until, supporterState.supporter_until);
   assert.equal(mirrored.referral_entitlement_total, 7);
+});
+
+test("referral self-test requires both referral authority and explicit self-test gate", () => {
+  const db = {prepare() {}};
+  assert.equal(d1ReferralSelfTestEnabled({
+    BOT_DB: db,
+    BOT_V2_SUPPORTER_D1_ENABLED: "true",
+    BOT_V2_REFERRAL_D1_ENABLED: "true"
+  }), false);
+  assert.equal(d1ReferralSelfTestEnabled({
+    BOT_DB: db,
+    BOT_V2_SUPPORTER_D1_ENABLED: "true",
+    BOT_V2_REFERRAL_D1_ENABLED: "true",
+    BOT_V2_REFERRAL_SELF_TEST_ENABLED: "true"
+  }), true);
 });
