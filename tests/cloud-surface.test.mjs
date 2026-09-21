@@ -37,11 +37,17 @@ const good=CLOUD.sanitizeState({
       text:"hidden"
     }
   ],
+  status_badge:{visible:true,kind:"success",text:"Layanan normal"},
   supporter:{active:true,until:"2026-12-01T00:00:00Z",label:"BMP Supporter"},
   features:{supporter_card:true,community_banner:true}
 });
 assert.equal(good.sections.length,1);
 assert.equal(good.sections[0].action.type,"OPEN_URL");
+assert.deepEqual(good.statusBadge,{
+  visible:true,
+  kind:"success",
+  text:"Layanan normal"
+});
 assert.equal(good.supporter.active,true);
 assert.equal(good.features.supporterCard,true);
 
@@ -66,7 +72,18 @@ assert.equal(sponsor.sections[0].kind,"sponsor");
 assert.equal(sponsor.sections[0].action.type,"OPEN_URL");
 assert.equal(sponsor.sections[1].action,null);
 
+const malformedBadge=CLOUD.sanitizeState({
+  schema_version:1,
+  status_badge:{visible:true,kind:"evil",text:"  Status aman  "}
+});
+assert.deepEqual(malformedBadge.statusBadge,{
+  visible:true,
+  kind:"info",
+  text:"Status aman"
+});
+
 const wrongSchema=CLOUD.sanitizeState({schema_version:99,sections:[{visible:true,title:"x"}]});
 assert.deepEqual(wrongSchema.sections,[]);
+assert.equal(wrongSchema.statusBadge.visible,false);
 
 console.log("OK: cloud surface sanitizer and action allowlist");

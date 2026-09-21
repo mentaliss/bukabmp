@@ -117,9 +117,10 @@ test("1.1.0 activation refresh applies tracked supporter entitlement exactly onc
   const userId = 424242;
   const installId = "01234567-89ab-cdef-01234567";
 
+  const supporterUntil = Date.now() + 24 * 60 * 60 * 1000;
   await kv.put("supporter:user:" + userId, JSON.stringify({
     user_id: String(userId),
-    supporter_until: 0,
+    supporter_until: supporterUntil,
     activation_until: 0,
     activation_bonus_pending_days: 0
   }));
@@ -128,6 +129,11 @@ test("1.1.0 activation refresh applies tracked supporter entitlement exactly onc
   const firstPayload = decodePayload(token);
   assert.equal(firstPayload.token_version, TOKEN_SCHEMA_VERSION);
   assert.equal(firstPayload.sub, "tg:" + userId);
+  assert.equal(firstPayload.supporter_active, true);
+  assert.equal(firstPayload.supporter_label, "BMP Supporter");
+  assert.ok(
+    Math.abs(Number(firstPayload.supporter_until) * 1000 - supporterUntil) < 2000
+  );
 
   const firstExpiry = Number(firstPayload.exp) * 1000;
   const supporterTarget = firstExpiry + 14 * 86400000;
@@ -150,6 +156,11 @@ test("1.1.0 activation refresh applies tracked supporter entitlement exactly onc
     const refreshedPayload = decodePayload(refreshed.token);
     assert.equal(refreshedPayload.install_id, installId);
     assert.equal(refreshedPayload.sub, "tg:" + userId);
+    assert.equal(refreshedPayload.supporter_active, true);
+    assert.equal(refreshedPayload.supporter_label, "BMP Supporter");
+    assert.ok(
+      Math.abs(Number(refreshedPayload.supporter_until) * 1000 - supporterUntil) < 2000
+    );
     assert.ok(
       Math.abs(Number(refreshedPayload.exp) * 1000 - supporterTarget) < 2000
     );
@@ -164,6 +175,8 @@ test("1.1.0 activation refresh applies tracked supporter entitlement exactly onc
     assert.equal(second.supporterBonusApplied, false);
     const secondPayload = decodePayload(second.token);
     assert.equal(secondPayload.exp, refreshedPayload.exp);
+    assert.equal(secondPayload.supporter_active, true);
+    assert.equal(secondPayload.supporter_label, "BMP Supporter");
   } finally {
     globalThis.fetch = oldFetch;
   }

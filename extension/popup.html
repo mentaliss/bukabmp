@@ -28,8 +28,9 @@
     .updateNotice{display:none;margin-top:12px;padding:10px 11px;border:1px solid #d8d8d8;border-radius:9px;background:#fafafa}
     .updateNotice strong{display:block;font-size:11.5px}.updateText{font-size:10.5px;color:#666;line-height:1.4;margin-top:3px}
     .updateNotice button{padding:8px 10px;font-size:11.5px;margin-top:7px}
-    .cloudSurface:empty{display:none}.cloudSurface{margin-top:12px}.cloudSection{padding:10px 11px;border:1px solid #dedede;border-radius:9px;background:#fafafa;margin-top:8px}.cloudSection.warning{background:#fff8e8;border-color:#ead29c}.cloudSection.success{background:#f2faf5;border-color:#cce4d4}.cloudSection.community,.cloudSection.supporter{background:#f7f7f7}.cloudTitle{font-size:11.5px;font-weight:750}.cloudText{font-size:10.8px;color:#555;line-height:1.45;margin-top:3px;white-space:pre-wrap}.cloudAction{padding:8px 10px;font-size:11.5px;margin-top:7px}
-    .sponsorSlot:empty{display:none}.sponsorSlot{margin-top:12px}.sponsorBanner{padding:10px 11px;border:1px solid #d9d9d9;border-radius:9px;background:#fff}.sponsorMeta{font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#777}.sponsorTitle{font-size:11.8px;font-weight:750;margin-top:3px}.sponsorText{font-size:10.8px;color:#555;line-height:1.45;margin-top:3px;white-space:pre-wrap}.sponsorAction{padding:8px 10px;font-size:11.5px;margin-top:7px}.sponsorContact{display:block;width:max-content;margin:8px auto 0;border:0;background:transparent;padding:0;color:#555;text-decoration:underline;font-size:10px;font-weight:650;cursor:pointer}
+    .badgeRow{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-top:12px}.statusChip{display:none;width:max-content;max-width:100%;padding:5px 8px;border:1px solid #ddd;border-radius:999px;background:#fafafa;font-size:10.5px;font-weight:700;line-height:1.2}.statusChip.success{color:#176c37;background:#f2faf5;border-color:#cce4d4}.statusChip.warning{color:#8a5a00;background:#fff8e8;border-color:#ead29c}.statusChip.community{color:#315b85;background:#f4f8fc;border-color:#d5e2ef}.statusChip.supporter{color:#6d4d00;background:#fff9e8;border-color:#eadba7}.statusChip.info{color:#444}.supporterChip{color:#6d4d00;background:#fff9e8;border-color:#eadba7}
+    .cloudStatusBadge{margin-top:10px}.cloudSurface:empty{display:none}.cloudSurface{margin-top:8px}.cloudSection{padding:10px 11px;border:1px solid #dedede;border-radius:9px;background:#fafafa;margin-top:8px}.cloudSection.warning{background:#fff8e8;border-color:#ead29c}.cloudSection.success{background:#f2faf5;border-color:#cce4d4}.cloudSection.community,.cloudSection.supporter{background:#f7f7f7}.cloudTitle{font-size:11.5px;font-weight:750}.cloudText{font-size:10.8px;color:#555;line-height:1.45;margin-top:3px;white-space:pre-wrap}.cloudAction{padding:8px 10px;font-size:11.5px;margin-top:7px}
+    .sponsorSlot{margin-top:12px}.sponsorBanner{padding:10px 11px;border:1px solid #d9d9d9;border-radius:9px;background:#fff}.sponsorPlaceholder{background:#fafafa;border-style:dashed}.sponsorMeta{font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#777}.sponsorTitle{font-size:11.8px;font-weight:750;margin-top:3px}.sponsorText{font-size:10.8px;color:#555;line-height:1.45;margin-top:3px;white-space:pre-wrap}.sponsorAction{padding:8px 10px;font-size:11.5px;margin-top:7px}.sponsorContact{display:block;width:max-content;margin:8px auto 0;border:0;background:transparent;padding:0;color:#555;text-decoration:underline;font-size:10px;font-weight:650;cursor:pointer}
     .reviewCard{display:none;margin-top:10px;padding:10px 11px;border:1px dashed #999;border-radius:9px;background:#fbfbfb}.reviewTitle{font-size:11.5px;font-weight:750}.reviewText{font-size:10.5px;line-height:1.45;color:#555;margin-top:3px}.reviewResult{font-size:10.5px;line-height:1.45;color:#444;margin-top:6px;white-space:pre-wrap}
     .shareNotice{display:none;margin-top:10px;padding:10px 11px;border:1px solid #d8d8d8;border-radius:9px;background:#fafafa}
     .shareNoticeText{font-size:10.5px;line-height:1.45;color:#555}
@@ -44,6 +45,8 @@
     <img class="logo" src="icons/icon48.png" alt="" aria-hidden="true">
     <div><h1>BMP Terbuka</h1><div class="sub">Materi yang dapat kamu akses, lebih nyaman dipelajari.</div></div>
   </div>
+
+  <div id="cloudStatusBadge" class="statusChip cloudStatusBadge" aria-live="polite"></div>
 
   <div id="updateNotice" class="updateNotice">
     <strong id="updateTitle">Update BMP Terbuka tersedia</strong>
@@ -90,9 +93,12 @@
   </section>
 
   <section id="mainScreen" class="screen">
-    <div id="accessBadge" class="small ok">● Akses komunitas aktif</div>
+    <div class="badgeRow">
+      <div id="accessBadge" class="statusChip success" style="display:inline-flex">● Akses komunitas aktif</div>
+      <div id="supporterBadge" class="statusChip supporterChip"></div>
+    </div>
     <div id="activationManage" class="cacheCard">
-      <div class="cacheTitle">Aktivasi</div>
+      <div class="cacheTitle">Aktivasi komunitas</div>
       <div id="activationManageText" class="cacheMeta"></div>
       <div id="activationManageCode" class="cacheLine"></div>
       <button id="refreshActivation" type="button">Perbarui aktivasi</button>
