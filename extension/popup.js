@@ -16,6 +16,7 @@ let activeFormKey = "";
 let lastCompletedKey = "";
 let adInterstitialTimer = null;
 let activeInterstitialAd = null;
+let reportedCardImpressionKey = "";
 
 const DRAFT_KEY = "bmpDraftV105";
 
@@ -155,29 +156,33 @@ function randomDelay(min,max){
 }
 
 async function scheduleJobStartedInterstitial(){
-  const triggeredAt=Date.now();
   clearTimeout(adInterstitialTimer);
 
   let state=latestCloudState;
+  let creative=
+    campaignAdFromState(state,"interstitial")||
+    houseAdFromState(state);
+  const cfg=state?.ads?.interstitial||{};
+  const delay=randomDelay(cfg.delayMinMs||2000,cfg.delayMaxMs||5000);
+
+  // Start the 2–5 second clock immediately after START_JOB succeeds.
+  // A slow/unavailable backend can change the creative to the house ad,
+  // but can never delay or block the running BMP job.
+  adInterstitialTimer=setTimeout(()=>{
+    adInterstitialTimer=null;
+    showAdInterstitial(creative);
+  },delay);
+
   try{
     const r=await send("GET_CLOUD_STATE",{force:true});
     if(r?.ok){
       state=r.state||null;
       renderCloudSurface(state);
+      creative=
+        campaignAdFromState(state,"interstitial")||
+        houseAdFromState(state);
     }
   }catch(_){}
-
-  const cfg=state?.ads?.interstitial||{};
-  const delay=randomDelay(cfg.delayMinMs||2000,cfg.delayMaxMs||5000);
-  const creative=
-    campaignAdFromState(state,"interstitial")||
-    houseAdFromState(state);
-  const remaining=Math.max(0,triggeredAt+delay-Date.now());
-
-  adInterstitialTimer=setTimeout(()=>{
-    adInterstitialTimer=null;
-    showAdInterstitial(creative);
-  },remaining);
 }
 
 function renderCloudSurface(state){
@@ -249,6 +254,7 @@ function renderCloudSurface(state){
   }
 
   const cardAd=campaignAdFromState(state,"card");
+  if(!cardAd)reportedCardImpressionKey="";
   if(cardAd){
     sponsorRendered=true;
     const card=document.createElement("aside");
@@ -303,7 +309,11 @@ function renderCloudSurface(state){
       card.append(button);
     }
     sponsorRoot.append(card);
-    reportAdEvent("impression",cardAd,"card");
+    const impressionKey=cardAd.campaignId+":"+cardAd.revision;
+    if(reportedCardImpressionKey!==impressionKey){
+      reportedCardImpressionKey=impressionKey;
+      reportAdEvent("impression",cardAd,"card");
+    }
   }
 
   for(const section of sections){
