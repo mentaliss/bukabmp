@@ -4,6 +4,7 @@ import {auditErrorName, auditRef} from "../security/audit.js";
 import {getSupporterEntitlement, putSupporterEntitlement} from "../data/supporter.js";
 import {SUPPORTER_ACTIVATION_MAX_DAYS} from "./supporter-model.js";
 import {qualifyReferralAfterActivation} from "./referral-service.js";
+import {recordSuccessfulActivation} from "../data/d1/activation-ledger.js";
 
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
@@ -167,6 +168,15 @@ export async function verifyPairForUser(env, pairId, userId, chatId) {
   await env.PAIRINGS.put(key, JSON.stringify(verified), {
     expirationTtl: PAIR_TTL_SECONDS
   });
+
+  try {
+    await recordSuccessfulActivation(env, userId);
+  } catch (error) {
+    console.error("activation_ledger_record_failed", {
+      user_ref: await auditRef(env, "telegram-user", userId),
+      error_name: auditErrorName(error)
+    });
+  }
 
   // Referral qualification is secondary to activation. Await it so Workers
   // cannot terminate the reward write after the response, but swallow failures
