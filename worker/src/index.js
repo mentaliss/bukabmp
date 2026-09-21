@@ -85,7 +85,7 @@ import {
   supporterWallKey
 } from "./features/supporter-model.js";
 import {getSupporterEntitlement, putSupporterEntitlement} from "./data/supporter.js";
-import {PAIR_TTL_SECONDS, TOKEN_TTL_DAYS, verifyPairForUser} from "./features/activation.js";
+import {PAIR_TTL_SECONDS, TOKEN_REFRESH_MIN_VERSION, TOKEN_TTL_DAYS, refreshActivationToken, verifyPairForUser} from "./features/activation.js";
 import {
   formatSupporterContext,
   rememberSupporterTurn,
@@ -1535,6 +1535,72 @@ async function pairStart(request, env) {
   }, 200, corsHeaders(request));
 }
 
+async function tokenRefresh(request, env) {
+  const auth = String(request.headers.get("Authorization") || "");
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  if (!token) {
+    return json(
+      {error: "Token aktivasi diperlukan.", code: "missing_token"},
+      401,
+      corsHeaders(request)
+    );
+  }
+
+  const body = await request.json().catch(() => ({}));
+  let result;
+  try {
+    result = await refreshActivationToken(env, {
+      token,
+      installId: String(body.install_id || ""),
+      extensionVersion: String(body.extension_version || "")
+    });
+  } catch (error) {
+    console.error("activation_refresh_failed", {
+      error_name: auditErrorName(error)
+    });
+    return json(
+      {error: "Aktivasi belum dapat diperbarui.", code: "refresh_failed"},
+      503,
+      corsHeaders(request)
+    );
+  }
+
+  if (!result.ok) {
+    const status = result.reason === "update_required"
+      ? 426
+      : result.reason === "membership_required"
+        ? 403
+        : result.reason === "legacy_token"
+          ? 409
+          : 401;
+
+    const message = result.reason === "update_required"
+      ? "Pembaruan aktivasi tersedia mulai BMP Terbuka " +
+        TOKEN_REFRESH_MIN_VERSION + "."
+      : result.reason === "membership_required"
+        ? "Keanggotaan Buka BMP + Group Terbuka perlu dipenuhi untuk memperbarui aktivasi."
+        : result.reason === "legacy_token"
+          ? "Token lama belum mendukung pembaruan otomatis. Verifikasi ulang satu kali dari extension."
+          : "Token aktivasi tidak valid untuk pembaruan.";
+
+    return json({
+      error: message,
+      code: result.reason,
+      minimum_version:
+        result.minimumVersion || TOKEN_REFRESH_MIN_VERSION
+    }, status, corsHeaders(request));
+  }
+
+  return json({
+    ok: true,
+    token: result.token,
+    expires_at: result.expiresAt,
+    changed: result.changed,
+    supporter_bonus_applied: result.supporterBonusApplied
+  }, 200, corsHeaders(request));
+}
+
+
 async function pairStatus(request, env, url) {
   const pairId = String(url.searchParams.get("pair_id") || "");
   const auth = request.headers.get("Authorization") || "";
@@ -1770,6 +1836,10 @@ export default {
 
       if (url.pathname === "/v1/pair/status" && request.method === "GET") {
         return await pairStatus(request, env, url);
+      }
+
+      if (url.pathname === "/v1/token/refresh" && request.method === "POST") {
+        return await tokenRefresh(request, env);
       }
 
       if (url.pathname === "/telegram/webhook" && request.method === "POST") {
