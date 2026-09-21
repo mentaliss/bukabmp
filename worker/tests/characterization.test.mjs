@@ -319,3 +319,88 @@ test("reviewer activation preserves the signed Store review flow", async () => {
   assert.equal(record.verification_source, "store_reviewer");
   assert.match(record.token, /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
 });
+
+test("telegram replay guard suppresses a duplicate webhook update", async () => {
+  const env = baseEnv();
+  const calls = [];
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = telegramFetchRecorder(calls);
+  try {
+    const update = {
+      update_id: 3001,
+      message: {
+        message_id: 31,
+        from: {id: 424242, is_bot: false},
+        chat: {id: 424242, type: "private"},
+        text: "/start"
+      }
+    };
+    let response = await webhook(env, update);
+    assert.equal(response.status, 200);
+    const firstCallCount = calls.length;
+    assert.ok(firstCallCount > 0);
+
+    response = await webhook(env, update);
+    assert.equal(response.status, 200);
+    assert.equal(calls.length, firstCallCount);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("unknown callback is answered safely and never reaches a feature handler", async () => {
+  const env = baseEnv();
+  const calls = [];
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = telegramFetchRecorder(calls);
+  try {
+    const response = await webhook(env, {
+      update_id: 3002,
+      callback_query: {
+        id: "cb-unknown",
+        from: {id: 424242, is_bot: false},
+        data: "admin:delete:user",
+        message: {
+          message_id: 32,
+          chat: {id: 424242, type: "private"}
+        }
+      }
+    });
+    assert.equal(response.status, 200);
+    const answers = calls.filter(call => call.method === "answerCallbackQuery");
+    assert.equal(answers.length, 1);
+    assert.equal(answers[0].body.text, "Aksi tidak dikenali.");
+    assert.equal(calls.some(call => call.method === "sendInvoice"), false);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("supporter callback scope remains private-only", async () => {
+  const env = baseEnv();
+  const calls = [];
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = telegramFetchRecorder(calls);
+  try {
+    const response = await webhook(env, {
+      update_id: 3003,
+      callback_query: {
+        id: "cb-group-support",
+        from: {id: 424242, is_bot: false},
+        data: "support:terms",
+        message: {
+          message_id: 33,
+          chat: {id: -10042, type: "supergroup"}
+        }
+      }
+    });
+    assert.equal(response.status, 200);
+    assert.equal(calls.some(call => call.method === "sendInvoice"), false);
+    assert.equal(
+      calls.some(call => call.method === "sendMessage" && String(call.body.text || "").includes("BMP Supporter Pass — Terms")),
+      false
+    );
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
