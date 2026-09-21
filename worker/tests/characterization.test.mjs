@@ -80,6 +80,7 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(body.bot_v2_payment_d1_enabled, false);
   assert.equal(body.bot_v2_referral_d1_enabled, false);
   assert.equal(body.bot_v2_referral_self_test_enabled, false);
+  assert.equal(body.bot_v2_activation_ledger_enabled, false);
 });
 
 test("health reports candidate D1 binding without enabling write authorities", async () => {
@@ -108,6 +109,7 @@ test("health reports candidate D1 binding without enabling write authorities", a
   assert.equal(body.bot_v2_payment_d1_enabled, false);
   assert.equal(body.bot_v2_referral_d1_enabled, false);
   assert.equal(body.bot_v2_referral_self_test_enabled, false);
+  assert.equal(body.bot_v2_activation_ledger_enabled, false);
 });
 
 test("telegram webhook rejects a bad secret before processing an update", async () => {
@@ -507,7 +509,7 @@ test("private start without pair code opens the DM control panel", async () => {
     assert.equal(response.status, 200);
     const menu = calls.find(call =>
       call.method === "sendMessage" &&
-      String(call.body.text || "").includes("Pilih menu:")
+      String(call.body.text || "").includes("🏠 BMP Terbuka")
     );
     assert.ok(menu);
     const callbacks = menu.body.reply_markup.inline_keyboard
@@ -515,13 +517,17 @@ test("private start without pair code opens the DM control panel", async () => {
       .map(button => button.callback_data)
       .filter(Boolean);
     assert.ok(callbacks.includes("menu:account"));
+    assert.ok(callbacks.includes("menu:ai"));
+    assert.ok(callbacks.includes("menu:extension"));
+    assert.ok(callbacks.includes("menu:supporter"));
     assert.ok(callbacks.includes("menu:referral"));
+    assert.ok(callbacks.includes("menu:help"));
   } finally {
     globalThis.fetch = oldFetch;
   }
 });
 
-test("group menu command exposes only a DM deep-link", async () => {
+test("group menu command exposes compact AI help and self-ID actions", async () => {
   const env = baseEnv({SUPPORT_GROUP_ID: "-10042"});
   const calls = [];
   const oldFetch = globalThis.fetch;
@@ -539,12 +545,47 @@ test("group menu command exposes only a DM deep-link", async () => {
     assert.equal(response.status, 200);
     const reply = calls.find(call => call.method === "sendMessage");
     assert.ok(reply);
-    assert.match(String(reply.body.text || ""), /lewat DM bot/);
-    assert.equal(
-      reply.body.reply_markup.inline_keyboard[0][0].url,
-      "https://t.me/bukabmp_bot?start=menu"
+    assert.match(String(reply.body.text || ""), /BMP Terbuka Assistant/);
+    const buttons = reply.body.reply_markup.inline_keyboard.flat();
+    assert.ok(buttons.some(x => x.callback_data === "group:ask"));
+    assert.ok(buttons.some(x => x.callback_data === "group:id"));
+    assert.ok(buttons.some(x => x.url === "https://t.me/bukabmp_bot?start=menu"));
+    assert.doesNotMatch(
+      String(reply.body.text || ""),
+      /Supporter aktif|Referral valid/
     );
-    assert.doesNotMatch(String(reply.body.text || ""), /Supporter aktif|Referral valid/);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("DM menu navigation edits the existing menu message instead of stacking", async () => {
+  const env = baseEnv();
+  const calls = [];
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = telegramFetchRecorder(calls);
+  try {
+    const response = await webhook(env, {
+      update_id: 4003,
+      callback_query: {
+        id: "cb-menu-extension",
+        from: {id: 424242, is_bot: false},
+        data: "menu:extension",
+        message: {
+          message_id: 77,
+          chat: {id: 424242, type: "private"}
+        }
+      }
+    });
+    assert.equal(response.status, 200);
+    const edit = calls.find(call => call.method === "editMessageText");
+    assert.ok(edit);
+    assert.equal(edit.body.message_id, 77);
+    assert.match(String(edit.body.text || ""), /Ekstensi BMP Terbuka/);
+    assert.equal(
+      calls.some(call => call.method === "sendMessage"),
+      false
+    );
   } finally {
     globalThis.fetch = oldFetch;
   }
