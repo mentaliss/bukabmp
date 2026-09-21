@@ -23,6 +23,16 @@ export function d1MigrationEnabled(env) {
     envFlagEnabled(env, "BOT_V2_D1_MIGRATION_ENABLED");
 }
 
+export function d1SupporterEnabled(env) {
+  return d1BindingAvailable(env) &&
+    envFlagEnabled(env, "BOT_V2_SUPPORTER_D1_ENABLED");
+}
+
+export function d1PaymentEnabled(env) {
+  return d1SupporterEnabled(env) &&
+    envFlagEnabled(env, "BOT_V2_PAYMENT_D1_ENABLED");
+}
+
 export async function d1ReadProbe(env) {
   if (!d1BindingAvailable(env)) {
     return {bound: false, readable: false};
