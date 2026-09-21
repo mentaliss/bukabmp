@@ -105,7 +105,7 @@ import {
 test("help menu module preserves current user-visible copy", () => {
   assert.match(supportHelpText(), /Group Terbuka/);
   assert.match(supportHelpText({privileged: true}), /bertanya langsung lewat DM/);
-  assert.match(androidHelpText(), /Microsoft Edge Canary/);
+  assert.match(androidHelpText(), /Microsoft Edge Stable/);
   assert.equal(groupHelpText(), "Group Terbuka: https://t.me/bukabmp/13");
   assert.match(updateHelpText(), /^Versi terbaru: v1\.0\.5/);
 });
@@ -124,6 +124,7 @@ test("supporter menu module preserves live packages and benefits", () => {
   assert.match(terms, /\+14 hari/);
   assert.match(terms, /maksimum 60 hari/);
   assert.match(terms, /one-time, bukan subscription otomatis/);
+  assert.match(terms, /v1\.1\.0/);
 });
 
 test("callback parser only accepts known namespaces", () => {
