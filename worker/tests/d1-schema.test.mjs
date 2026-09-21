@@ -7,6 +7,11 @@ const sql = await readFile(
   "utf8"
 );
 
+const activationSql = await readFile(
+  new URL("../migrations/0002_activation_ledger.sql", import.meta.url),
+  "utf8"
+);
+
 const wranglerText = await readFile(
   new URL("../wrangler.jsonc", import.meta.url),
   "utf8"
@@ -36,7 +41,17 @@ test("D1 referral/payment/update uniqueness is explicit", () => {
 });
 
 test("D1 schema does not encode the proposed referred-user +1 day policy", () => {
-  assert.doesNotMatch(sql, /referred.*\+?1\s*day/i);
+  assert.doesNotMatch(sql + activationSql, /referred.*\+?1\s*day/i);
+});
+
+test("activation ledger migration adds durable activation history only", () => {
+  assert.match(activationSql, /ADD COLUMN first_activated_at INTEGER/);
+  assert.match(activationSql, /ADD COLUMN last_activated_at INTEGER/);
+  assert.match(
+    activationSql,
+    /ADD COLUMN activation_count INTEGER NOT NULL DEFAULT 0/
+  );
+  assert.doesNotMatch(activationSql, /username/i);
 });
 
 test("D1 supporter state preserves payment and activation continuity", () => {
@@ -62,4 +77,5 @@ test("candidate config binds BOT_DB without enabling D1 authorities", () => {
   assert.equal(wrangler.vars?.BOT_V2_PAYMENT_D1_ENABLED, "true");
   assert.equal(wrangler.vars?.BOT_V2_REFERRAL_D1_ENABLED, "true");
   assert.equal(wrangler.vars?.BOT_V2_REFERRAL_SELF_TEST_ENABLED, "false");
+  assert.equal(wrangler.vars?.BOT_V2_ACTIVATION_LEDGER_ENABLED, "false");
 });
