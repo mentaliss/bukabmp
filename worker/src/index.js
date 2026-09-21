@@ -85,7 +85,7 @@ import {
   supporterWallKey
 } from "./features/supporter-model.js";
 import {getSupporterEntitlement, putSupporterEntitlement} from "./data/supporter.js";
-import {PAIR_TTL_SECONDS, TOKEN_REFRESH_MIN_VERSION, TOKEN_TTL_DAYS, activationTokenExpiryFloor, refreshActivationToken, verifyPairForUser} from "./features/activation.js";
+import {PAIR_TTL_SECONDS, TOKEN_REFRESH_MIN_VERSION, TOKEN_TTL_DAYS, activationTokenReauthFloor, refreshActivationToken, verifyPairForUser} from "./features/activation.js";
 import {
   formatSupporterContext,
   rememberSupporterTurn,
@@ -114,7 +114,7 @@ import {parseReferralStartArg} from "./features/referral.js";
 import {attributeReferralFromCode} from "./features/referral-service.js";
 import {recordAdEvent, sanitizeAdEvent, sanitizeAdsState} from "./features/ads.js";
 
-const APP_VERSION = "1.0.5-support-bot-v20-v110-final-audit";
+const APP_VERSION = "1.0.5-support-bot-v21-v110-final-audit";
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
 const VERSION_CHECK_AFTER_SECONDS = 24 * 60 * 60;
@@ -1639,7 +1639,7 @@ async function pairStart(request, env) {
   const pairId = randomToken(9);
   const pollSecret = randomToken(24);
   const now = Date.now();
-  const minimumExpiryMs = await activationTokenExpiryFloor(
+  const reauthFloor = await activationTokenReauthFloor(
     env,
     String(body.current_token || ""),
     installId
@@ -1649,7 +1649,8 @@ async function pairStart(request, env) {
     install_id: installId,
     extension_version: extensionVersion,
     distribution_channel: distributionChannel,
-    minimum_expiry_ms: minimumExpiryMs,
+    minimum_expiry_ms: Number(reauthFloor.expiryMs || 0),
+    minimum_expiry_member_ref: String(reauthFloor.memberRef || ""),
     poll_secret_hash: await sha256Hex(pollSecret),
     status: "pending",
     created_at: now
