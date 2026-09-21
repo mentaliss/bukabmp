@@ -115,13 +115,18 @@ test("interstitial countdown starts before realtime fetch so backend latency can
   assert.match(block, /delayMaxMs\|\|5000/);
 });
 
-test("synced activation keeps status card but hides redundant manual refresh CTA", () => {
+test("synced activation hides the whole management card until action is required", () => {
   const start = popup.indexOf("if(a.active&&!a.reviewer)");
   const end = popup.indexOf("return a;", start);
   const block = popup.slice(start, end);
-  assert.match(block, /Akun dan aktivasi sudah tersinkron/);
-  assert.match(block, /refreshActivation"\)\.style\.display="none"/);
-  assert.match(block, /refreshActivation"\)\.style\.display="block"/);
+  const syncedAt = block.indexOf("}else if(a.refreshEligible){");
+  const legacyAt = block.indexOf("}else{", syncedAt);
+  const syncedBlock = block.slice(syncedAt, legacyAt);
+  assert.match(syncedBlock, /activationManage"\)\.style\.display="none"/);
+  assert.match(syncedBlock, /refreshActivation"\)\.style\.display="none"/);
+  assert.doesNotMatch(syncedBlock, /Akun dan aktivasi sudah tersinkron/);
+  assert.match(block, /activationManage"\)\.style\.display="block"/);
+  assert.match(block, /Verifikasi ulang/);
 });
 
 test("popup exposes current realtime surfaces and Edge Stable Android path", () => {
@@ -129,7 +134,7 @@ test("popup exposes current realtime surfaces and Edge Stable Android path", () 
   assert.match(popup, /REFRESH_ACTIVATION/);
   assert.match(popup, /Verifikasi ulang/);
   assert.match(popup, /menyinkronkan akun BMP Terbuka/);
-  assert.match(popup, /Akun dan aktivasi sudah tersinkron/);
+  assert.doesNotMatch(popup, /Akun dan aktivasi sudah tersinkron/);
   assert.doesNotMatch(popup, /Aktifkan pembaruan/);
   assert.doesNotMatch(popup, /token lama/);
   assert.match(popupHtml, /id="cloudStatusBadge"/);
