@@ -78,6 +78,7 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(body.bot_v2_d1_migration_enabled, false);
   assert.equal(body.bot_v2_supporter_d1_enabled, false);
   assert.equal(body.bot_v2_payment_d1_enabled, false);
+  assert.equal(body.bot_v2_referral_d1_enabled, false);
 });
 
 test("health reports candidate D1 binding without enabling write authorities", async () => {
@@ -104,6 +105,7 @@ test("health reports candidate D1 binding without enabling write authorities", a
   assert.equal(body.bot_v2_d1_migration_enabled, false);
   assert.equal(body.bot_v2_supporter_d1_enabled, false);
   assert.equal(body.bot_v2_payment_d1_enabled, false);
+  assert.equal(body.bot_v2_referral_d1_enabled, false);
 });
 
 test("telegram webhook rejects a bad secret before processing an update", async () => {
