@@ -7,6 +7,12 @@ const sql = await readFile(
   "utf8"
 );
 
+const wranglerText = await readFile(
+  new URL("../wrangler.jsonc", import.meta.url),
+  "utf8"
+);
+const wrangler = JSON.parse(wranglerText);
+
 test("D1 foundation contains the durable Bot V2 authorities", () => {
   for (const table of [
     "users",
@@ -40,4 +46,15 @@ test("D1 supporter state preserves payment and activation continuity", () => {
   assert.match(sql, /last_payment_at INTEGER NOT NULL DEFAULT 0/);
   assert.match(sql, /last_package_id TEXT/);
   assert.match(sql, /tag_applied INTEGER NOT NULL DEFAULT 0/);
+});
+
+test("candidate config binds BOT_DB without enabling D1 authorities", () => {
+  const binding = (wrangler.d1_databases || []).find(
+    item => item.binding === "BOT_DB"
+  );
+  assert.ok(binding);
+  assert.equal(binding.database_name, "bmp-terbuka-bot-v2");
+  assert.equal(binding.migrations_dir, "migrations");
+  assert.equal(wrangler.vars?.BOT_V2_D1_WRITE_ENABLED, undefined);
+  assert.equal(wrangler.vars?.BOT_V2_D1_REPLAY_ENABLED, undefined);
 });
