@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  activationTokenExpiryFloor,
   issueToken,
   refreshActivationToken,
   TOKEN_REFRESH_MIN_VERSION,
@@ -249,4 +250,34 @@ test("activation refresh re-checks community membership", async () => {
   } finally {
     globalThis.fetch = oldFetch;
   }
+});
+
+
+test("one-time v2 re-verification can preserve a longer active legacy expiry", async () => {
+  const {env, keyPair} = await fixture();
+  const installId = "01234567-89ab-cdef-01234567";
+  const legacyExpiry = Date.now() + 31 * 86400000;
+  const legacy = await signLegacyToken(keyPair.privateKey, {
+    installId,
+    userId: 424242,
+    expiresAt: legacyExpiry
+  });
+
+  const floor = await activationTokenExpiryFloor(env, legacy, installId);
+  assert.ok(Math.abs(floor - legacyExpiry) < 2000);
+
+  const replacement = await issueToken(env, installId, 424242, floor);
+  const payload = decodePayload(replacement);
+  assert.equal(payload.token_version, TOKEN_SCHEMA_VERSION);
+  assert.equal(payload.sub, "tg:424242");
+  assert.ok(Number(payload.exp) * 1000 + 1000 >= floor);
+
+  assert.equal(
+    await activationTokenExpiryFloor(
+      env,
+      legacy,
+      "fedcba98-7654-3210-fedcba98"
+    ),
+    0
+  );
 });
