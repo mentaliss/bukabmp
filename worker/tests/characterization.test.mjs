@@ -534,41 +534,114 @@ test("private start without pair code opens the V2.1 control panel for canary us
   }
 });
 
-test("group menu command exposes compact AI help and self-ID actions for canary users", async () => {
+test("group slash commands other than ask are silent", async () => {
   const env = baseEnv({
     SUPPORT_GROUP_ID: "-10042",
-    SUPPORT_PRIVILEGED_USER_IDS: "424242,999999",
-    BOT_V21_UI_CANARY_ENABLED: "true"
+    BOT_V21_UI_ENABLED: "true"
   });
+  const oldFetch = globalThis.fetch;
+
+  for (const [index, text] of ["/menu", "/tutorial", "/terms", "/paysupport"].entries()) {
+    const calls = [];
+    globalThis.fetch = telegramFetchRecorder(calls);
+    const response = await webhook(env, {
+      update_id: 4100 + index,
+      message: {
+        message_id: 50 + index,
+        from: {id: 424242, is_bot: false},
+        chat: {id: -10042, type: "supergroup"},
+        text
+      }
+    });
+    assert.equal(response.status, 200);
+    assert.equal(
+      calls.some(call => call.method === "sendMessage"),
+      false,
+      text + " must not produce a group reply"
+    );
+  }
+
+  globalThis.fetch = oldFetch;
+});
+
+test("legacy tutorial command in DM opens current extension UI", async () => {
+  const env = baseEnv({BOT_V21_UI_ENABLED: "true"});
   const calls = [];
   const oldFetch = globalThis.fetch;
   globalThis.fetch = telegramFetchRecorder(calls);
   try {
     const response = await webhook(env, {
-      update_id: 4002,
+      update_id: 4105,
       message: {
-        message_id: 42,
+        message_id: 55,
         from: {id: 424242, is_bot: false},
-        chat: {id: -10042, type: "supergroup"},
-        text: "/menu"
+        chat: {id: 424242, type: "private"},
+        text: "/tutorial"
       }
     });
     assert.equal(response.status, 200);
-    const reply = calls.find(call => call.method === "sendMessage");
-    assert.ok(reply);
-    assert.match(String(reply.body.text || ""), /BMP Terbuka Assistant/);
-    const buttons = reply.body.reply_markup.inline_keyboard.flat();
-    assert.ok(buttons.some(x => x.callback_data === "group:ask"));
-    assert.ok(buttons.some(x => x.callback_data === "group:id"));
-    assert.ok(buttons.some(x => x.url === "https://t.me/bukabmp_bot?start=menu"));
-    assert.doesNotMatch(
-      String(reply.body.text || ""),
-      /Supporter aktif|Referral valid/
+    const reply = calls.find(call =>
+      call.method === "sendMessage" &&
+      String(call.body.text || "").includes("Mulai Menggunakan BMP Terbuka")
     );
+    assert.ok(reply);
+    assert.doesNotMatch(String(reply.body.text || ""), /v1\.0\.5/);
   } finally {
     globalThis.fetch = oldFetch;
   }
 });
+
+test("admin command sync publishes minimal private and group scopes", async () => {
+  const env = baseEnv({ADMIN_SETUP_TOKEN: "fixture-admin"});
+  const calls = [];
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = telegramFetchRecorder(calls);
+  try {
+    const response = await worker.fetch(new Request(
+      "https://worker.test/admin/sync-commands",
+      {
+        method: "POST",
+        headers: {Authorization: "Bearer fixture-admin"}
+      }
+    ), env);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.deepEqual(body.private_commands, [
+      "start", "menu", "verify", "ask"
+    ]);
+    assert.deepEqual(body.group_commands, ["ask"]);
+
+    assert.equal(
+      calls.filter(call => call.method === "deleteMyCommands").length,
+      4
+    );
+
+    const privateSet = calls.find(call =>
+      call.method === "setMyCommands" &&
+      call.body.scope?.type === "all_private_chats"
+    );
+    assert.deepEqual(
+      privateSet.body.commands.map(item => item.command),
+      ["start", "menu", "verify", "ask"]
+    );
+
+    const groupSets = calls.filter(call =>
+      call.method === "setMyCommands" &&
+      ["all_group_chats", "all_chat_administrators"]
+        .includes(call.body.scope?.type)
+    );
+    assert.equal(groupSets.length, 2);
+    for (const call of groupSets) {
+      assert.deepEqual(
+        call.body.commands.map(item => item.command),
+        ["ask"]
+      );
+    }
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
 
 test("DM menu navigation edits the existing menu message for canary users", async () => {
   const env = baseEnv({
