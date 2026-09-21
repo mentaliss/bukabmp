@@ -81,6 +81,8 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(body.bot_v2_referral_d1_enabled, false);
   assert.equal(body.bot_v2_referral_self_test_enabled, false);
   assert.equal(body.bot_v2_activation_ledger_enabled, false);
+  assert.equal(body.bot_v21_ui_canary_enabled, false);
+  assert.equal(body.bot_v21_ui_canary_user_count, 0);
 });
 
 test("health reports candidate D1 binding without enabling write authorities", async () => {
@@ -110,6 +112,8 @@ test("health reports candidate D1 binding without enabling write authorities", a
   assert.equal(body.bot_v2_referral_d1_enabled, false);
   assert.equal(body.bot_v2_referral_self_test_enabled, false);
   assert.equal(body.bot_v2_activation_ledger_enabled, false);
+  assert.equal(body.bot_v21_ui_canary_enabled, false);
+  assert.equal(body.bot_v21_ui_canary_user_count, 0);
 });
 
 test("telegram webhook rejects a bad secret before processing an update", async () => {
@@ -491,8 +495,11 @@ test("supporter callback scope remains private-only", async () => {
   }
 });
 
-test("private start without pair code opens the DM control panel", async () => {
-  const env = baseEnv();
+test("private start without pair code opens the V2.1 control panel for canary users", async () => {
+  const env = baseEnv({
+    SUPPORT_PRIVILEGED_USER_IDS: "424242,999999",
+    BOT_V21_UI_CANARY_ENABLED: "true"
+  });
   const calls = [];
   const oldFetch = globalThis.fetch;
   globalThis.fetch = telegramFetchRecorder(calls);
@@ -527,8 +534,12 @@ test("private start without pair code opens the DM control panel", async () => {
   }
 });
 
-test("group menu command exposes compact AI help and self-ID actions", async () => {
-  const env = baseEnv({SUPPORT_GROUP_ID: "-10042"});
+test("group menu command exposes compact AI help and self-ID actions for canary users", async () => {
+  const env = baseEnv({
+    SUPPORT_GROUP_ID: "-10042",
+    SUPPORT_PRIVILEGED_USER_IDS: "424242,999999",
+    BOT_V21_UI_CANARY_ENABLED: "true"
+  });
   const calls = [];
   const oldFetch = globalThis.fetch;
   globalThis.fetch = telegramFetchRecorder(calls);
@@ -559,8 +570,11 @@ test("group menu command exposes compact AI help and self-ID actions", async () 
   }
 });
 
-test("DM menu navigation edits the existing menu message instead of stacking", async () => {
-  const env = baseEnv();
+test("DM menu navigation edits the existing menu message for canary users", async () => {
+  const env = baseEnv({
+    SUPPORT_PRIVILEGED_USER_IDS: "424242,999999",
+    BOT_V21_UI_CANARY_ENABLED: "true"
+  });
   const calls = [];
   const oldFetch = globalThis.fetch;
   globalThis.fetch = telegramFetchRecorder(calls);
@@ -586,6 +600,79 @@ test("DM menu navigation edits the existing menu message instead of stacking", a
       calls.some(call => call.method === "sendMessage"),
       false
     );
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("non-canary private start preserves the legacy production menu", async () => {
+  const env = baseEnv({
+    SUPPORT_PRIVILEGED_USER_IDS: "111111,222222",
+    BOT_V21_UI_CANARY_ENABLED: "true"
+  });
+  const calls = [];
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = telegramFetchRecorder(calls);
+  try {
+    const response = await webhook(env, {
+      update_id: 4004,
+      message: {
+        message_id: 44,
+        from: {id: 424242, is_bot: false},
+        chat: {id: 424242, type: "private"},
+        text: "/start"
+      }
+    });
+    assert.equal(response.status, 200);
+    const menu = calls.find(call =>
+      call.method === "sendMessage" &&
+      String(call.body.text || "").includes("Pilih menu:")
+    );
+    assert.ok(menu);
+    const callbacks = menu.body.reply_markup.inline_keyboard
+      .flat()
+      .map(button => button.callback_data)
+      .filter(Boolean);
+    assert.ok(callbacks.includes("menu:activation"));
+    assert.equal(callbacks.includes("menu:ai"), false);
+    assert.equal(callbacks.includes("menu:extension"), false);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("non-canary menu callback keeps legacy sendMessage navigation", async () => {
+  const env = baseEnv({
+    SUPPORT_PRIVILEGED_USER_IDS: "111111,222222",
+    BOT_V21_UI_CANARY_ENABLED: "true"
+  });
+  const calls = [];
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = telegramFetchRecorder(calls);
+  try {
+    const response = await webhook(env, {
+      update_id: 4005,
+      callback_query: {
+        id: "cb-legacy-account",
+        from: {id: 424242, is_bot: false},
+        data: "menu:account",
+        message: {
+          message_id: 88,
+          chat: {id: 424242, type: "private"}
+        }
+      }
+    });
+    assert.equal(response.status, 200);
+    assert.equal(
+      calls.some(call => call.method === "editMessageText"),
+      false
+    );
+    const account = calls.find(call =>
+      call.method === "sendMessage" &&
+      String(call.body.text || "").includes("👤 Akun Saya")
+    );
+    assert.ok(account);
+    assert.match(String(account.body.text || ""), /Kelola dari extension/);
   } finally {
     globalThis.fetch = oldFetch;
   }
