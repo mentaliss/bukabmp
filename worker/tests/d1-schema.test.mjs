@@ -57,5 +57,5 @@ test("candidate config binds BOT_DB without enabling D1 authorities", () => {
   assert.equal(binding.migrations_dir, "migrations");
   assert.equal(wrangler.vars?.BOT_V2_D1_WRITE_ENABLED, undefined);
   assert.equal(wrangler.vars?.BOT_V2_D1_REPLAY_ENABLED, "true");
-  assert.equal(wrangler.vars?.BOT_V2_D1_MIGRATION_ENABLED, undefined);
+  assert.equal(wrangler.vars?.BOT_V2_D1_MIGRATION_ENABLED, "true");
 });
