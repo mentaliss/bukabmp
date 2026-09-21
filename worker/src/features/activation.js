@@ -86,15 +86,22 @@ async function importVerifyKey(env) {
 }
 
 
-async function activationExpiryForIssue(env, telegramUserId) {
+async function activationExpiryForIssue(
+  env,
+  telegramUserId,
+  minimumExpiryMs = 0
+) {
   const now = Date.now();
   const baseExpiry = now + TOKEN_TTL_DAYS * 86400000;
+  const signedFloor = Number(minimumExpiryMs || 0) > now
+    ? Number(minimumExpiryMs)
+    : 0;
   const maxExpiry = now + SUPPORTER_ACTIVATION_MAX_DAYS * 86400000;
   const record = await getSupporterEntitlement(env, telegramUserId);
 
   if (!record) {
     return {
-      expiryMs: baseExpiry,
+      expiryMs: Math.max(baseExpiry, signedFloor),
       supporter: supporterTokenSnapshot(null, now)
     };
   }
@@ -105,9 +112,16 @@ async function activationExpiryForIssue(env, telegramUserId) {
     Number(record.activation_bonus_pending_days || 0)
   ));
 
-  let target = Math.max(baseExpiry, trackedExpiry > now ? trackedExpiry : 0);
+  let target = Math.max(
+    baseExpiry,
+    trackedExpiry > now ? trackedExpiry : 0,
+    signedFloor
+  );
   if (pendingDays > 0) target += pendingDays * 86400000;
-  target = Math.min(target, maxExpiry);
+  // Never shorten a currently valid signed token during one-time re-verification.
+  // The ordinary entitlement cap still applies unless the old signed token itself
+  // already carries a later expiry, in which case that signed floor wins.
+  target = Math.max(signedFloor, Math.min(target, maxExpiry));
 
   record.activation_until = target;
   record.activation_bonus_pending_days = 0;
@@ -159,8 +173,17 @@ async function signCommunityToken(
   return signingInput + "." + b64url(new Uint8Array(sig));
 }
 
-export async function issueToken(env, installId, telegramUserId) {
-  const issue = await activationExpiryForIssue(env, telegramUserId);
+export async function issueToken(
+  env,
+  installId,
+  telegramUserId,
+  minimumExpiryMs = 0
+) {
+  const issue = await activationExpiryForIssue(
+    env,
+    telegramUserId,
+    minimumExpiryMs
+  );
   return await signCommunityToken(
     env,
     installId,
@@ -168,6 +191,19 @@ export async function issueToken(env, installId, telegramUserId) {
     issue.expiryMs,
     issue.supporter
   );
+}
+
+export async function activationTokenExpiryFloor(
+  env,
+  token,
+  installId
+) {
+  if (!token || !installId) return 0;
+  const verified = await verifyIssuedToken(env, token);
+  if (!verified.ok) return 0;
+  if (String(verified.payload?.install_id || "") !== String(installId)) return 0;
+  const expiryMs = Number(verified.payload?.exp || 0) * 1000;
+  return expiryMs > Date.now() ? expiryMs : 0;
 }
 
 async function verifyIssuedToken(env, token) {
@@ -415,7 +451,12 @@ export async function verifyPairForUser(env, pairId, userId, chatId) {
 
   let token;
   try {
-    token = await issueToken(env, record.install_id, userId);
+    token = await issueToken(
+      env,
+      record.install_id,
+      userId,
+      Number(record.minimum_expiry_ms || 0)
+    );
   } catch (error) {
     console.error("token_issue_failed", {
       pair_ref: await auditRef(env, "pair", pairId),
