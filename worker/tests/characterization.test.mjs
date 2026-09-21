@@ -404,3 +404,90 @@ test("supporter callback scope remains private-only", async () => {
     globalThis.fetch = oldFetch;
   }
 });
+
+test("private start without pair code opens the DM control panel", async () => {
+  const env = baseEnv();
+  const calls = [];
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = telegramFetchRecorder(calls);
+  try {
+    const response = await webhook(env, {
+      update_id: 4001,
+      message: {
+        message_id: 41,
+        from: {id: 424242, is_bot: false},
+        chat: {id: 424242, type: "private"},
+        text: "/start"
+      }
+    });
+    assert.equal(response.status, 200);
+    const menu = calls.find(call =>
+      call.method === "sendMessage" &&
+      String(call.body.text || "").includes("Pilih menu:")
+    );
+    assert.ok(menu);
+    const callbacks = menu.body.reply_markup.inline_keyboard
+      .flat()
+      .map(button => button.callback_data)
+      .filter(Boolean);
+    assert.ok(callbacks.includes("menu:account"));
+    assert.ok(callbacks.includes("menu:referral"));
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("group menu command exposes only a DM deep-link", async () => {
+  const env = baseEnv({SUPPORT_GROUP_ID: "-10042"});
+  const calls = [];
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = telegramFetchRecorder(calls);
+  try {
+    const response = await webhook(env, {
+      update_id: 4002,
+      message: {
+        message_id: 42,
+        from: {id: 424242, is_bot: false},
+        chat: {id: -10042, type: "supergroup"},
+        text: "/menu"
+      }
+    });
+    assert.equal(response.status, 200);
+    const reply = calls.find(call => call.method === "sendMessage");
+    assert.ok(reply);
+    assert.match(String(reply.body.text || ""), /lewat DM bot/);
+    assert.equal(
+      reply.body.reply_markup.inline_keyboard[0][0].url,
+      "https://t.me/bukabmp_bot?start=menu"
+    );
+    assert.doesNotMatch(String(reply.body.text || ""), /Supporter aktif|Referral valid/);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("invalid referral deep-link never falls through to activation verification", async () => {
+  const env = baseEnv();
+  const calls = [];
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = telegramFetchRecorder(calls);
+  try {
+    const response = await webhook(env, {
+      update_id: 4003,
+      message: {
+        message_id: 43,
+        from: {id: 424242, is_bot: false},
+        chat: {id: 424242, type: "private"},
+        text: "/start ref_424242"
+      }
+    });
+    assert.equal(response.status, 200);
+    assert.equal(calls.some(call => call.method === "getChatMember"), false);
+    assert.ok(calls.some(call =>
+      call.method === "sendMessage" &&
+      String(call.body.text || "") === "Link referral tidak valid."
+    ));
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
