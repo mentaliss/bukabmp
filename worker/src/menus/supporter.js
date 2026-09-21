@@ -41,7 +41,8 @@ export async function sendSupporterMenu(env, message, access = null) {
       reply_markup: {
         inline_keyboard: [
           [{text: "⭐ 2 Stars — 1 Hari", callback_data: "support:select:day"}],
-          [{text: "⭐ 50 Stars — 30 Hari", callback_data: "support:select:month"}]
+          [{text: "⭐ 50 Stars — 30 Hari", callback_data: "support:select:month"}],
+          [{text: "◀ Menu Utama", callback_data: "menu:main"}]
         ]
       },
       disable_web_page_preview: true
@@ -92,7 +93,8 @@ export async function sendSupporterPackageConfirmation(env, userId, chatId, pack
     reply_markup: {
       inline_keyboard: [
         [{text: "📄 Baca Terms", callback_data: "support:terms"}],
-        [{text: "✅ Saya setuju & bayar " + pkg.stars + " ⭐", callback_data: "support:buy:" + pkg.id}]
+        [{text: "✅ Saya setuju & bayar " + pkg.stars + " ⭐", callback_data: "support:buy:" + pkg.id}],
+        [{text: "◀ Supporter", callback_data: "menu:supporter"}]
       ]
     }
   });
