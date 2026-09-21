@@ -15,7 +15,7 @@ import {SUPPORT_KB} from "./knowledge.generated.js";
 import {supportPrivilegedUserIds} from "./security/permissions.js";
 import {v21UiCanaryCount, v21UiCanaryEnabled, v21UiCanaryUser, v21UiGlobalEnabled} from "./features/ui-canary.js";
 import {b64url, b64urlJson, importSigningKey, randomToken, sha256Hex} from "./security/crypto.js";
-import {checkActivationRefreshRateLimit, checkPairRateLimit} from "./security/rate-limit.js";
+import {checkActivationRefreshRateLimit, checkAdEventRateLimit, checkPairRateLimit} from "./security/rate-limit.js";
 import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
 import {claimTelegramUpdate} from "./security/idempotency.js";
 import {d1ActivationLedgerEnabled, d1MigrationEnabled, d1PaymentEnabled, d1ReadProbe, d1ReferralEnabled, d1ReferralSelfTestEnabled, d1ReplayEnabled, d1SupporterEnabled, d1WritesEnabled} from "./data/d1/mode.js";
@@ -114,7 +114,7 @@ import {parseReferralStartArg} from "./features/referral.js";
 import {attributeReferralFromCode} from "./features/referral-service.js";
 import {recordAdEvent, sanitizeAdsState} from "./features/ads.js";
 
-const APP_VERSION = "1.0.5-support-bot-v18-realtime-ads-v110";
+const APP_VERSION = "1.0.5-support-bot-v19-realtime-ads-hardening-v110";
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
 const VERSION_CHECK_AFTER_SECONDS = 24 * 60 * 60;
@@ -1433,6 +1433,9 @@ async function extensionState(request, env, url) {
 }
 
 async function adEvent(request, env) {
+  if (!(await checkAdEventRateLimit(request, env))) {
+    return json({error: "rate_limited"}, 429, corsHeaders(request));
+  }
   const contentLength = Number(request.headers.get("Content-Length") || 0);
   if (Number.isFinite(contentLength) && contentLength > 8192) {
     return json({error: "payload_too_large"}, 413, corsHeaders(request));
@@ -1976,6 +1979,7 @@ export default {
           extension_state_status_badge: true,
           realtime_ads_contract: true,
           ad_event_ingest: true,
+          ad_event_rate_limited: true,
           ads_analytics_bound: Boolean(env.ADS_ANALYTICS && typeof env.ADS_ANALYTICS.writeDataPoint === "function"),
           telegram_command_menu_mode: String(env.TELEGRAM_COMMAND_MENU_MODE || "legacy").toLowerCase(),
           reviewer_activation_configured: Boolean(env.STORE_REVIEWER_SECRET),

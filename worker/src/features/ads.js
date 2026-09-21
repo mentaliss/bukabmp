@@ -118,8 +118,8 @@ export function sanitizeAdsState(raw, nowMs = Date.now()) {
   const interstitial = raw.interstitial && typeof raw.interstitial === "object"
     ? raw.interstitial
     : {};
-  const minDelay = boundedInt(interstitial.delay_min_ms, 2000, 500, 15000);
-  const maxDelay = boundedInt(interstitial.delay_max_ms, 5000, minDelay, 30000);
+  const minDelay = boundedInt(interstitial.delay_min_ms, 2000, 2000, 5000);
+  const maxDelay = boundedInt(interstitial.delay_max_ms, 5000, minDelay, 5000);
   out.interstitial = {
     enabled:
       interstitial.enabled === true &&
@@ -134,10 +134,12 @@ export function sanitizeAdsState(raw, nowMs = Date.now()) {
   const inWindow =
     (startsAt == null || nowMs >= startsAt) &&
     (endsAt == null || nowMs < endsAt);
+  // v1.1.0 renders text creative only. Keep image_url reserved for a future
+  // first-party/proxied asset path so an image-only campaign can never become
+  // "active" and render as an empty card/interstitial.
   const hasCreative = Boolean(
     out.headline ||
-    out.body ||
-    out.image_url
+    out.body
   );
 
   // Active is runtime eligibility only. Keep configured placements and

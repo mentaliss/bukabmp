@@ -33,3 +33,23 @@ export async function checkActivationRefreshRateLimit(env, installId) {
   );
   return true;
 }
+
+export async function checkAdEventRateLimit(request, env) {
+  if (!env?.PAIRINGS || !env.MEMBER_HASH_SALT) return true;
+  const ip = request.headers.get("CF-Connecting-IP") || "";
+  if (!ip) return true;
+
+  const fingerprint = await sha256Hex(
+    "ad-event:" + ip + ":" + String(env.MEMBER_HASH_SALT)
+  );
+  const key = "ad-event-rate:" + fingerprint;
+  const count = Number(await env.PAIRINGS.get(key) || 0);
+  if (count >= 60) return false;
+
+  await env.PAIRINGS.put(
+    key,
+    String(count + 1),
+    {expirationTtl: 60}
+  );
+  return true;
+}
