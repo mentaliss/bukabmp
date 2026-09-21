@@ -1,0 +1,32 @@
+name: Bot V2 Candidate
+
+on:
+  push:
+    branches: ["bot-v2-candidate"]
+  pull_request:
+    branches: ["cloudflare-worker-prod"]
+    paths:
+      - "worker/**"
+      - "extension/cloud-surface.js"
+      - "tests/cloud-surface.test.mjs"
+      - ".github/workflows/bot-v2-candidate.yml"
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Existing repository validation
+        run: node tools/validate.mjs
+      - name: Existing Cloud Surface tests
+        run: node tests/cloud-surface.test.mjs
+      - name: Worker characterization tests
+        run: node --test worker/tests/*.test.mjs
+      - name: Worker bundle dry-run
+        working-directory: worker
+        run: |
+          npm install --no-audit --no-fund
+          npx wrangler deploy --dry-run --outdir /tmp/bmp-worker-build
