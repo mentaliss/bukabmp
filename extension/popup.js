@@ -114,6 +114,25 @@ function reportAdEvent(eventType,ad,placement){
   }).catch(()=>{});
 }
 
+function reportVisibleCardImpression(){
+  if(
+    !latestAccess?.active||
+    !el("mainScreen").classList.contains("active")
+  ){
+    reportedCardImpressionKey="";
+    return;
+  }
+  const ad=campaignAdFromState(latestCloudState,"card");
+  if(!ad){
+    reportedCardImpressionKey="";
+    return;
+  }
+  const key=ad.campaignId+":"+ad.revision;
+  if(reportedCardImpressionKey===key)return;
+  reportedCardImpressionKey=key;
+  reportAdEvent("impression",ad,"card");
+}
+
 function hideAdInterstitial({report=true}={}){
   const root=el("adInterstitial");
   root.classList.remove("visible");
@@ -309,11 +328,6 @@ function renderCloudSurface(state){
       card.append(button);
     }
     sponsorRoot.append(card);
-    const impressionKey=cardAd.campaignId+":"+cardAd.revision;
-    if(reportedCardImpressionKey!==impressionKey){
-      reportedCardImpressionKey=impressionKey;
-      reportAdEvent("impression",cardAd,"card");
-    }
   }
 
   for(const section of sections){
@@ -385,6 +399,8 @@ function renderCloudSurface(state){
     appendSponsorContact(placeholder,house.cta);
     sponsorRoot.append(placeholder);
   }
+
+  reportVisibleCardImpression();
 }
 
 async function refreshCloudSurface({force=false}={}){
@@ -741,6 +757,8 @@ async function refreshAccess(){
   }else{
     el("activationManage").style.display="none";
   }
+
+  reportVisibleCardImpression();
   return a;
 }
 async function refreshState(){
