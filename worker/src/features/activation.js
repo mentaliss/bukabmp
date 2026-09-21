@@ -3,6 +3,7 @@ import {b64url, b64urlJson, importSigningKey, sha256Hex} from "../security/crypt
 import {auditErrorName, auditRef} from "../security/audit.js";
 import {getSupporterEntitlement, putSupporterEntitlement} from "../data/supporter.js";
 import {SUPPORTER_ACTIVATION_MAX_DAYS} from "./supporter-model.js";
+import {qualifyReferralAfterActivation} from "./referral-service.js";
 
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
@@ -15,9 +16,6 @@ async function activationExpiryForIssue(env, telegramUserId) {
   const maxExpiry = now + SUPPORTER_ACTIVATION_MAX_DAYS * 86400000;
   const record = await getSupporterEntitlement(env, telegramUserId);
 
-  // Preserve production behavior: normal community activation is stateless
-  // after the short pairing record expires. Existing Supporter entitlement may
-  // carry activation bonus bookkeeping.
   if (!record) return baseExpiry;
 
   const trackedExpiry = Number(record.activation_until || 0);
@@ -168,6 +166,15 @@ export async function verifyPairForUser(env, pairId, userId, chatId) {
 
   await env.PAIRINGS.put(key, JSON.stringify(verified), {
     expirationTtl: PAIR_TTL_SECONDS
+  });
+
+  // Referral qualification is secondary to activation. It is explicitly gated
+  // behind BOT_V2_D1_WRITE_ENABLED and can never block a successful activation.
+  qualifyReferralAfterActivation(env, userId).catch(async error => {
+    console.error("referral_qualification_failed", {
+      user_ref: await auditRef(env, "telegram-user", userId),
+      error_name: auditErrorName(error)
+    });
   });
 
   await tg(env, "sendMessage", {

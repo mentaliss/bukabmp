@@ -1,4 +1,5 @@
 import {randomToken} from "../security/crypto.js";
+import {d1WritesEnabled} from "../data/d1/mode.js";
 import {
   createOpaqueReferralCode,
   referralDeepLink,
@@ -9,13 +10,10 @@ import {
   createFirstTouchReferral,
   getQualifiedReferralCount
 } from "../data/d1/referral.js";
-
-function d1Available(env) {
-  return Boolean(env?.BOT_DB && typeof env.BOT_DB.prepare === "function");
-}
+import {qualifyReferralForActivatedUser} from "../data/d1/referral-qualification.js";
 
 export async function ensureReferralUser(env, telegramUserId) {
-  if (!d1Available(env)) return {available: false, user: null};
+  if (!d1WritesEnabled(env)) return {available: false, user: null};
 
   const id = Number(telegramUserId);
   if (!Number.isSafeInteger(id)) return {available: true, user: null, reason: "invalid_user_id"};
@@ -36,7 +34,7 @@ export async function ensureReferralUser(env, telegramUserId) {
 }
 
 export async function attributeReferralFromCode(env, referredUserId, referralCode) {
-  if (!d1Available(env)) return {available: false, created: false};
+  if (!d1WritesEnabled(env)) return {available: false, created: false};
 
   const referred = await ensureReferralUser(env, referredUserId);
   if (!referred.user) {
@@ -56,6 +54,21 @@ export async function attributeReferralFromCode(env, referredUserId, referralCod
     referralId: "ref_" + randomToken(18),
     referrerUserId: referrer.telegram_user_id,
     referredUserId: referred.user.telegram_user_id
+  });
+
+  return {available: true, ...result};
+}
+
+export async function qualifyReferralAfterActivation(env, referredUserId) {
+  if (!d1WritesEnabled(env)) {
+    return {available: false, qualified: false};
+  }
+
+  const result = await qualifyReferralForActivatedUser(env, {
+    referredUserId,
+    qualificationRef: "qual_" + randomToken(18),
+    rewardEventId: "reward_" + randomToken(18),
+    supporterEventId: "support_" + randomToken(18)
   });
 
   return {available: true, ...result};

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS referrals (
   referred_user_id INTEGER NOT NULL UNIQUE,
   attributed_at INTEGER NOT NULL,
   qualified_at INTEGER,
+  qualification_ref TEXT UNIQUE,
   status TEXT NOT NULL CHECK (status IN ('ATTRIBUTED','QUALIFIED','REJECTED')),
   rejection_reason TEXT,
   FOREIGN KEY (referrer_user_id) REFERENCES users(telegram_user_id),
@@ -32,8 +33,13 @@ CREATE TABLE IF NOT EXISTS supporter_state (
   referral_entitlement_total INTEGER NOT NULL DEFAULT 0,
   activation_until INTEGER NOT NULL DEFAULT 0,
   activation_bonus_pending_days INTEGER NOT NULL DEFAULT 0,
+  total_stars INTEGER NOT NULL DEFAULT 0,
+  payment_count INTEGER NOT NULL DEFAULT 0,
+  last_payment_at INTEGER NOT NULL DEFAULT 0,
+  last_package_id TEXT,
   wall_mode TEXT NOT NULL DEFAULT 'private'
     CHECK (wall_mode IN ('private','public','anonymous')),
+  tag_applied INTEGER NOT NULL DEFAULT 0 CHECK (tag_applied IN (0,1)),
   updated_at INTEGER NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users(telegram_user_id)
 );
