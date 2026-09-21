@@ -60,7 +60,7 @@ export function supportInvocation(message, env) {
   const text = String(message?.text || message?.caption || "").trim();
   const command = parseBotCommand(text, env);
   const supportCommands = new Set([
-    "ask", "bmphelp", "tutorial", "install", "android", "desktop", "group",
+    "ask", "help", "bmphelp", "tutorial", "install", "android", "desktop", "group",
     "update", "fitur", "storage", "bug", "faq", "quota", "support",
     "supporter", "supporters", "terms", "paysupport"
   ]);
