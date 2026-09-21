@@ -46,6 +46,15 @@ function defaultAdsState() {
     disclaimer: "",
     image_url: "",
     cta: null,
+    house: {
+      sponsor_label: "Sponsor",
+      headline: "Space iklan tersedia",
+      body: "",
+      cta: {
+        label: "Pasang iklan? Hubungi",
+        url: "https://t.me/bukabmp?direct"
+      }
+    },
     starts_at: null,
     ends_at: null,
     placements: {
@@ -86,6 +95,15 @@ export function sanitizeAdsState(raw, nowMs = Date.now()) {
   out.disclaimer = cleanText(raw.disclaimer, 220);
   out.image_url = safeHttpsUrl(raw.image_url);
   out.cta = sanitizeCta(raw.cta);
+
+  const house = raw.house && typeof raw.house === "object" ? raw.house : {};
+  out.house = {
+    sponsor_label: cleanText(house.sponsor_label, 32) || out.house.sponsor_label,
+    headline: cleanText(house.headline, 120) || out.house.headline,
+    body: cleanText(house.body, 420),
+    cta: sanitizeCta(house.cta) || out.house.cta
+  };
+
   out.starts_at = safeIsoDate(raw.starts_at);
   out.ends_at = safeIsoDate(raw.ends_at);
 
