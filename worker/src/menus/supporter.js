@@ -187,7 +187,7 @@ export function supporterTermsText() {
     "1. Supporter Pass adalah dukungan digital opsional. Semua fitur inti BMP Terbuka tetap gratis.",
     "2. Paket saat ini: 2 Stars / 1 hari dan 50 Stars / 30 hari. Keduanya one-time, bukan subscription otomatis.",
     "3. Masa Supporter ditambahkan dari masa Supporter yang masih aktif, atau dari waktu pembayaran jika sebelumnya tidak aktif.",
-    "4. Setiap pembayaran Supporter memberi bonus target aktivasi extension +" + SUPPORTER_ACTIVATION_BONUS_DAYS + " hari, dengan batas maksimum " + SUPPORTER_ACTIVATION_MAX_DAYS + " hari. Karena extension v1.0.5 tidak di-update, token yang sudah tersimpan di perangkat tidak berubah; bonus diterapkan saat token aktivasi/verifikasi berikutnya diterbitkan.",
+    "4. Bonus masa aktivasi Supporter tersedia mulai BMP Terbuka v1.1.0. Setiap pembayaran memberi +" + SUPPORTER_ACTIVATION_BONUS_DAYS + " hari masa aktivasi, dengan batas maksimum " + SUPPORTER_ACTIVATION_MAX_DAYS + " hari. Pada v1.1.0 atau lebih baru, bonus dapat diterapkan melalui pembaruan aktivasi tanpa menunggu token lama kedaluwarsa.",
     "5. Benefit Supporter: DM bot + AI unlimited, priority support, konteks troubleshooting lebih panjang, tag grup bila permission Telegram mendukung, dan Supporter Wall opsional.",
     "6. Layanan AI/Telegram dapat mengalami gangguan sementara. Penyalahgunaan, spam, atau pelanggaran keamanan tetap dapat dibatasi.",
     "7. Untuk masalah transaksi atau refund, gunakan /paysupport. Telegram Support/Bot Support bukan pihak yang menangani pembelian Supporter Pass ini.",
@@ -233,7 +233,7 @@ export async function sendSupporterPackageConfirmation(
       "⭐ " + pkg.title,
       "",
       pkg.stars + " Stars untuk " + pkg.days + " hari Supporter Pass.",
-      "Termasuk bonus target aktivasi +" + SUPPORTER_ACTIVATION_BONUS_DAYS + " hari (maks. " + SUPPORTER_ACTIVATION_MAX_DAYS + " hari), diterapkan pada token aktivasi berikutnya jika token lama belum dapat diperbarui.",
+      "Termasuk bonus masa aktivasi +" + SUPPORTER_ACTIVATION_BONUS_DAYS + " hari (maks. " + SUPPORTER_ACTIVATION_MAX_DAYS + " hari). Pembaruan token tanpa menunggu masa aktif lama tersedia mulai BMP Terbuka v1.1.0.",
       "",
       "Baca Terms sebelum melanjutkan."
     ].join("\n"),
