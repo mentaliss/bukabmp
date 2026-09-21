@@ -23,6 +23,24 @@ jobs:
         run: node tools/validate.mjs
       - name: Existing Cloud Surface tests
         run: node tests/cloud-surface.test.mjs
+      - name: Extension 1.1.0 regression tests
+        run: node --test tests/*.test.mjs
+      - name: Build and validate Android 1.1.0 candidate
+        env:
+          BMP_API_BASE_URL: https://community.bukabmp.workers.dev
+          BMP_TELEGRAM_CHANNEL_URL: https://t.me/bukabmp
+          BMP_TELEGRAM_GROUP_URL: https://t.me/+0pAg9ymEhWdkZmNl
+        run: |
+          npm run build:android
+          npm run validate:android
+      - name: Build and validate Edge 1.1.0 candidate
+        env:
+          BMP_API_BASE_URL: https://community.bukabmp.workers.dev
+          BMP_TELEGRAM_CHANNEL_URL: https://t.me/bukabmp
+          BMP_TELEGRAM_GROUP_URL: https://t.me/+0pAg9ymEhWdkZmNl
+        run: |
+          npm run build:edge
+          npm run validate:edge
       - name: Knowledge index check
         working-directory: worker
         run: node scripts/build-knowledge.mjs --check
