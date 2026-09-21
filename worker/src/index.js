@@ -1,0 +1,3432 @@
+const APP_VERSION = "1.0.5-support-bot-v12-sponsor-surface";
+const TOKEN_ISSUER = "bmp-terbuka-community";
+const TOKEN_AUDIENCE = "bmp-terbuka-extension";
+const PAIR_TTL_SECONDS = 15 * 60;
+const TOKEN_TTL_DAYS = 14;
+const VERSION_CHECK_AFTER_SECONDS = 24 * 60 * 60;
+const REVIEWER_TOKEN_TTL_SECONDS = 24 * 60 * 60;
+const CLOUD_STATE_DEFAULT_TTL_SECONDS = 5 * 60;
+const DISTRIBUTION_CHANNELS = Object.freeze(["github", "android", "cws", "edge"]);
+const SUPPORT_AI_MODEL = "@cf/zai-org/glm-4.7-flash";
+const SUPPORT_AI_MAX_INPUT_CHARS = 1400;
+const SUPPORT_AI_MAX_CALLS_PER_DAY = 6;
+const SUPPORT_ANDROID_INSTALL_TEXT_URL = "https://t.me/bukabmp/11?comment=168";
+const SUPPORT_ANDROID_USAGE_VIDEO_V104_URL = "https://t.me/bukabmp/11?comment=294";
+const SUPPORT_DESKTOP_USAGE_VIDEO_V104_URL = "https://t.me/c/4381494564/18";
+const SUPPORT_GROUP_JOIN_URL = "https://t.me/bukabmp/13";
+const SUPPORT_RELEASE_URL = "https://github.com/mentaliss/bukabmp/releases/latest";
+
+const SUPPORTER_ACTIVATION_BONUS_DAYS = 14;
+const SUPPORTER_ACTIVATION_MAX_DAYS = 60;
+const SUPPORTER_CONTEXT_TTL_SECONDS = 6 * 60 * 60;
+const SUPPORTER_CONTEXT_MAX_TURNS = 6;
+const SUPPORTER_MEMBER_TAG = "BMP Supporter";
+const SUPPORTER_PACKAGES = Object.freeze({
+  day: Object.freeze({id: "day", stars: 2, days: 1, title: "Supporter Pass — 1 Hari"}),
+  month: Object.freeze({id: "month", stars: 50, days: 30, title: "Supporter Pass — 30 Hari"})
+});
+
+function json(data, status = 200, extra = {}) {
+  return new Response(JSON.stringify(data, null, 2), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      ...extra
+    }
+  });
+}
+
+function corsHeaders(request) {
+  const origin = request.headers.get("Origin") || "*";
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Vary": "Origin"
+  };
+}
+
+function b64url(bytes) {
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function b64urlJson(value) {
+  return b64url(new TextEncoder().encode(JSON.stringify(value)));
+}
+
+function randomToken(bytes = 24) {
+  const out = new Uint8Array(bytes);
+  crypto.getRandomValues(out);
+  return b64url(out);
+}
+
+async function sha256Hex(text) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(text)
+  );
+  return [...new Uint8Array(digest)]
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function importSigningKey(env) {
+  if (!env.SIGNING_PRIVATE_JWK) {
+    throw new Error("SIGNING_PRIVATE_JWK secret belum diset.");
+  }
+  const jwk = JSON.parse(env.SIGNING_PRIVATE_JWK);
+  return await crypto.subtle.importKey(
+    "jwk",
+    jwk,
+    {name: "RSASSA-PKCS1-v1_5", hash: "SHA-256"},
+    false,
+    ["sign"]
+  );
+}
+
+
+function supporterEntitlementKey(userId) {
+  return `supporter:user:${String(userId)}`;
+}
+
+function supporterInvoiceKey(nonce) {
+  return `supporter-invoice:${String(nonce)}`;
+}
+
+function supporterPaymentKey(chargeIdHash) {
+  return `supporter-payment:${String(chargeIdHash)}`;
+}
+
+function supporterContextKey(userId, chatId) {
+  return `supporter-context:${String(userId)}:${String(chatId)}`;
+}
+
+function supporterWallKey(userId) {
+  return `supporter-wall:${String(userId)}`;
+}
+
+function supporterPackage(packageId) {
+  return SUPPORTER_PACKAGES[String(packageId || "").trim()] || null;
+}
+
+function formatWibDateTime(ms) {
+  if (!Number.isFinite(Number(ms)) || Number(ms) <= 0) return "-";
+  return new Intl.DateTimeFormat("id-ID", {
+    timeZone: "Asia/Jakarta",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(new Date(Number(ms))) + " WIB";
+}
+
+async function getSupporterEntitlement(env, userId) {
+  if (!env.PAIRINGS || !userId) return null;
+  return await env.PAIRINGS.get(supporterEntitlementKey(userId), "json");
+}
+
+async function putSupporterEntitlement(env, userId, record) {
+  if (!env.PAIRINGS || !userId) return;
+  await env.PAIRINGS.put(supporterEntitlementKey(userId), JSON.stringify(record));
+}
+
+function supporterIsActive(record, now = Date.now()) {
+  return Boolean(record && Number(record.supporter_until || 0) > now);
+}
+
+async function supportAccessForUser(env, userId) {
+  const id = String(userId || "").trim();
+  if (!id) return {privileged: false, source: null, supporter: null};
+  if (supportPrivilegedUserIds(env).has(id)) {
+    return {privileged: true, source: "allowlist", supporter: await getSupporterEntitlement(env, id)};
+  }
+  const supporter = await getSupporterEntitlement(env, id);
+  if (supporterIsActive(supporter)) {
+    return {privileged: true, source: "supporter", supporter};
+  }
+  return {privileged: false, source: null, supporter};
+}
+
+async function activationExpiryForIssue(env, telegramUserId) {
+  const now = Date.now();
+  const baseExpiry = now + TOKEN_TTL_DAYS * 86400000;
+  const maxExpiry = now + SUPPORTER_ACTIVATION_MAX_DAYS * 86400000;
+  const record = await getSupporterEntitlement(env, telegramUserId);
+
+  // Normal community activation is intentionally stateless after the 15-minute
+  // pairing record expires. Only an existing Supporter entitlement needs the
+  // longer-lived activation bonus bookkeeping below.
+  if (!record) return baseExpiry;
+
+  const trackedExpiry = Number(record.activation_until || 0);
+  const pendingDays = Math.max(0, Math.min(
+    SUPPORTER_ACTIVATION_MAX_DAYS - TOKEN_TTL_DAYS,
+    Number(record.activation_bonus_pending_days || 0)
+  ));
+
+  let target = Math.max(baseExpiry, trackedExpiry > now ? trackedExpiry : 0);
+  if (pendingDays > 0) target += pendingDays * 86400000;
+  target = Math.min(target, maxExpiry);
+
+  record.activation_until = target;
+  record.activation_bonus_pending_days = 0;
+  record.last_activation_issued_at = now;
+  await putSupporterEntitlement(env, telegramUserId, record);
+  return target;
+}
+
+async function issueToken(env, installId, telegramUserId) {
+  const now = Math.floor(Date.now() / 1000);
+  const expiryMs = await activationExpiryForIssue(env, telegramUserId);
+  const header = {alg: "RS256", typ: "JWT"};
+  const payload = {
+    iss: TOKEN_ISSUER,
+    aud: TOKEN_AUDIENCE,
+    install_id: installId,
+    iat: now,
+    exp: Math.max(now + 60, Math.floor(expiryMs / 1000)),
+    scope: ["community_access"],
+    member_ref: await sha256Hex(`tg:${telegramUserId}:${env.MEMBER_HASH_SALT || ""}`)
+  };
+
+  const h = b64urlJson(header);
+  const p = b64urlJson(payload);
+  const signingInput = `${h}.${p}`;
+  const key = await importSigningKey(env);
+  const sig = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    key,
+    new TextEncoder().encode(signingInput)
+  );
+  return `${signingInput}.${b64url(new Uint8Array(sig))}`;
+}
+
+async function tg(env, method, body) {
+  if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN belum diset.");
+  const r = await fetch(
+    `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,
+    {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body)
+    }
+  );
+  const data = await r.json();
+  if (!r.ok || !data.ok) {
+    throw new Error(`Telegram ${method}: ${data.description || r.status}`);
+  }
+  return data.result;
+}
+
+function memberOk(member) {
+  if (!member) return false;
+  if (["creator", "administrator", "member"].includes(member.status)) return true;
+  return member.status === "restricted" && member.is_member === true;
+}
+
+async function checkMembership(env, userId) {
+  if (!env.CHANNEL_ID || !env.GROUP_ID) {
+    throw new Error("CHANNEL_ID / GROUP_ID belum dikonfigurasi.");
+  }
+  const [channel, group] = await Promise.all([
+    tg(env, "getChatMember", {chat_id: env.CHANNEL_ID, user_id: userId}),
+    tg(env, "getChatMember", {chat_id: env.GROUP_ID, user_id: userId})
+  ]);
+  return {
+    channel: memberOk(channel),
+    group: memberOk(group)
+  };
+}
+
+function joinKeyboard(env, pairId) {
+  const rows = [];
+  if (env.CHANNEL_URL) rows.push([{text: "Gabung Buka BMP", url: env.CHANNEL_URL}]);
+  if (env.GROUP_URL) rows.push([{text: "Gabung Group Terbuka", url: env.GROUP_URL}]);
+  rows.push([{text: "Cek lagi", callback_data: `verify:${pairId}`}]);
+  return {inline_keyboard: rows};
+}
+
+async function sendMembershipResult(env, chatId, pairId, memberships) {
+  const missing = [];
+  if (!memberships.channel) missing.push("Buka BMP");
+  if (!memberships.group) missing.push("Group Terbuka");
+
+  if (missing.length) {
+    await tg(env, "sendMessage", {
+      chat_id: chatId,
+      text:
+        `Belum lengkap.\n\nGabung dulu: ${missing.join(" + ")}.\n` +
+        `Setelah itu tekan tombol Cek lagi.`,
+      reply_markup: joinKeyboard(env, pairId)
+    });
+    return false;
+  }
+  return true;
+}
+
+async function verifyPairForUser(env, pairId, userId, chatId) {
+  const key = `pair:${pairId}`;
+  const record = await env.PAIRINGS.get(key, "json");
+
+  if (!record) {
+    await tg(env, "sendMessage", {
+      chat_id: chatId,
+      text: "Sesi aktivasi sudah tidak berlaku. Buka BMP Terbuka dan mulai verifikasi lagi."
+    });
+    return {ok: false, reason: "expired"};
+  }
+
+  let memberships;
+  try {
+    memberships = await checkMembership(env, userId);
+  } catch (e) {
+    console.error("membership_check_failed", {
+      pairId,
+      userId,
+      error: String(e?.message || e)
+    });
+    await tg(env, "sendMessage", {
+      chat_id: chatId,
+      text:
+        "⚠️ Verifikasi keanggotaan belum dapat dilakukan.\n\n" +
+        "Pastikan bot menjadi admin di Buka BMP dan Group Terbuka, lalu coba lagi."
+    }).catch(() => {});
+    return {ok: false, reason: "membership_check_error"};
+  }
+
+  const pass = await sendMembershipResult(env, chatId, pairId, memberships);
+  if (!pass) return {ok: false, reason: "membership"};
+
+  let token;
+  try {
+    token = await issueToken(env, record.install_id, userId);
+  } catch (e) {
+    console.error("token_issue_failed", {
+      pairId,
+      error: String(e?.message || e)
+    });
+    await tg(env, "sendMessage", {
+      chat_id: chatId,
+      text:
+        "⚠️ Keanggotaan terverifikasi, tetapi token aktivasi belum dapat dibuat.\n\n" +
+        "Coba lagi setelah konfigurasi backend diperbaiki."
+    }).catch(() => {});
+    return {ok: false, reason: "token_issue_error"};
+  }
+
+  const verified = {
+    ...record,
+    status: "verified",
+    token,
+    verified_at: Date.now()
+  };
+
+  await env.PAIRINGS.put(key, JSON.stringify(verified), {
+    expirationTtl: PAIR_TTL_SECONDS
+  });
+
+  await tg(env, "sendMessage", {
+    chat_id: chatId,
+    text:
+      "✅ Aktivasi BMP Terbuka berhasil.\n\n" +
+      "Kembali ke extension. Aktivasi akan terdeteksi otomatis; tombol Cek sekarang tersedia jika diperlukan."
+  }).catch(() => {});
+
+  return {ok: true};
+}
+
+function isPrivateChat(message) {
+  return message?.chat?.type === "private";
+}
+
+function isGroupChat(message) {
+  return ["group", "supergroup"].includes(message?.chat?.type || "");
+}
+
+// Telegram represents messages sent by an anonymous group admin as a message
+// from GroupAnonymousBot plus sender_chat. Treat that as a human-originated
+// group message for privacy/support routing, while still ignoring normal bots.
+function isAnonymousAdminMessage(message) {
+  if (!isGroupChat(message) || !message?.sender_chat) return false;
+  const username = String(message?.from?.username || "").toLowerCase();
+  return Boolean(message?.from?.is_bot && (username === "groupanonymousbot" || String(message?.from?.id || "") === "1087968824"));
+}
+
+function isNormalBotMessage(message) {
+  return Boolean(message?.from?.is_bot && !isAnonymousAdminMessage(message));
+}
+
+function telegramBotUsername(env) {
+  return String(env.BOT_USERNAME || "bukabmp_bot").replace(/^@/, "").trim();
+}
+
+function supportPrivilegedUserIds(env) {
+  return new Set(
+    String(env.SUPPORT_PRIVILEGED_USER_IDS || "")
+      .split(/[\s,;]+/)
+      .map(x => x.trim())
+      .filter(Boolean)
+  );
+}
+
+
+async function supportPrivilegeForMessage(env, message) {
+  if (isAnonymousAdminMessage(message)) {
+    return {privileged: false, source: null, supporter: null};
+  }
+  return await supportAccessForUser(env, message?.from?.id);
+}
+
+function configuredTelegramChatMatches(message, configuredValue) {
+  const configured = String(configuredValue || "").trim();
+  if (!configured) return false;
+  if (configured === String(message?.chat?.id || "")) return true;
+
+  const username = String(message?.chat?.username || "").replace(/^@/, "").toLowerCase();
+  if (configured.startsWith("@") && username) {
+    return configured.slice(1).toLowerCase() === username;
+  }
+  return false;
+}
+
+function isOfficialSupportGroup(env, message) {
+  if (!isGroupChat(message)) return false;
+  // SUPPORT_GROUP_ID can be used only for support/moderation routing without
+  // changing GROUP_ID, which is also used by activation membership checks.
+  const configured = env.SUPPORT_GROUP_ID || env.GROUP_ID;
+  if (!configured) return true;
+  return configuredTelegramChatMatches(message, configured);
+}
+
+function parseBotCommand(text, env) {
+  const m = String(text || "").trim().match(/^\/([a-z0-9_]+)(?:@([a-z0-9_]+))?(?:\s+([\s\S]*))?$/i);
+  if (!m) return null;
+  const addressedTo = String(m[2] || "").toLowerCase();
+  const botUsername = telegramBotUsername(env).toLowerCase();
+  if (addressedTo && botUsername && addressedTo !== botUsername) return null;
+  return {
+    command: String(m[1] || "").toLowerCase(),
+    args: String(m[3] || "").trim()
+  };
+}
+
+function supportInvocation(message, env) {
+  const text = String(message?.text || message?.caption || "").trim();
+  const command = parseBotCommand(text, env);
+  const supportCommands = new Set([
+    "ask", "bmphelp", "tutorial", "install", "android", "desktop", "group", "update", "fitur", "storage", "bug", "faq", "quota", "support", "supporter", "supporters", "terms", "paysupport"
+  ]);
+  if (command && supportCommands.has(command.command)) {
+    return {invoked: true, command, query: command.args};
+  }
+
+  const botUsername = telegramBotUsername(env);
+  const mention = botUsername ? `@${botUsername}` : "";
+  const mentioned = mention && text.toLowerCase().includes(mention.toLowerCase());
+  const replyUsername = String(message?.reply_to_message?.from?.username || "");
+  const repliedToBot = botUsername && replyUsername.toLowerCase() === botUsername.toLowerCase();
+
+  if (!mentioned && !repliedToBot) return {invoked: false};
+
+  let query = text;
+  if (mention) query = query.replace(new RegExp(`@${botUsername}`, "ig"), " ");
+  query = query.replace(/\s+/g, " ").trim();
+  return {invoked: true, command: null, query};
+}
+
+
+
+function supporterDeepLink(env) {
+  return `https://t.me/${telegramBotUsername(env)}?start=support`;
+}
+
+function supportMenuText(access = null) {
+  const lines = [
+    "⭐ BMP Supporter Pass",
+    "",
+    "Semua fitur inti BMP Terbuka tetap gratis. Supporter Pass memberi benefit support tambahan:",
+    "• DM bot + AI support unlimited",
+    "• tag BMP Supporter di grup (jika bot punya izin Manage Tags)",
+    "• priority support",
+    "• konteks troubleshooting sampai 6 turn / 6 jam",
+    "• Supporter Wall opsional",
+    "• bonus masa aktivasi extension +14 hari saat token aktivasi berikutnya diterbitkan, maksimum 60 hari",
+    "",
+    "Paket:",
+    "• 2 ⭐ — 1 hari",
+    "• 50 ⭐ — 30 hari"
+  ];
+  if (access?.source === "supporter" && access.supporter) {
+    lines.push("", `Supporter kamu aktif sampai ${formatWibDateTime(access.supporter.supporter_until)}.`);
+  }
+  return lines.join("\n");
+}
+
+async function sendSupporterMenu(env, message, access = null) {
+  if (isPrivateChat(message)) {
+    await tg(env, "sendMessage", {
+      chat_id: message.chat.id,
+      text: supportMenuText(access),
+      reply_markup: {
+        inline_keyboard: [
+          [{text: "⭐ 2 Stars — 1 Hari", callback_data: "support:select:day"}],
+          [{text: "⭐ 50 Stars — 30 Hari", callback_data: "support:select:month"}]
+        ]
+      },
+      disable_web_page_preview: true
+    });
+    return;
+  }
+
+  await tg(env, "sendMessage", {
+    chat_id: message.chat.id,
+    text: "⭐ Supporter Pass tersedia mulai 2 Stars. Aktivasi dan pembayaran dilakukan lewat DM bot.",
+    reply_parameters: {message_id: message.message_id},
+    reply_markup: {
+      inline_keyboard: [[{text: "Buka Supporter Pass", url: supporterDeepLink(env)}]]
+    },
+    disable_web_page_preview: true
+  });
+}
+
+
+function supporterTermsText() {
+  return [
+    "📄 BMP Supporter Pass — Terms",
+    "",
+    "1. Supporter Pass adalah dukungan digital opsional. Semua fitur inti BMP Terbuka tetap gratis.",
+    "2. Paket saat ini: 2 Stars / 1 hari dan 50 Stars / 30 hari. Keduanya one-time, bukan subscription otomatis.",
+    "3. Masa Supporter ditambahkan dari masa Supporter yang masih aktif, atau dari waktu pembayaran jika sebelumnya tidak aktif.",
+    `4. Setiap pembayaran Supporter memberi bonus target aktivasi extension +${SUPPORTER_ACTIVATION_BONUS_DAYS} hari, dengan batas maksimum ${SUPPORTER_ACTIVATION_MAX_DAYS} hari. Karena extension v1.0.5 tidak di-update, token yang sudah tersimpan di perangkat tidak berubah; bonus diterapkan saat token aktivasi/verifikasi berikutnya diterbitkan.`,
+    "5. Benefit Supporter: DM bot + AI unlimited, priority support, konteks troubleshooting lebih panjang, tag grup bila permission Telegram mendukung, dan Supporter Wall opsional.",
+    "6. Layanan AI/Telegram dapat mengalami gangguan sementara. Penyalahgunaan, spam, atau pelanggaran keamanan tetap dapat dibatasi.",
+    "7. Untuk masalah transaksi atau refund, gunakan /paysupport. Telegram Support/Bot Support bukan pihak yang menangani pembelian Supporter Pass ini.",
+    "",
+    "Dengan menekan tombol Saya setuju & bayar, kamu mengonfirmasi telah membaca dan menyetujui terms ini."
+  ].join("\n");
+}
+
+async function sendSupporterPackageConfirmation(env, userId, chatId, packageId) {
+  const pkg = supporterPackage(packageId);
+  if (!pkg) return;
+  await tg(env, "sendMessage", {
+    chat_id: chatId,
+    text: [
+      `⭐ ${pkg.title}`,
+      "",
+      `${pkg.stars} Stars untuk ${pkg.days} hari Supporter Pass.`,
+      `Termasuk bonus target aktivasi +${SUPPORTER_ACTIVATION_BONUS_DAYS} hari (maks. ${SUPPORTER_ACTIVATION_MAX_DAYS} hari), diterapkan pada token aktivasi berikutnya jika token lama belum dapat diperbarui.`,
+      "",
+      "Baca /terms sebelum melanjutkan."
+    ].join("\n"),
+    reply_markup: {
+      inline_keyboard: [
+        [{text: "📄 Baca Terms", callback_data: "support:terms"}],
+        [{text: `✅ Saya setuju & bayar ${pkg.stars} ⭐`, callback_data: `support:buy:${pkg.id}`}]
+      ]
+    }
+  });
+}
+
+async function handlePaymentSupportCommand(env, message, details = "") {
+  if (!isPrivateChat(message)) {
+    await sendSupportReply(env, message, "Untuk masalah pembayaran Supporter Pass, kirim /paysupport lewat DM bot supaya detail transaksi tidak dibahas di grup.");
+    return;
+  }
+  const clean = redactSensitiveSupportText(String(details || "").trim()).slice(0, 1800);
+  if (!clean) {
+    await tg(env, "sendMessage", {
+      chat_id: message.chat.id,
+      text: [
+        "💳 Payment Support",
+        "",
+        "Kirim /paysupport diikuti penjelasan masalah pembayaran. Contoh:",
+        "/paysupport pembayaran berhasil tapi Supporter belum aktif",
+        "",
+        "Jangan kirim password, OTP, token, cookie, atau data kartu. Telegram Support/Bot Support tidak menangani transaksi Supporter Pass ini; pengelola BMP Terbuka yang memprosesnya."
+      ].join("\n")
+    });
+    return;
+  }
+
+  const ownerIds = [...supportPrivilegedUserIds(env)].slice(0, 3);
+  let delivered = 0;
+  for (const ownerId of ownerIds) {
+    try {
+      await tg(env, "sendMessage", {
+        chat_id: Number(ownerId),
+        text: [
+          "💳 Supporter Payment Support",
+          `User ID: ${message.from?.id}`,
+          message.from?.username ? `Username: @${message.from.username}` : "",
+          "",
+          clean
+        ].filter(Boolean).join("\n")
+      });
+      delivered++;
+    } catch {}
+  }
+  await tg(env, "sendMessage", {
+    chat_id: message.chat.id,
+    text: delivered
+      ? "✅ Laporan payment support sudah diteruskan ke pengelola BMP Terbuka."
+      : "⚠️ Kontak payment support belum terkonfigurasi. Gunakan Group Terbuka untuk menghubungi pengelola tanpa membagikan detail transaksi sensitif."
+  });
+}
+
+function parseSupportInvoicePayload(payload) {
+  const m = String(payload || "").match(/^support:v1:(day|month):(\d+):([A-Za-z0-9_-]{8,40})$/);
+  if (!m) return null;
+  return {package_id: m[1], user_id: m[2], nonce: m[3]};
+}
+
+async function sendSupporterInvoice(env, userId, chatId, packageId) {
+  const pkg = supporterPackage(packageId);
+  if (!pkg) throw new Error("supporter_package_invalid");
+  const nonce = randomToken(10);
+  const payload = `support:v1:${pkg.id}:${String(userId)}:${nonce}`;
+  const invoice = {
+    user_id: String(userId),
+    package_id: pkg.id,
+    stars: pkg.stars,
+    payload,
+    created_at: Date.now(),
+    terms_accepted_at: Date.now()
+  };
+  await env.PAIRINGS.put(supporterInvoiceKey(nonce), JSON.stringify(invoice), {expirationTtl: 24 * 60 * 60});
+
+  return await tg(env, "sendInvoice", {
+    chat_id: chatId,
+    title: pkg.title,
+    description: `${pkg.days} hari Supporter Pass: DM AI unlimited, priority support, konteks troubleshooting lebih panjang, Supporter Wall opsional, dan bonus aktivasi +14 hari (maks. 60 hari).`,
+    payload,
+    currency: "XTR",
+    prices: [{label: pkg.title, amount: pkg.stars}]
+  });
+}
+
+async function handleSupporterPreCheckout(env, query) {
+  const parsed = parseSupportInvoicePayload(query?.invoice_payload);
+  let ok = false;
+  let errorMessage = "Invoice Supporter Pass tidak valid atau sudah kedaluwarsa. Buka /support lalu pilih paket lagi.";
+
+  if (parsed && String(query?.from?.id || "") === parsed.user_id) {
+    const pkg = supporterPackage(parsed.package_id);
+    const invoice = await env.PAIRINGS.get(supporterInvoiceKey(parsed.nonce), "json");
+    if (
+      pkg && invoice &&
+      String(invoice.user_id) === parsed.user_id &&
+      invoice.package_id === pkg.id &&
+      String(query.currency || "") === "XTR" &&
+      Number(query.total_amount) === pkg.stars
+    ) {
+      ok = true;
+      errorMessage = undefined;
+    }
+  }
+
+  const body = {pre_checkout_query_id: query.id, ok};
+  if (!ok) body.error_message = errorMessage;
+  await tg(env, "answerPreCheckoutQuery", body);
+  return ok;
+}
+
+async function tryApplySupporterTag(env, userId, active) {
+  const chatId = env.SUPPORT_GROUP_ID || env.GROUP_ID;
+  if (!chatId || !userId) return {ok: false, reason: "group_not_configured"};
+  try {
+    const member = await tg(env, "getChatMember", {chat_id: chatId, user_id: Number(userId)});
+    if (!["member", "restricted"].includes(String(member?.status || ""))) {
+      return {ok: false, reason: "not_regular_member"};
+    }
+    const currentTag = String(member?.tag || "");
+    if (active) {
+      if (currentTag && currentTag !== SUPPORTER_MEMBER_TAG) {
+        return {ok: false, reason: "existing_member_tag"};
+      }
+      await tg(env, "setChatMemberTag", {chat_id: chatId, user_id: Number(userId), tag: SUPPORTER_MEMBER_TAG});
+      return {ok: true, active: true};
+    }
+    if (currentTag === SUPPORTER_MEMBER_TAG) {
+      await tg(env, "setChatMemberTag", {chat_id: chatId, user_id: Number(userId), tag: ""});
+    }
+    return {ok: true, active: false};
+  } catch (e) {
+    console.warn("supporter_tag_update_failed", {userId: String(userId), active, error: String(e?.message || e)});
+    return {ok: false, reason: "telegram_error"};
+  }
+}
+
+async function reconcileSupporterTagOnMessage(env, message) {
+  if (!isOfficialSupportGroup(env, message) || isNormalBotMessage(message) || isAnonymousAdminMessage(message)) return;
+  // Bot API exposes sender_tag on supergroup messages. Avoid a KV read for every
+  // ordinary group chat message; only reconcile users currently carrying our tag.
+  if (String(message?.sender_tag || "") !== SUPPORTER_MEMBER_TAG) return;
+  const userId = message?.from?.id;
+  if (!userId) return;
+  const record = await getSupporterEntitlement(env, userId);
+  if (supporterIsActive(record)) return;
+  const result = await tryApplySupporterTag(env, userId, false);
+  if (result.ok && record) {
+    record.tag_applied = false;
+    await putSupporterEntitlement(env, userId, record);
+  }
+}
+
+async function applySuccessfulSupporterPayment(env, message) {
+  const payment = message?.successful_payment;
+  const userId = String(message?.from?.id || "");
+  const parsed = parseSupportInvoicePayload(payment?.invoice_payload);
+  if (!payment || !userId || !parsed || parsed.user_id !== userId) {
+    console.warn("supporter_payment_invalid_message", {userId});
+    return false;
+  }
+  const pkg = supporterPackage(parsed.package_id);
+  if (!pkg || payment.currency !== "XTR" || Number(payment.total_amount) !== pkg.stars) {
+    console.warn("supporter_payment_amount_mismatch", {userId, package_id: parsed.package_id});
+    return false;
+  }
+
+  const chargeId = String(payment.telegram_payment_charge_id || "");
+  if (!chargeId) return false;
+  const chargeHash = await sha256Hex(`support-payment:${chargeId}`);
+  const paymentKey = supporterPaymentKey(chargeHash);
+  const existingPayment = await env.PAIRINGS.get(paymentKey, "json");
+  if (existingPayment?.processed_at) {
+    const existingEntitlement = await getSupporterEntitlement(env, userId);
+    await tg(env, "sendMessage", {
+      chat_id: message.chat.id,
+      text: `Pembayaran ini sudah diproses. Supporter aktif sampai ${formatWibDateTime(existingEntitlement?.supporter_until)}.`
+    }).catch(() => {});
+    return true;
+  }
+
+  const invoice = await env.PAIRINGS.get(supporterInvoiceKey(parsed.nonce), "json");
+  if (!invoice || String(invoice.user_id) !== userId || invoice.package_id !== pkg.id) {
+    console.warn("supporter_payment_invoice_missing", {userId, package_id: pkg.id});
+    return false;
+  }
+
+  const now = Date.now();
+  let record = await getSupporterEntitlement(env, userId);
+  if (!record) record = {user_id: userId};
+
+  const supporterBase = Math.max(now, Number(record.supporter_until || 0));
+  record.supporter_until = supporterBase + pkg.days * 86400000;
+  record.total_stars = Math.max(0, Number(record.total_stars || 0)) + pkg.stars;
+  record.payment_count = Math.max(0, Number(record.payment_count || 0)) + 1;
+  record.last_payment_at = now;
+  record.last_package_id = pkg.id;
+  record.username = String(message?.from?.username || record.username || "");
+  record.first_name = String(message?.from?.first_name || record.first_name || "");
+  if (!record.wall_mode) record.wall_mode = "private";
+
+  // No extension update required: if the server already knows the current token
+  // expiry, extend that target by +14d (capped at now+60d). For legacy tokens whose
+  // expiry was issued before V10 and therefore is unknown server-side, bank +14d
+  // and apply it when the next activation token is issued.
+  const knownActivation = Number(record.activation_until || 0);
+  const maxActivation = now + SUPPORTER_ACTIVATION_MAX_DAYS * 86400000;
+  if (knownActivation > now) {
+    record.activation_until = Math.min(
+      knownActivation + SUPPORTER_ACTIVATION_BONUS_DAYS * 86400000,
+      maxActivation
+    );
+  } else {
+    record.activation_bonus_pending_days = Math.min(
+      SUPPORTER_ACTIVATION_MAX_DAYS - TOKEN_TTL_DAYS,
+      Math.max(0, Number(record.activation_bonus_pending_days || 0)) + SUPPORTER_ACTIVATION_BONUS_DAYS
+    );
+  }
+
+  await putSupporterEntitlement(env, userId, record);
+  if (["public", "anonymous"].includes(record.wall_mode)) {
+    await env.PAIRINGS.put(supporterWallKey(userId), JSON.stringify({
+      user_id: userId,
+      mode: record.wall_mode,
+      username: record.username || "",
+      first_name: record.first_name || "",
+      supporter_until: record.supporter_until
+    }));
+  }
+  await env.PAIRINGS.put(paymentKey, JSON.stringify({
+    processed_at: now,
+    user_id: userId,
+    package_id: pkg.id,
+    stars: pkg.stars,
+    telegram_payment_charge_id: chargeId
+  }));
+  if (env.PAIRINGS.delete) await env.PAIRINGS.delete(supporterInvoiceKey(parsed.nonce)).catch(() => {});
+
+  const tag = await tryApplySupporterTag(env, userId, true);
+  record.tag_applied = Boolean(tag.ok && tag.active);
+  await putSupporterEntitlement(env, userId, record);
+
+  const activationText = Number(record.activation_until || 0) > now
+    ? `Target masa aktivasi extension sekarang sampai ${formatWibDateTime(record.activation_until)}. Token di perangkat tidak berubah; target ini diterapkan saat aktivasi/verifikasi berikutnya.`
+    : `Bonus aktivasi +${SUPPORTER_ACTIVATION_BONUS_DAYS} hari sudah disimpan dan akan diterapkan saat token aktivasi berikutnya diterbitkan (maksimum ${SUPPORTER_ACTIVATION_MAX_DAYS} hari).`;
+
+  await tg(env, "sendMessage", {
+    chat_id: message.chat.id,
+    text: [
+      "✅ BMP Supporter Pass aktif.",
+      "",
+      `Paket: ${pkg.stars} ⭐ / ${pkg.days} hari`,
+      `Aktif sampai: ${formatWibDateTime(record.supporter_until)}`,
+      "DM bot + AI unlimited: aktif",
+      "Priority support: aktif",
+      `Konteks troubleshooting: sampai ${SUPPORTER_CONTEXT_MAX_TURNS} turn / 6 jam`,
+      tag.ok && tag.active ? `Tag grup: ${SUPPORTER_MEMBER_TAG}` : "Tag grup: belum diterapkan (permission/status member tidak mendukung).",
+      "",
+      activationText,
+      "",
+      "Supporter Wall default-nya private. Gunakan /supporter public, /supporter anonymous, atau /supporter private untuk mengatur." 
+    ].join("\n"),
+    disable_web_page_preview: true
+  });
+  return true;
+}
+
+async function supporterContext(env, userId, chatId) {
+  if (!env.PAIRINGS || !userId || !chatId) return [];
+  const record = await env.PAIRINGS.get(supporterContextKey(userId, chatId), "json");
+  return Array.isArray(record?.turns) ? record.turns.slice(-SUPPORTER_CONTEXT_MAX_TURNS) : [];
+}
+
+async function rememberSupporterTurn(env, userId, chatId, query, answer) {
+  if (!env.PAIRINGS || !userId || !chatId || !query || !answer) return;
+  const turns = await supporterContext(env, userId, chatId);
+  turns.push({
+    q: redactSensitiveSupportText(String(query)).slice(0, 1200),
+    a: redactSensitiveSupportText(String(answer)).slice(0, 2500),
+    at: Date.now()
+  });
+  await env.PAIRINGS.put(supporterContextKey(userId, chatId), JSON.stringify({turns: turns.slice(-SUPPORTER_CONTEXT_MAX_TURNS)}), {
+    expirationTtl: SUPPORTER_CONTEXT_TTL_SECONDS
+  });
+}
+
+function formatSupporterContext(turns) {
+  if (!Array.isArray(turns) || !turns.length) return "";
+  return turns.map((t, i) => `Turn ${i + 1}\nUser: ${t.q}\nBot: ${t.a}`).join("\n\n").slice(-6000);
+}
+
+async function supporterStatusText(env, userId) {
+  const access = await supportAccessForUser(env, userId);
+  if (access.source === "allowlist" && !supporterIsActive(access.supporter)) {
+    return "Akun khusus aktif: DM + Group + AI unlimited. Supporter Pass berbayar belum aktif.";
+  }
+  const record = access.supporter;
+  if (!supporterIsActive(record)) {
+    return "Supporter Pass belum aktif. Ketik /support untuk melihat paket 2 ⭐ / 1 hari atau 50 ⭐ / 30 hari.";
+  }
+  return [
+    "⭐ BMP Supporter aktif",
+    `Berlaku sampai: ${formatWibDateTime(record.supporter_until)}`,
+    "DM + AI unlimited: aktif",
+    "Priority support: aktif",
+    `Konteks troubleshooting: ${SUPPORTER_CONTEXT_MAX_TURNS} turn / 6 jam`,
+    `Supporter Wall: ${record.wall_mode || "private"}`,
+    Number(record.activation_until || 0) > Date.now()
+      ? `Target aktivasi extension: ${formatWibDateTime(record.activation_until)}`
+      : Number(record.activation_bonus_pending_days || 0) > 0
+        ? `Bonus aktivasi tertunda: +${record.activation_bonus_pending_days} hari` 
+        : "Bonus aktivasi tertunda: tidak ada"
+  ].join("\n");
+}
+
+async function setSupporterWallMode(env, message, mode) {
+  const userId = String(message?.from?.id || "");
+  const record = await getSupporterEntitlement(env, userId);
+  if (!supporterIsActive(record)) {
+    await sendSupportReply(env, message, "Supporter Pass belum aktif. Ketik /support untuk melihat paket.");
+    return;
+  }
+  const normalized = ["public", "anonymous", "private"].includes(mode) ? mode : "private";
+  record.wall_mode = normalized;
+  record.username = String(message?.from?.username || record.username || "");
+  record.first_name = String(message?.from?.first_name || record.first_name || "");
+  await putSupporterEntitlement(env, userId, record);
+  if (normalized === "private") {
+    if (env.PAIRINGS.delete) await env.PAIRINGS.delete(supporterWallKey(userId)).catch(() => {});
+  } else {
+    await env.PAIRINGS.put(supporterWallKey(userId), JSON.stringify({
+      user_id: userId,
+      mode: normalized,
+      username: record.username || "",
+      first_name: record.first_name || "",
+      supporter_until: record.supporter_until
+    }));
+  }
+  await sendSupportReply(env, message, `Supporter Wall diatur ke: ${normalized}.`);
+}
+
+async function supporterWallText(env) {
+  if (!env.PAIRINGS?.list) return "Supporter Wall belum tersedia pada binding KV ini.";
+  const listed = await env.PAIRINGS.list({prefix: "supporter-wall:", limit: 100});
+  const values = await Promise.all((listed.keys || []).map(k => env.PAIRINGS.get(k.name, "json")));
+  const active = values
+    .filter(Boolean)
+    .filter(x => Number(x.supporter_until || 0) > Date.now())
+    .slice(0, 50);
+  if (!active.length) return "⭐ Supporter Wall\n\nBelum ada supporter yang memilih tampil di wall.";
+  const names = active.map((x, i) => {
+    if (x.mode === "anonymous") return `${i + 1}. Anonymous Supporter`;
+    if (x.username) return `${i + 1}. @${x.username}`;
+    return `${i + 1}. ${String(x.first_name || "Supporter").slice(0, 40)}`;
+  });
+  return ["⭐ Supporter Wall", "", ...names].join("\n");
+}
+
+
+const PRIVACY_WARNING_TEXT = "Pesan tadi dihapus karena terdeteksi mengandung data pribadi atau kredensial. Kirim ulang setelah bagian sensitif disamarkan.";
+
+function privacyText(message) {
+  return [
+    String(message?.text || ""),
+    String(message?.caption || ""),
+    String(message?.document?.file_name || "")
+  ].filter(Boolean).join("\n").trim();
+}
+
+function hasContextualNumber(text, labels, minDigits, maxDigits) {
+  const normalized = String(text || "").toLowerCase();
+  const labelPattern = labels.map(x => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const re = new RegExp(`(?:${labelPattern})\\s*(?:saya|aku|gue|gw|adalah|:|=|-)?\\s*([+]?\\d[\\d\\s().-]{${Math.max(0, minDigits - 2)},${maxDigits + 8}}\\d)`, "i");
+  const m = normalized.match(re);
+  if (!m) return false;
+  const digits = String(m[1] || "").replace(/\D/g, "");
+  return digits.length >= minDigits && digits.length <= maxDigits;
+}
+
+function detectSensitiveContent(message) {
+  // Telegram contact/location objects are intrinsically personal data. No OCR is
+  // attempted on photos/videos; only their caption is scanned.
+  if (message?.contact) return {blocked: true, kind: "contact"};
+  if (message?.location || message?.venue) return {blocked: true, kind: "location"};
+
+  const raw = privacyText(message);
+  if (!raw) return {blocked: false};
+  const text = raw.normalize("NFKC");
+
+  // Email addresses are direct identifiers.
+  if (/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(text)) {
+    return {blocked: true, kind: "email"};
+  }
+
+  // Explicit credentials/secrets. Requiring a value after the label prevents
+  // phrases such as "password lupa" or "token expired" from being deleted.
+  const credentialPatterns = [
+    /\b(?:password|passwd|pwd|kata\s*sandi)\s*(?:saya|aku|gue|gw|adalah|:|=|-)\s*[^\s,;]{4,}/i,
+    /\b(?:cookie|session(?:_?id)?|access[_ -]?token|refresh[_ -]?token|api[_ -]?key|secret[_ -]?key)\s*(?:saya|aku|gue|gw|adalah|:|=|-)\s*[^\s,;]{8,}/i,
+    /\bbearer\s+[A-Za-z0-9._~+\/-]{12,}/i,
+    /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/,
+    /\b(?:otp|pin)\s*(?:saya|aku|gue|gw|adalah|:|=|-)\s*\d{4,8}\b/i
+  ];
+  if (credentialPatterns.some(re => re.test(text))) {
+    return {blocked: true, kind: "credential"};
+  }
+
+  // Context-aware numeric identifiers to avoid treating module codes, versions,
+  // page numbers, or arbitrary long numbers as personal data.
+  if (hasContextualNumber(text, ["nim", "nomor induk mahasiswa"], 6, 18)) {
+    return {blocked: true, kind: "nim"};
+  }
+  if (hasContextualNumber(text, ["nik", "no nik", "nomor nik", "ktp", "no ktp", "nomor ktp"], 16, 16)) {
+    return {blocked: true, kind: "nik"};
+  }
+  if (hasContextualNumber(text, ["wa", "whatsapp", "no wa", "nomor wa", "hp", "no hp", "nomor hp", "telepon", "telp", "phone"], 9, 15)) {
+    return {blocked: true, kind: "phone"};
+  }
+
+  return {blocked: false};
+}
+
+async function handlePrivacyGate(env, message) {
+  if (!isOfficialSupportGroup(env, message)) return false;
+  if (isNormalBotMessage(message)) return false;
+
+  const detection = detectSensitiveContent(message);
+  if (!detection.blocked) return false;
+
+  let deleted = false;
+  try {
+    await tg(env, "deleteMessage", {
+      chat_id: message.chat.id,
+      message_id: message.message_id
+    });
+    deleted = true;
+  } catch (e) {
+    // Never log the message body or the detected value.
+    console.error("privacy_delete_failed", {
+      update_message_id: message?.message_id || null,
+      kind: detection.kind || "unknown",
+      error: String(e?.message || e)
+    });
+  }
+
+  await tg(env, "sendMessage", {
+    chat_id: message.chat.id,
+    text: deleted
+      ? PRIVACY_WARNING_TEXT
+      : "Pesan terdeteksi mengandung data pribadi atau kredensial dan tidak diproses bot. Mohon hapus pesan tersebut lalu kirim ulang setelah bagian sensitif disamarkan.",
+    disable_web_page_preview: true
+  }).catch(() => {});
+
+  // Returning true stops support/AI processing and therefore does not consume
+  // the user's AI quota.
+  return true;
+}
+
+
+function supportHelpText(access = null) {
+  const privileged = Boolean(access?.privileged);
+  const supporter = access?.source === "supporter";
+  const accessLine = supporter
+    ? `⭐ Supporter aktif: DM + Group, AI unlimited, priority support, dan konteks troubleshooting sampai ${SUPPORTER_CONTEXT_MAX_TURNS} turn / 6 jam.`
+    : privileged
+      ? "Akun khusus: support aktif di DM + Group Terbuka, dengan kuota AI unlimited."
+      : "Support tersedia di Group Terbuka. Kuota AI support maksimal 6 pertanyaan per hari per user. Command dan FAQ yang bisa dijawab langsung tidak memakai kuota AI.";
+
+  return [
+    "🤖 BMP Terbuka Assistant",
+    "",
+    privileged
+      ? "Kamu bisa bertanya langsung lewat DM, atau di Group Terbuka gunakan /ask, mention @bukabmp_bot, atau reply pesan bot."      : "Di Group Terbuka gunakan /ask, mention @bukabmp_bot, atau reply pesan bot.",
+    "",
+    accessLine,
+    "",
+    "Command cepat:",
+    "/bmphelp — menu bantuan bot",
+    "/tutorial — cara pakai v1.0.5",
+    "/install — instalasi Android/Desktop",
+    "/android — Android + tutorial",
+    "/desktop — Desktop + tutorial",
+    "/group — cara join Group Terbuka",
+    "/update — versi terbaru",
+    "/fitur — fitur v1.0.5",
+    "/storage — penyimpanan/resume/export",
+    "/bug — format laporan kendala",
+    "/quota — cek sisa kuota AI hari ini",
+    "/support — Supporter Pass via Telegram Stars",
+    "/supporter — status/Supporter Wall",
+    "/supporters — lihat Supporter Wall",
+    "/terms — terms Supporter Pass",
+    "/paysupport — bantuan pembayaran",
+    "",
+    "Untuk rules group, ketik /rules (Rose)."
+  ].join("\n");
+}
+
+function tutorialText() {
+  return [
+    "📘 Cara pakai BMP Terbuka v1.0.5",
+    "",
+    "1. Buka BMP di RBV, lalu ambil Kode BMP dari nilai ?modul= pada URL reader. Kode BMP tidak selalu sama dengan kode mata kuliah.",
+    "",
+    "2. Isi Kode BMP + range modul yang mau diproses, misalnya M1–M9, lalu mulai proses. Jalankan extension saat tab aktif sedang membuka reader RBV.",
+    "",
+    "3. Kalau proses terhenti, tinggal lanjut lagi. Modul yang sudah selesai disimpan lokal dan otomatis dilewati, jadi tidak perlu OCR ulang dari awal.",
+    "",
+    "4. Kalau mau mengulang modul tertentu, aktifkan ‘Download ulang modul yang dipilih’ lalu tentukan range. Hanya range itu yang diproses ulang.",
+    "",
+    "5. ‘Buat PDF gabungan’ bersifat opsional. Bisa FULL jika lengkap atau range tertentu seperti M3–M6. Kalau ada gap, merge tidak dibuat sampai lengkap.",
+    "",
+    "6. PDF yang sudah tersimpan lokal bisa diekspor ulang satu atau beberapa modul tanpa OCR. Kalau file di Downloads terhapus tetapi storage lokal masih ada, tinggal ekspor ulang.",
+    "",
+    "7. ‘Kosongkan penyimpanan BMP ini’ hanya menghapus data lokal BMP dari extension; PDF yang sudah ada di Downloads tidak ikut terhapus.",
+    "",
+    "Video Android v1.0.4: " + SUPPORT_ANDROID_USAGE_VIDEO_V104_URL,
+    "Video Desktop v1.0.4: " + SUPPORT_DESKTOP_USAGE_VIDEO_V104_URL
+  ].join("\n");
+}
+
+function installText() {
+  return [
+    "📦 Instalasi BMP Terbuka",
+    "",
+    "Android: Microsoft Edge Canary + paket Android-CRX.",
+    "Tutorial instalasi Android: " + SUPPORT_ANDROID_INSTALL_TEXT_URL,
+    "",
+    "Desktop: Google Chrome atau Microsoft Edge. Download ZIP release → extract → Developer mode → Load unpacked.",
+    "",
+    "Release terbaru: " + SUPPORT_RELEASE_URL
+  ].join("\n");
+}
+
+function featuresText() {
+  return [
+    "✨ Fitur utama v1.0.5",
+    "",
+    "• Resume: modul selesai disimpan lokal dan tidak perlu OCR ulang.",
+    "• Ringkasan modul tersimpan + ukuran storage per Kode BMP.",
+    "• Download ulang hanya range yang dipilih.",
+    "• PDF gabungan opsional: FULL atau range tertentu.",
+    "• Merge tidak dibuat kalau ada modul yang bolong.",
+    "• Ekspor ulang satu/beberapa PDF dari storage tanpa OCR.",
+    "• Kosongkan storage per BMP tanpa menghapus file Downloads.",
+    "• Page-count berhenti tepat di halaman terakhir reader."
+  ].join("\n");
+}
+
+function storageText() {
+  return [
+    "💾 Penyimpanan lokal v1.0.5",
+    "",
+    "PDF modul yang selesai disimpan di storage extension untuk resume, merge, dan ekspor ulang.",
+    "",
+    "Kalau file di Downloads terhapus tetapi storage lokal masih ada → bisa ekspor ulang tanpa OCR.",
+    "Kalau storage lokalnya yang dihapus → modul itu perlu diproses ulang bila dibutuhkan.",
+    "Mengosongkan storage BMP tidak menghapus PDF yang sudah ada di Downloads."
+  ].join("\n");
+}
+
+function bugReportText() {
+  return [
+    "🛠 Biar kendalanya gampang dicek, kirim:",
+    "• Screenshot error/posisi terakhir",
+    "• Versi BMP Terbuka",
+    "• Android atau Desktop",
+    "• Kode BMP",
+    "• Modul yang bermasalah",
+    "",
+    "Jangan kirim password, NIM, cookie, session/token, atau credential lain."
+  ].join("\n");
+}
+
+function normalizeSupportQuery(value) {
+  return String(value || "")
+    .replace(/\u0000/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, SUPPORT_AI_MAX_INPUT_CHARS);
+}
+
+function redactSensitiveSupportText(value) {
+  return normalizeSupportQuery(value)
+    .replace(/\b(password|passwd|kata\s*sandi)\s*[:=]\s*\S+/gi, "$1=[REDACTED]")
+    .replace(/\b(cookie|session|bearer|access[_ -]?token|refresh[_ -]?token)\s*[:=]\s*\S+/gi, "$1=[REDACTED]");
+}
+
+const SUPPORT_KB = [
+  {
+    "id": "about",
+    "title": "Apa itu BMP Terbuka",
+    "aliases": [
+      "apa itu bmp terbuka",
+      "bmp terbuka itu apa",
+      "fungsi bmp terbuka"
+    ],
+    "keywords": [
+      "bmp terbuka",
+      "fungsi"
+    ],
+    "answer": "BMP Terbuka adalah extension komunitas independen untuk membantu mengubah materi BMP yang memang sudah bisa kamu akses menjadi searchable PDF untuk belajar pribadi/offline. OCR dan penyusunan PDF dilakukan lokal di perangkat."
+  },
+  {
+    "id": "independent",
+    "title": "Apakah resmi dari UT",
+    "aliases": [
+      "produk resmi ut",
+      "resmi dari ut",
+      "afiliasi ut"
+    ],
+    "keywords": [
+      "resmi",
+      "afiliasi",
+      "universitas terbuka"
+    ],
+    "answer": "BMP Terbuka adalah proyek komunitas independen dan bukan produk resmi atau perwakilan pihak lain."
+  },
+  {
+    "id": "supported-site",
+    "title": "Website yang didukung",
+    "aliases": [
+      "bisa untuk web lain",
+      "website lain",
+      "situs lain",
+      "selain pustaka ut",
+      "selain rbv"
+    ],
+    "keywords": [
+      "web lain",
+      "website",
+      "situs",
+      "rbv",
+      "pustaka"
+    ],
+    "answer": "Saat ini BMP Terbuka hanya punya adapter untuk reader RBV di https://pustaka.ut.ac.id/reader/. Belum ada dukungan untuk website/reader lain."
+  },
+  {
+    "id": "rbv-only",
+    "title": "Harus di halaman RBV",
+    "aliases": [
+      "ekstensi ga jalan",
+      "extension tidak jalan",
+      "tombol ga jalan",
+      "tidak bereaksi",
+      "belum buka rbv"
+    ],
+    "keywords": [
+      "ekstensi ga jalan",
+      "extension ga jalan",
+      "pustaka ut",
+      "rbv",
+      "reader"
+    ],
+    "answer": "Sebelum mulai, buka/login ke reader RBV yang didukung di pustaka.ut.ac.id/reader/ pada tab aktif. Kalau extension dijalankan saat belum berada di reader yang didukung, proses tidak bisa mengambil modul."
+  },
+  {
+    "id": "normal-login",
+    "title": "Harus login normal",
+    "aliases": [
+      "harus login",
+      "perlu login",
+      "login dulu"
+    ],
+    "keywords": [
+      "login",
+      "akun"
+    ],
+    "answer": "Iya. Gunakan akunmu sendiri dan login ke portal/reader melalui mekanisme normal. BMP Terbuka tidak menyediakan bypass akses."
+  },
+  {
+    "id": "internet",
+    "title": "Perlu internet",
+    "aliases": [
+      "butuh internet",
+      "offline bisa",
+      "tanpa internet"
+    ],
+    "keywords": [
+      "internet",
+      "offline"
+    ],
+    "answer": "Internet tetap diperlukan saat membuka sumber/RBV dan saat aktivasi komunitas. OCR/PDF dikerjakan lokal setelah halaman sumber berhasil diambil."
+  },
+  {
+    "id": "ocr-local",
+    "title": "OCR lokal",
+    "aliases": [
+      "ocr dikirim server",
+      "ocr online",
+      "pdf diupload",
+      "dokumen diupload"
+    ],
+    "keywords": [
+      "ocr",
+      "lokal",
+      "upload",
+      "server"
+    ],
+    "answer": "OCR dan penyusunan PDF dilakukan lokal di perangkat. Activation service tidak dipakai untuk mengunggah gambar halaman, teks OCR, atau PDF hasil."
+  },
+  {
+    "id": "watermark",
+    "title": "Watermark",
+    "aliases": [
+      "watermark dihapus",
+      "hapus watermark",
+      "watermark"
+    ],
+    "keywords": [
+      "watermark"
+    ],
+    "answer": "BMP Terbuka mempertahankan watermark dari sumber dan tidak menyediakan fitur penghapusan watermark."
+  },
+  {
+    "id": "latest",
+    "title": "Versi terbaru",
+    "aliases": [
+      "versi terbaru",
+      "latest version",
+      "update terbaru",
+      "download terbaru"
+    ],
+    "keywords": [
+      "versi",
+      "latest",
+      "update",
+      "1.0.5"
+    ],
+    "answer": "Versi terbaru yang didokumentasikan bot ini adalah v1.0.5. Download selalu dari https://github.com/mentaliss/bukabmp/releases/latest"
+  },
+  {
+    "id": "release-package",
+    "title": "Paket release resmi",
+    "aliases": [
+      "download yang mana",
+      "paket yang mana",
+      "source code zip",
+      "release zip"
+    ],
+    "keywords": [
+      "release",
+      "zip",
+      "source code"
+    ],
+    "answer": "Gunakan asset dari GitHub Releases, bukan “Source code ZIP”. Desktop memakai ZIP extension; Android memakai paket Android-CRX."
+  },
+  {
+    "id": "install-overview",
+    "title": "Cara install BMP Terbuka",
+    "aliases": [
+      "cara install",
+      "cara instal",
+      "cara pasang",
+      "install bmp terbuka",
+      "instal bmp terbuka",
+      "pasang bmp terbuka"
+    ],
+    "keywords": [
+      "install",
+      "instal",
+      "pasang"
+    ],
+    "answer": "Instalasi tergantung platform. Android: Microsoft Edge Canary + paket Android-CRX, tutorial teks https://t.me/bukabmp/11?comment=168. Desktop: Google Chrome atau Microsoft Edge, download ZIP release → extract → Developer mode → Load unpacked. Release terbaru: https://github.com/mentaliss/bukabmp/releases/latest"
+  },
+  {
+    "id": "android-support",
+    "title": "Android didukung",
+    "aliases": [
+      "support android",
+      "bisa android",
+      "android bisa",
+      "hp android"
+    ],
+    "keywords": [
+      "android",
+      "support"
+    ],
+    "answer": "Bisa di Android melalui Microsoft Edge Canary dengan dukungan pemasangan extension/CRX yang tersedia pada build/perangkatmu."
+  },
+  {
+    "id": "android-edge-canary",
+    "title": "Browser Android",
+    "aliases": [
+      "browser android",
+      "edge canary android",
+      "chrome android",
+      "firefox android"
+    ],
+    "keywords": [
+      "android",
+      "edge canary",
+      "chrome",
+      "firefox"
+    ],
+    "answer": "Jalur Android yang didukung saat ini adalah Microsoft Edge Canary. Chrome/Firefox Android bukan target instalasi resmi BMP Terbuka saat ini."
+  },
+  {
+    "id": "android-install",
+    "title": "Tutorial instalasi Android",
+    "aliases": [
+      "cara install android",
+      "instal android",
+      "install android",
+      "pasang android"
+    ],
+    "keywords": [
+      "android",
+      "install",
+      "instal",
+      "crx"
+    ],
+    "answer": "Tutorial instalasi Android (teks): https://t.me/bukabmp/11?comment=168\n\nGunakan paket Android-CRX dari release terbaru: https://github.com/mentaliss/bukabmp/releases/latest"
+  },
+  {
+    "id": "android-video-v104",
+    "title": "Video penggunaan Android v1.0.4",
+    "aliases": [
+      "video android",
+      "tutorial video android",
+      "cara pakai android"
+    ],
+    "keywords": [
+      "android",
+      "video",
+      "tutorial"
+    ],
+    "answer": "Video penggunaan Android yang tersedia dibuat untuk v1.0.4: https://t.me/bukabmp/11?comment=294\n\nUntuk perubahan fitur v1.0.5, ketik /tutorial atau /fitur."
+  },
+  {
+    "id": "desktop-support",
+    "title": "Desktop didukung",
+    "aliases": [
+      "support desktop",
+      "bisa desktop",
+      "pc laptop"
+    ],
+    "keywords": [
+      "desktop",
+      "pc",
+      "laptop"
+    ],
+    "answer": "Desktop resmi mendukung Google Chrome atau Microsoft Edge yang mendukung Manifest V3."
+  },
+  {
+    "id": "desktop-browsers-summary",
+    "title": "Browser desktop yang didukung",
+    "aliases": [
+      "support chrome firefox edge",
+      "chrome firefox edge",
+      "browser desktop apa",
+      "browser apa yang support",
+      "browser yang didukung"
+    ],
+    "keywords": [
+      "chrome",
+      "firefox",
+      "edge",
+      "browser",
+      "desktop"
+    ],
+    "answer": "Di desktop, target resmi BMP Terbuka adalah Google Chrome dan Microsoft Edge yang mendukung Manifest V3. Firefox tidak didukung resmi saat ini; browser Chromium lain juga belum menjadi target dukungan resmi."
+  },
+  {
+    "id": "chrome-desktop",
+    "title": "Chrome desktop",
+    "aliases": [
+      "support chrome",
+      "bisa chrome",
+      "google chrome"
+    ],
+    "keywords": [
+      "chrome",
+      "desktop"
+    ],
+    "answer": "Google Chrome desktop didukung. Install lewat ZIP release → extract → chrome://extensions → Developer mode → Load unpacked."
+  },
+  {
+    "id": "edge-desktop",
+    "title": "Edge desktop",
+    "aliases": [
+      "support edge",
+      "bisa edge desktop",
+      "microsoft edge desktop"
+    ],
+    "keywords": [
+      "edge",
+      "desktop"
+    ],
+    "answer": "Microsoft Edge desktop didukung. Install lewat ZIP release → extract → edge://extensions → Developer mode → Load unpacked."
+  },
+  {
+    "id": "firefox-desktop",
+    "title": "Firefox desktop",
+    "aliases": [
+      "support firefox",
+      "bisa firefox",
+      "bisa di firefox",
+      "firefox bisa",
+      "firefox desktop",
+      "mozilla firefox"
+    ],
+    "keywords": [
+      "firefox",
+      "desktop"
+    ],
+    "answer": "Firefox bukan browser desktop yang didukung resmi saat ini. Target desktop resmi BMP Terbuka adalah Google Chrome dan Microsoft Edge dengan Manifest V3."
+  },
+  {
+    "id": "other-chromium",
+    "title": "Browser Chromium lain",
+    "aliases": [
+      "brave bisa",
+      "opera bisa",
+      "vivaldi bisa",
+      "chromium lain"
+    ],
+    "keywords": [
+      "brave",
+      "opera",
+      "vivaldi",
+      "chromium"
+    ],
+    "answer": "Browser Chromium lain belum menjadi target dukungan resmi. Yang didokumentasikan dan diuji sebagai target desktop adalah Google Chrome dan Microsoft Edge."
+  },
+  {
+    "id": "desktop-video-v104",
+    "title": "Video penggunaan Desktop v1.0.4",
+    "aliases": [
+      "video desktop",
+      "tutorial video desktop",
+      "cara pakai desktop"
+    ],
+    "keywords": [
+      "desktop",
+      "video",
+      "tutorial"
+    ],
+    "answer": "Video penggunaan Desktop yang tersedia dibuat untuk v1.0.4: https://t.me/c/4381494564/18\n\nUntuk alur dan fitur baru v1.0.5, ketik /tutorial atau /fitur."
+  },
+  {
+    "id": "desktop-install",
+    "title": "Cara install Desktop",
+    "aliases": [
+      "cara install desktop",
+      "install chrome",
+      "install edge",
+      "load unpacked"
+    ],
+    "keywords": [
+      "desktop",
+      "install",
+      "load unpacked"
+    ],
+    "answer": "Desktop: download ZIP release → extract ke folder tetap → buka chrome://extensions atau edge://extensions → aktifkan Developer mode → Load unpacked → pilih folder yang berisi manifest.json."
+  },
+  {
+    "id": "join-group",
+    "title": "Cara join Group Terbuka",
+    "aliases": [
+      "cara join grup",
+      "join group",
+      "gabung grup",
+      "group terbuka"
+    ],
+    "keywords": [
+      "join",
+      "group",
+      "grup"
+    ],
+    "answer": "Cara join Group Terbuka: https://t.me/bukabmp/13"
+  },
+  {
+    "id": "activation",
+    "title": "Aktivasi komunitas",
+    "aliases": [
+      "cara aktivasi",
+      "aktivasi komunitas",
+      "verifikasi telegram"
+    ],
+    "keywords": [
+      "aktivasi",
+      "verifikasi",
+      "telegram"
+    ],
+    "answer": "Aktivasi dilakukan dari popup BMP Terbuka lalu diverifikasi lewat Telegram. Bot mengecek keanggotaan komunitas dan mengembalikan token aktivasi yang diverifikasi extension."
+  },
+  {
+    "id": "activation-expired",
+    "title": "Aktivasi kedaluwarsa",
+    "aliases": [
+      "aktivasi expired",
+      "aktivasi habis",
+      "kedaluwarsa",
+      "expired activation"
+    ],
+    "keywords": [
+      "aktivasi",
+      "expired",
+      "kedaluwarsa"
+    ],
+    "answer": "Kalau aktivasi kedaluwarsa, buka popup dan lakukan verifikasi komunitas lagi. Selama syarat komunitas terpenuhi, aktivasi bisa diperbarui."
+  },
+  {
+    "id": "activation-old-version",
+    "title": "Aktivasi gagal karena versi lama",
+    "aliases": [
+      "versi tidak didukung",
+      "update required",
+      "aktivasi gagal versi"
+    ],
+    "keywords": [
+      "aktivasi",
+      "versi",
+      "update"
+    ],
+    "answer": "Kalau versi extension sudah di bawah minimum yang didukung backend, aktivasi baru akan meminta update dulu. Ambil versi terbaru di https://github.com/mentaliss/bukabmp/releases/latest"
+  },
+  {
+    "id": "rules",
+    "title": "Rules group",
+    "aliases": [
+      "rules",
+      "aturan grup",
+      "aturan group"
+    ],
+    "keywords": [
+      "rules",
+      "aturan"
+    ],
+    "answer": "Cek rules Group Terbuka lewat Rose dengan command /rules. Jangan membagikan credential atau materi yang tidak boleh didistribusikan."
+  },
+  {
+    "id": "privacy-credentials",
+    "title": "Jangan kirim credential",
+    "aliases": [
+      "boleh kirim nim",
+      "boleh kirim password",
+      "cookie",
+      "session token",
+      "credential"
+    ],
+    "keywords": [
+      "nim",
+      "password",
+      "cookie",
+      "session",
+      "token",
+      "credential"
+    ],
+    "answer": "Jangan kirim password, NIM, cookie, session/token, atau credential lain ke bot/group. Untuk troubleshooting cukup screenshot, versi, platform, Kode BMP, dan modul yang bermasalah."
+  },
+  {
+    "id": "bug-report",
+    "title": "Format laporan kendala",
+    "aliases": [
+      "cara lapor bug",
+      "lapor error",
+      "lapor kendala",
+      "bug report"
+    ],
+    "keywords": [
+      "bug",
+      "error",
+      "kendala",
+      "lapor"
+    ],
+    "answer": "Biar gampang dicek, kirim: screenshot error/posisi terakhir, versi BMP Terbuka, Android/Desktop, Kode BMP, dan modul yang bermasalah. Jangan kirim password, NIM, cookie, session/token, atau credential."
+  },
+  {
+    "id": "code-from-url",
+    "title": "Ambil Kode BMP",
+    "aliases": [
+      "kode bmp ambil dimana",
+      "cara cari kode bmp",
+      "ambil kode bmp"
+    ],
+    "keywords": [
+      "kode bmp",
+      "url",
+      "modul="
+    ],
+    "answer": "Kode BMP diambil dari URL reader RBV, yaitu nilai setelah parameter ?modul=. Contoh ...index.php?modul=BING412102 berarti Kode BMP = BING412102."
+  },
+  {
+    "id": "code-not-course",
+    "title": "Kode BMP bukan kode mata kuliah",
+    "aliases": [
+      "kode bmp sama kode matkul",
+      "kode mata kuliah",
+      "kode matkul"
+    ],
+    "keywords": [
+      "kode bmp",
+      "kode matkul",
+      "mata kuliah"
+    ],
+    "answer": "Kode BMP tidak selalu sama dengan kode mata kuliah. Gunakan nilai ?modul= dari URL reader, bukan menebak dari kode mata kuliah."
+  },
+  {
+    "id": "bmp-not-found",
+    "title": "BMP/modul tidak muncul",
+    "aliases": [
+      "bmp ga muncul",
+      "bmp tidak muncul",
+      "modul tidak tersedia",
+      "modul ga muncul"
+    ],
+    "keywords": [
+      "bmp",
+      "modul",
+      "tidak tersedia",
+      "ga muncul"
+    ],
+    "answer": "Paling sering karena Kode BMP salah atau range modul yang dipilih tidak tersedia. Buka BMP tersebut di reader, salin nilai ?modul= dari URL, lalu pastikan modulnya memang bisa dibuka dengan akunmu."
+  },
+  {
+    "id": "wrong-code",
+    "title": "Salah Kode BMP",
+    "aliases": [
+      "salah kode",
+      "kode salah",
+      "invalid kode bmp"
+    ],
+    "keywords": [
+      "kode",
+      "salah",
+      "invalid"
+    ],
+    "answer": "Kalau Kode BMP salah, extension tidak bisa menemukan modul yang dimaksud. Ambil ulang Kode BMP langsung dari URL reader RBV."
+  },
+  {
+    "id": "range",
+    "title": "Range modul",
+    "aliases": [
+      "modul pertama",
+      "modul terakhir",
+      "range modul",
+      "m1 m9"
+    ],
+    "keywords": [
+      "range",
+      "modul pertama",
+      "modul terakhir"
+    ],
+    "answer": "Isi modul pertama dan modul terakhir sesuai range yang ingin diproses. Contoh 1 sampai 9 berarti M1–M9."
+  },
+  {
+    "id": "active-tab",
+    "title": "Tab aktif harus reader",
+    "aliases": [
+      "tab aktif",
+      "buka pustaka",
+      "buka reader dulu"
+    ],
+    "keywords": [
+      "tab",
+      "reader",
+      "pustaka"
+    ],
+    "answer": "Jalankan extension saat tab aktif sedang membuka reader RBV yang didukung. Kalau belum membuka pustaka.ut.ac.id/reader/, extension tidak punya konteks halaman sumber untuk diproses."
+  },
+  {
+    "id": "resume",
+    "title": "Resume proses",
+    "aliases": [
+      "resume",
+      "lanjut proses",
+      "melanjutkan",
+      "ga ulang dari awal",
+      "tidak ulang dari awal"
+    ],
+    "keywords": [
+      "resume",
+      "lanjut",
+      "ocr ulang"
+    ],
+    "answer": "Di v1.0.5, modul yang sudah selesai disimpan lokal. Saat dijalankan lagi, modul yang sudah tersedia dilewati otomatis sehingga tidak perlu OCR ulang dari awal."
+  },
+  {
+    "id": "interrupted-module",
+    "title": "Proses terputus di tengah modul",
+    "aliases": [
+      "browser ketutup",
+      "edge ketutup",
+      "chrome ketutup",
+      "mati di tengah modul",
+      "proses terhenti tengah"
+    ],
+    "keywords": [
+      "terhenti",
+      "ketutup",
+      "tengah modul"
+    ],
+    "answer": "Yang aman untuk resume adalah modul yang sudah selesai dan sudah tersimpan lokal. Kalau proses terputus saat satu modul belum selesai, modul yang sedang berjalan itu mungkin perlu diproses lagi."
+  },
+  {
+    "id": "local-storage",
+    "title": "Apa itu penyimpanan lokal",
+    "aliases": [
+      "apa itu penyimpanan lokal",
+      "cache itu apa",
+      "penyimpanan bmp"
+    ],
+    "keywords": [
+      "penyimpanan lokal",
+      "cache",
+      "storage"
+    ],
+    "answer": "Penyimpanan lokal adalah salinan PDF modul hasil proses di dalam storage extension. Ini dipakai untuk resume, PDF gabungan, dan ekspor ulang tanpa OCR."
+  },
+  {
+    "id": "storage-vs-downloads",
+    "title": "Penyimpanan lokal vs Downloads",
+    "aliases": [
+      "beda cache dan download",
+      "penyimpanan lokal downloads",
+      "cache downloads"
+    ],
+    "keywords": [
+      "cache",
+      "downloads",
+      "penyimpanan lokal"
+    ],
+    "answer": "Penyimpanan lokal extension berbeda dari folder Downloads. File di Downloads adalah hasil ekspor; storage extension adalah sumber lokal untuk resume/merge/export ulang."
+  },
+  {
+    "id": "deleted-download",
+    "title": "File Downloads terhapus",
+    "aliases": [
+      "file kehapus bisa download ulang",
+      "pdf kehapus",
+      "file download kehapus",
+      "hapus file downloads"
+    ],
+    "keywords": [
+      "file kehapus",
+      "pdf kehapus",
+      "download ulang",
+      "export"
+    ],
+    "answer": "Bisa. Kalau PDF modul masih ada di penyimpanan lokal extension, tinggal ekspor ulang dan hasilnya praktis instan karena tidak perlu OCR lagi."
+  },
+  {
+    "id": "deleted-local-storage",
+    "title": "Penyimpanan lokal terhapus",
+    "aliases": [
+      "cache kehapus",
+      "storage kehapus",
+      "penyimpanan lokal kehapus"
+    ],
+    "keywords": [
+      "cache kehapus",
+      "storage kehapus"
+    ],
+    "answer": "Kalau data penyimpanan lokal extension sudah dihapus dan file itu tidak lagi ada sebagai cache BMP, fitur resume/export instan tidak punya sumber lokal lagi. Modul tersebut perlu diproses ulang bila dibutuhkan."
+  },
+  {
+    "id": "export-one",
+    "title": "Ekspor satu modul",
+    "aliases": [
+      "export satu modul",
+      "download satu modul",
+      "ekspor satu"
+    ],
+    "keywords": [
+      "export",
+      "satu modul"
+    ],
+    "answer": "Bisa. Buka pengelolaan penyimpanan lalu pilih modul yang sudah tersimpan untuk diekspor tanpa OCR ulang."
+  },
+  {
+    "id": "export-multiple",
+    "title": "Ekspor banyak modul",
+    "aliases": [
+      "export beberapa modul",
+      "download banyak modul",
+      "multi export",
+      "pilih semua"
+    ],
+    "keywords": [
+      "export",
+      "beberapa",
+      "banyak",
+      "pilih semua"
+    ],
+    "answer": "Bisa pilih beberapa modul sekaligus untuk diekspor ulang dari penyimpanan lokal tanpa OCR ulang."
+  },
+  {
+    "id": "export-instant",
+    "title": "Ekspor ulang cepat",
+    "aliases": [
+      "export instan",
+      "download ulang instan",
+      "kenapa cepat export"
+    ],
+    "keywords": [
+      "export",
+      "instan",
+      "cepat"
+    ],
+    "answer": "Ekspor ulang dari penyimpanan lokal tidak menjalankan OCR/source retrieval lagi, jadi biasanya jauh lebih cepat dibanding memproses modul dari awal."
+  },
+  {
+    "id": "clear-storage",
+    "title": "Hapus cache/penyimpanan lokal",
+    "aliases": [
+      "bisa hapus cache",
+      "hapus cache",
+      "hapus penyimpanan lokal",
+      "kosongkan penyimpanan"
+    ],
+    "keywords": [
+      "hapus cache",
+      "kosongkan",
+      "penyimpanan"
+    ],
+    "answer": "Bisa. Gunakan “Kosongkan penyimpanan BMP ini” untuk menghapus data lokal hanya untuk Kode BMP yang sedang dipilih."
+  },
+  {
+    "id": "clear-storage-downloads",
+    "title": "Hapus storage apakah hapus Downloads",
+    "aliases": [
+      "hapus cache file downloads",
+      "kosongkan penyimpanan hapus pdf"
+    ],
+    "keywords": [
+      "hapus",
+      "downloads",
+      "penyimpanan"
+    ],
+    "answer": "Tidak. Mengosongkan penyimpanan lokal BMP tidak menghapus PDF yang sudah tersimpan di folder Downloads."
+  },
+  {
+    "id": "storage-per-code",
+    "title": "Storage per Kode BMP",
+    "aliases": [
+      "cache campur",
+      "ganti kode bmp",
+      "penyimpanan per kode"
+    ],
+    "keywords": [
+      "cache",
+      "kode bmp",
+      "ganti kode"
+    ],
+    "answer": "Penyimpanan disusun per Kode BMP. Modul dari Kode BMP lain tidak seharusnya dianggap sebagai modul untuk kode yang sedang dipilih."
+  },
+  {
+    "id": "storage-size",
+    "title": "Ukuran penyimpanan lokal",
+    "aliases": [
+      "berapa ukuran cache",
+      "storage besar",
+      "penyimpanan mb"
+    ],
+    "keywords": [
+      "ukuran",
+      "cache",
+      "storage",
+      "mb"
+    ],
+    "answer": "Popup v1.0.5 menampilkan ringkasan ukuran data lokal untuk Kode BMP yang dipilih. Kalau tidak lagi dibutuhkan, storage BMP itu bisa dikosongkan tanpa menghapus file Downloads."
+  },
+  {
+    "id": "rerun-complete",
+    "title": "Jalankan range yang sudah lengkap",
+    "aliases": [
+      "semua sudah tersedia",
+      "range sudah lengkap",
+      "klik proses lagi"
+    ],
+    "keywords": [
+      "sudah tersedia",
+      "lengkap",
+      "range"
+    ],
+    "answer": "Kalau semua modul dalam range sudah tersedia lokal dan kamu tidak memilih download ulang, v1.0.5 tidak perlu OCR ulang. Kamu bisa ekspor PDF yang ada atau membuat PDF gabungan bila diinginkan."
+  },
+  {
+    "id": "missing-only",
+    "title": "Hanya modul yang hilang diproses",
+    "aliases": [
+      "cuma modul belum ada",
+      "modul yang hilang",
+      "skip cached"
+    ],
+    "keywords": [
+      "modul hilang",
+      "belum ada",
+      "skip"
+    ],
+    "answer": "Default v1.0.5 adalah resume: modul yang sudah tersimpan dilewati, dan hanya modul yang belum tersedia dalam range yang perlu diproses."
+  },
+  {
+    "id": "redownload-selected",
+    "title": "Download ulang range tertentu",
+    "aliases": [
+      "download ulang modul yang dipilih",
+      "redownload range",
+      "proses ulang range"
+    ],
+    "keywords": [
+      "download ulang",
+      "redownload",
+      "proses ulang"
+    ],
+    "answer": "Centang “Download ulang modul yang dipilih” lalu atur range. Hanya modul dalam range tersebut yang diproses ulang."
+  },
+  {
+    "id": "redownload-preserve",
+    "title": "Redownload tidak hapus modul lain",
+    "aliases": [
+      "download ulang hapus yang lain",
+      "redownload hapus cache lain"
+    ],
+    "keywords": [
+      "redownload",
+      "hapus",
+      "modul lain"
+    ],
+    "answer": "Tidak. Download ulang range tertentu tidak menghapus modul lain yang sudah tersimpan di Kode BMP tersebut."
+  },
+  {
+    "id": "redownload-one",
+    "title": "Download ulang satu modul",
+    "aliases": [
+      "download ulang m3",
+      "ulang satu modul",
+      "redownload satu modul"
+    ],
+    "keywords": [
+      "download ulang",
+      "satu modul"
+    ],
+    "answer": "Bisa. Set modul pertama dan terakhir ke nomor yang sama, misalnya 3–3, lalu aktifkan “Download ulang modul yang dipilih”."
+  },
+  {
+    "id": "merge-optional",
+    "title": "PDF gabungan opsional",
+    "aliases": [
+      "harus buat pdf gabungan",
+      "merge wajib",
+      "pdf gabungan opsional"
+    ],
+    "keywords": [
+      "gabungan",
+      "opsional",
+      "merge"
+    ],
+    "answer": "PDF gabungan di v1.0.5 bersifat opsional. Kalau cuma butuh PDF per modul, biarkan opsi “Buat PDF gabungan” tidak dicentang."
+  },
+  {
+    "id": "merge-full",
+    "title": "PDF gabungan FULL",
+    "aliases": [
+      "full pdf",
+      "gabungan full",
+      "full_searchable"
+    ],
+    "keywords": [
+      "full",
+      "gabungan",
+      "merge"
+    ],
+    "answer": "PDF gabungan FULL bisa dibuat ketika set modul yang dibutuhkan sudah lengkap di penyimpanan lokal."
+  },
+  {
+    "id": "merge-range",
+    "title": "PDF gabungan range",
+    "aliases": [
+      "gabung m3 m6",      "merge range",
+      "pdf m3-m6"
+    ],
+    "keywords": [
+      "gabung",
+      "range",
+      "m3",
+      "m6"
+    ],
+    "answer": "Bisa membuat PDF gabungan untuk range tertentu, misalnya M3–M6, selama semua modul dalam range itu tersedia lokal."
+  },
+  {
+    "id": "merge-gap",
+    "title": "Merge gagal karena ada gap",
+    "aliases": [
+      "pdf gabungan tidak jadi",
+      "merge tidak jadi",
+      "ada gap",
+      "modul bolong"
+    ],
+    "keywords": [
+      "merge",
+      "gap",
+      "bolong",
+      "tidak jadi"
+    ],
+    "answer": "Kalau ada modul yang belum tersedia dalam range yang dipilih, PDF gabungan tidak dibuat sampai range tersebut lengkap. Ini sengaja supaya modul yang hilang tidak diam-diam dilewati."
+  },
+  {
+    "id": "merge-from-storage",
+    "title": "Merge sumbernya storage",
+    "aliases": [
+      "merge dari downloads",
+      "gabungan dari download",
+      "merge cache"
+    ],
+    "keywords": [
+      "merge",
+      "downloads",
+      "storage"
+    ],
+    "answer": "PDF gabungan dibangun dari PDF modul yang tersimpan lokal di extension, bukan dengan membaca file di folder Downloads."
+  },
+  {
+    "id": "deleted-download-merge",
+    "title": "File Downloads hilang tapi mau merge",
+    "aliases": [
+      "file download kehapus masih bisa merge",
+      "pdf downloads hilang gabung"
+    ],
+    "keywords": [
+      "downloads",
+      "kehapus",
+      "merge"
+    ],
+    "answer": "Kalau modulnya masih ada di penyimpanan lokal extension, file Downloads yang terhapus tidak menghalangi merge. Merge memakai data lokal extension."
+  },
+  {
+    "id": "page-count",
+    "title": "Berhenti di halaman terakhir",
+    "aliases": [
+      "halaman terakhir",
+      "page count",
+      "kelebihan halaman",
+      "page terakhir"
+    ],
+    "keywords": [
+      "halaman terakhir",
+      "page count"
+    ],
+    "answer": "v1.0.5 memakai jumlah halaman yang dilaporkan reader bila tersedia, sehingga proses berhenti tepat di halaman terakhir dan tidak meminta halaman setelahnya."
+  },
+  {
+    "id": "progress",
+    "title": "Progress halaman",
+    "aliases": [
+      "progress halaman",
+      "current total",
+      "berapa halaman"
+    ],
+    "keywords": [
+      "progress",
+      "halaman",
+      "total"
+    ],
+    "answer": "Saat total halaman tersedia dari reader, progress menampilkan posisi halaman terhadap total sehingga lebih jelas prosesnya sudah sampai mana."
+  },
+  {
+    "id": "downloads-not-canonical",
+    "title": "Downloads bukan penentu selesai",
+    "aliases": [
+      "hapus downloads resume",
+      "downloads sumber",
+      "folder downloads cache"
+    ],
+    "keywords": [
+      "downloads",
+      "resume",
+      "sumber"
+    ],
+    "answer": "Folder Downloads bukan sumber status penyelesaian. Resume v1.0.5 mengandalkan penyimpanan lokal extension; menghapus file Downloads tidak otomatis membuat modul dianggap belum selesai."
+  },
+  {
+    "id": "403",
+    "title": "Error 403",
+    "aliases": [
+      "403",
+      "forbidden"
+    ],
+    "keywords": [
+      "403",
+      "forbidden"
+    ],
+    "answer": "Kalau reader memberi 403, BMP Terbuka berhenti. Selesaikan login/akses melalui mekanisme normal sumber lalu coba lagi; bot tidak memberi cara bypass."
+  },
+  {
+    "id": "429",
+    "title": "Error 429",
+    "aliases": [
+      "429",
+      "too many requests"
+    ],
+    "keywords": [
+      "429",
+      "rate limit"
+    ],
+    "answer": "Kalau reader memberi 429, BMP Terbuka safe-stop dan tidak melakukan blind retry. Tunggu kondisi akses normal lalu coba lagi."
+  },
+  {
+    "id": "request-rejected",
+    "title": "Request Rejected",
+    "aliases": [
+      "request rejected",
+      "support id"
+    ],
+    "keywords": [
+      "request rejected",
+      "support id"
+    ],
+    "answer": "Kalau muncul Request Rejected, proses sengaja berhenti. Jangan mencoba bypass/stealth; selesaikan akses secara normal dan coba lagi nanti."
+  },
+  {
+    "id": "login-redirect",
+    "title": "Minta login ulang",
+    "aliases": [
+      "login ulang",
+      "ke halaman login",
+      "session habis"
+    ],
+    "keywords": [
+      "login ulang",
+      "session",
+      "login"
+    ],
+    "answer": "Kalau reader mengarahkan ke login ulang atau sesi habis, login kembali secara normal di reader lalu mulai lagi. Modul yang sudah selesai dan masih tersimpan lokal tetap bisa dipakai untuk resume."
+  },
+  {
+    "id": "safe-stop",
+    "title": "Kenapa tidak retry otomatis",
+    "aliases": [
+      "kenapa berhenti",
+      "kok ga retry",
+      "retry otomatis"
+    ],
+    "keywords": [
+      "retry",
+      "berhenti",
+      "safe stop"
+    ],
+    "answer": "Safe-stop memang desain BMP Terbuka saat sumber menolak akses. Extension tidak melakukan blind retry terhadap 403/429/login/Request Rejected."
+  },
+  {
+    "id": "no-bypass",
+    "title": "Bypass blokir",
+    "aliases": [
+      "bypass waf",
+      "bypass blokir",
+      "stealth",
+      "spoof cookie"
+    ],
+    "keywords": [
+      "bypass",
+      "waf",
+      "stealth",
+      "spoof"
+    ],
+    "answer": "BMP Terbuka tidak menyediakan teknik bypass WAF/blokir, stealth, spoofing cookie/token, IP rotation, atau cara memaksa akses yang ditolak sumber."
+  },
+  {
+    "id": "file-location",
+    "title": "PDF tersimpan di mana",
+    "aliases": [
+      "pdf dimana",
+      "hasil download dimana",
+      "file tersimpan dimana"
+    ],
+    "keywords": [
+      "pdf",
+      "downloads",
+      "tersimpan"
+    ],
+    "answer": "Hasil ekspor PDF masuk ke mekanisme Downloads browser. Selain itu, v1.0.5 menyimpan salinan modul secara lokal di storage extension untuk resume/merge/export ulang."
+  },
+  {
+    "id": "uninstall-extension",
+    "title": "Hapus atau uninstall extension",
+    "aliases": [
+      "hapus ekstensi",
+      "cara hapus ekstensi",
+      "hapus extension",
+      "cara hapus extension",
+      "uninstall ekstensi",
+      "uninstall extension",
+      "hapus bmp terbuka"
+    ],
+    "keywords": [
+      "hapus ekstensi",
+      "hapus extension",
+      "uninstall"
+    ],
+    "answer": "Bisa. Hapus/uninstall BMP Terbuka dari halaman extensions browser. Perlu diingat, menghapus extension atau data browser dapat menghilangkan penyimpanan lokal BMP di extension; PDF yang sudah diekspor ke Downloads tidak ikut terhapus."
+  },
+  {
+    "id": "reinstall-extension",
+    "title": "Reinstall dan storage",
+    "aliases": [
+      "reinstall extension cache",
+      "hapus extension data",
+      "install ulang data"
+    ],
+    "keywords": [
+      "reinstall",
+      "hapus extension",
+      "storage"
+    ],
+    "answer": "Jangan mengandalkan storage lokal tetap ada setelah extension dihapus/reinstall atau data browser dibersihkan. Kalau datanya hilang, resume/export instan dari storage itu juga hilang."
+  },
+  {
+    "id": "update-v104-v105",
+    "title": "Tutorial v1.0.4 vs v1.0.5",
+    "aliases": [
+      "tutorial 1.0.4",
+      "video versi lama",
+      "beda tutorial"
+    ],
+    "keywords": [
+      "tutorial",
+      "1.0.4",
+      "1.0.5"
+    ],
+    "answer": "Video Android/Desktop yang ditautkan bot dibuat pada v1.0.4, jadi tampilan/fitur penyimpanan v1.0.5 bisa berbeda. Untuk penggunaan v1.0.5 gunakan /tutorial dan /fitur sebagai acuan terbaru."
+  },
+  {
+    "id": "current-v105-tutorial",
+    "title": "Tutorial penggunaan v1.0.5",
+    "aliases": [
+      "tutorial 1.0.5",
+      "cara pakai 1.0.5",
+      "penggunaan v1.0.5"
+    ],
+    "keywords": [
+      "tutorial",
+      "1.0.5",
+      "cara pakai"
+    ],
+    "answer": "Ketik /tutorial untuk tutorial penggunaan v1.0.5 langsung dari bot. Tutorial itu mencakup Kode BMP, range modul, resume, redownload, PDF gabungan, ekspor ulang, dan penyimpanan lokal."
+  },
+  {
+    "id": "help-human",
+    "title": "Kalau bot tidak tahu",
+    "aliases": [
+      "bot ga tau",
+      "jawaban tidak membantu",
+      "masih error",
+      "butuh admin"
+    ],
+    "keywords": [
+      "bot",
+      "admin",
+      "member",
+      "bantu"
+    ],
+    "answer": "Kalau jawaban bot belum menyelesaikan masalah, kirim detail kendala di Group Terbuka. Member lain bisa ikut bantu; sertakan screenshot, versi, platform, Kode BMP, dan modul yang bermasalah."
+  },
+  {
+    "id": "greeting",
+    "title": "Sapaan",
+    "aliases": [
+      "halo",
+      "hai",
+      "hi"
+    ],
+    "keywords": [
+      "halo",
+      "hai"
+    ],
+    "answer": "Halo 👋 Tanya aja soal instalasi, Kode BMP, Android/Desktop, aktivasi, error, atau fitur v1.0.5. Bisa juga pakai /tutorial, /fitur, atau /bug."
+  }
+];
+
+const SUPPORT_STOPWORDS = new Set([
+  "yang", "dan", "atau", "di", "ke", "dari", "untuk", "ini", "itu", "nya", "aku", "saya",
+  "gw", "gue", "ga", "gak", "nggak", "tidak", "bisa", "apa", "gimana", "bagaimana", "kok",
+  "kenapa", "kalau", "kalo", "mau", "jadi", "udah", "sudah", "dong", "bro", "min"
+]);
+
+function supportSearchText(value) {
+  return normalizeSupportQuery(value)
+    .toLowerCase()
+    .normalize("NFKC")
+    .replace(/[^a-z0-9.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function supportTokens(value) {
+  return supportSearchText(value)
+    .split(" ")
+    .filter(x => x.length >= 2 && !SUPPORT_STOPWORDS.has(x));
+}
+
+function scoreSupportKbEntry(query, entry) {
+  const q = supportSearchText(query);
+  if (!q) return {score: 0, strong: false};
+  let score = 0;
+  let strong = false;
+
+  const qTokenList = supportTokens(q);
+  const qTokenSet = new Set(qTokenList);
+
+  for (const raw of entry.aliases || []) {
+    const alias = supportSearchText(raw);
+    if (!alias || alias.length < 2) continue;
+    if (q === alias) {
+      score += 30;
+      strong = true;
+    } else if (q.includes(alias)) {
+      score += 18;
+      strong = true;
+    } else {
+      // Treat harmless filler-word variants as the same FAQ, e.g.
+      // "bisa di firefox?" vs "bisa firefox". This keeps known FAQs free.
+      const aliasTokens = supportTokens(alias);
+      const tokenExact = aliasTokens.length > 0 &&
+        aliasTokens.length === qTokenList.length &&
+        aliasTokens.every(token => qTokenSet.has(token));
+      const meaningfulSubset = aliasTokens.length >= 2 &&
+        aliasTokens.every(token => qTokenSet.has(token));
+      if (tokenExact) {
+        score += 24;
+        strong = true;
+      } else if (meaningfulSubset) {
+        score += 14;
+        strong = true;
+      }
+    }
+  }
+
+  for (const raw of entry.keywords || []) {
+    const kw = supportSearchText(raw);
+    if (!kw) continue;
+    if (q.includes(kw)) score += kw.includes(" ") ? 8 : 4;
+  }
+
+  const qTokens = qTokenSet;
+  const eTokens = new Set(supportTokens([entry.title, ...(entry.aliases || []), ...(entry.keywords || [])].join(" ")));
+  let overlap = 0;
+  for (const token of qTokens) if (eTokens.has(token)) overlap++;
+  score += overlap * 2;
+
+  return {score, strong};
+}
+
+function retrieveSupportKnowledge(query, limit = 6) {
+  return SUPPORT_KB
+    .map(entry => ({entry, ...scoreSupportKbEntry(query, entry)}))
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
+
+function directSupportKbAnswer(query) {
+  const matches = retrieveSupportKnowledge(query, 3);
+  if (!matches.length) return null;
+  const top = matches[0];
+  const second = matches[1]?.score || 0;
+  const secondMatch = matches[1] || null;
+  const multiStrong = Boolean(secondMatch?.strong && second >= top.score - 8);
+  if (!multiStrong && (top.strong || top.score >= 16 || (top.score >= 10 && top.score >= second + 5))) {
+    return top.entry.answer;
+  }
+  return null;
+}
+
+function supportActorId(message) {
+  if (isAnonymousAdminMessage(message)) {
+    return `anonymous-admin:${message?.sender_chat?.id || message?.chat?.id || "unknown"}`;
+  }
+  return String(message?.from?.id || "unknown");
+}
+
+function supportDailyBucket() {
+  // Reset once per calendar day (WIB) so "per hari" is predictable for the Indonesian community.
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+  const obj = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return `${obj.year}-${obj.month}-${obj.day}`;
+}
+
+async function supportAiQuotaStatus(env, userId) {
+  if (!env.PAIRINGS) {
+    return {count: 0, remaining: SUPPORT_AI_MAX_CALLS_PER_DAY};
+  }
+  const key = `support-ai-day:${userId}:${supportDailyBucket()}`;
+  const count = Math.max(0, Number(await env.PAIRINGS.get(key) || 0));
+  return {
+    count,
+    remaining: Math.max(0, SUPPORT_AI_MAX_CALLS_PER_DAY - count)
+  };
+}
+
+async function supportAiAllowed(env, userId) {
+  if (!env.PAIRINGS) return {allowed: true, count: 0, remaining: SUPPORT_AI_MAX_CALLS_PER_DAY};
+  const key = `support-ai-day:${userId}:${supportDailyBucket()}`;
+  const current = await supportAiQuotaStatus(env, userId);
+  if (current.count >= SUPPORT_AI_MAX_CALLS_PER_DAY) {
+    return {allowed: false, count: current.count, remaining: 0};
+  }
+  const next = current.count + 1;
+  await env.PAIRINGS.put(key, String(next), {expirationTtl: 48 * 60 * 60});
+  return {allowed: true, count: next, remaining: Math.max(0, SUPPORT_AI_MAX_CALLS_PER_DAY - next)};
+}
+
+function formatKnowledgeEntries(entries) {
+  return entries.map((entry, i) => `${i + 1}. ${entry.title}: ${entry.answer}`).join("\n");
+}
+
+function buildSupportKnowledgeContext(query) {
+  const matches = retrieveSupportKnowledge(query, 10);
+  const topScore = matches[0]?.score || 0;
+
+  // Strong/medium lexical hit: keep context compact. Weak hit: give the model
+  // the complete curated KB so natural-language phrasing is not rejected just
+  // because the local retriever missed a synonym or word order.
+  if (matches.length && topScore >= 6) {
+    return {
+      mode: "retrieved",
+      text: formatKnowledgeEntries(matches.map(x => x.entry))
+    };
+  }
+  return {
+    mode: "full",
+    text: formatKnowledgeEntries(SUPPORT_KB)
+  };
+}
+
+function textFromAiContent(value) {
+  if (typeof value === "string") return value.trim();
+  if (Array.isArray(value)) {
+    return value.map(part => {
+      if (typeof part === "string") return part;
+      if (typeof part?.text === "string") return part.text;
+      if (typeof part?.content === "string") return part.content;
+      return "";
+    }).join("").trim();
+  }
+  return "";
+}
+
+function extractWorkersAiText(result) {
+  if (!result) return "";
+  if (typeof result === "string") return result.trim();
+
+  const candidates = [
+    result.response,
+    result.text,
+    result.output_text,
+    result?.result?.response,
+    result?.result?.text,
+    result?.choices?.[0]?.message?.content,
+    result?.choices?.[0]?.text,
+    result?.result?.choices?.[0]?.message?.content,
+    result?.result?.choices?.[0]?.text
+  ];
+  for (const value of candidates) {
+    const text = textFromAiContent(value);
+    if (text) return text;
+  }
+  return "";
+}
+
+function isBmpSupportQuestion(query) {
+  const q = supportSearchText(query);
+  if (!q) return false;
+
+  const topical = /\b(bmp|modul|pdf|ocr|extension|ekstensi|rbv|pustaka|reader|android|desktop|edge|chrome|firefox|download|unduh|export|ekspor|cache|penyimpanan|storage|aktivasi|telegram|update|versi|kode|merge|gabung|403|429|request rejected|watermark|crx|manifest|canary)\b/i;
+  if (topical.test(q)) return true;
+
+  const matches = retrieveSupportKnowledge(q, 1);
+  return Boolean(matches.length && matches[0].score >= 5);
+}
+
+
+async function answerWithSupportAi(env, query, priorContext = "", supporterPriority = false) {
+  if (!env.AI || typeof env.AI.run !== "function") return "";
+  const safeQuery = redactSensitiveSupportText(query);
+  const knowledge = buildSupportKnowledgeContext(safeQuery);
+
+  const systemPrompt = [
+    "Kamu adalah BMP Terbuka Assistant untuk support komunitas Telegram.",
+    "Jawab dalam bahasa Indonesia yang ramah, ringkas, dan praktis ketika membahas BMP Terbuka.",
+    "Jangan gunakan Markdown seperti **bold**, backtick, heading, atau tabel. Keluarkan plain text yang rapi untuk Telegram.",
+    "Jangan melakukan small talk atau membahas topik di luar BMP Terbuka.",
+    "Pahami maksud user walaupun bahasanya pendek, typo, slang, urutan katanya aneh, atau pertanyaannya tidak sama persis dengan judul knowledge base.",
+    "Jawaban HARUS grounded pada knowledge base yang diberikan. Jangan mengarang fitur, kompatibilitas, status, atau solusi yang tidak tercantum.",
+    "Gabungkan beberapa fakta jika pertanyaan menyentuh lebih dari satu hal.",
+    "Kalau jawabannya sebenarnya ada di knowledge base, jawab langsung; jangan malah meminta screenshot.",
+    "Minta screenshot + versi + platform + Kode BMP + modul hanya jika masalah spesifik memang belum bisa didiagnosis dari informasi user.",
+    "Untuk pertanyaan ya/tidak, jawab ya/tidak dulu lalu beri penjelasan singkat.",
+    "Jangan pernah meminta password, NIM, cookie, session/token, credential, atau materi privat.",
+    "Jangan memberi instruksi bypass WAF/blokir, stealth, spoofing, penghapusan watermark, atau pelanggaran akses.",
+    "Jangan mengaku sebagai admin manusia.",
+    "Jika tutorial video bertanda v1.0.4, jangan menyebutnya sebagai tutorial v1.0.5.",
+    "Untuk pertanyaan tentang resmi, afiliasi, kepemilikan, atau perwakilan, jangan menyebut atau mengulang nama instansi, perusahaan, organisasi, marketplace, kampus, brand, atau pihak lain yang disebut user. Jawab generik bahwa BMP Terbuka adalah proyek komunitas independen dan bukan produk resmi atau perwakilan pihak lain.",
+    "Pengecualian: nama tools atau platform yang memang relevan secara teknis untuk menggunakan BMP Terbuka boleh disebut bila diperlukan, misalnya Chrome, Edge, Telegram, GitHub, dan Rose.",
+    supporterPriority ? "User ini Supporter. Gunakan konteks troubleshooting sebelumnya bila relevan dan prioritaskan diagnosis yang nyambung, tanpa mengarang." : ""
+  ].filter(Boolean).join("\n");
+
+  const userPrompt = [
+    `MODE_KB=${knowledge.mode}`,
+    "KNOWLEDGE BASE:",
+    knowledge.text,
+    priorContext ? "\nKONTEKS TROUBLESHOOTING SUPPORTER:\n" + priorContext : "",
+    "",
+    "PERTANYAAN USER:",
+    safeQuery
+  ].join("\n");
+
+  const result = await env.AI.run(SUPPORT_AI_MODEL, {
+    messages: [
+      {role: "system", content: systemPrompt},
+      {role: "user", content: userPrompt}
+    ],
+    reasoning_effort: null,
+    chat_template_kwargs: {enable_thinking: false},
+    max_completion_tokens: supporterPriority ? 650 : 500,
+    temperature: 0.2
+  });
+
+  const answer = extractWorkersAiText(result).slice(0, supporterPriority ? 4500 : 3500);
+  if (!answer) {
+    console.warn("support_ai_empty_result", {
+      model: SUPPORT_AI_MODEL,
+      kb_mode: knowledge.mode,
+      keys: result && typeof result === "object" ? Object.keys(result).slice(0, 12) : []
+    });
+  }
+  return answer;
+}
+
+
+async function sendSupportReply(env, message, text) {
+  if (!text) return;
+  let output = text;
+  if (isGroupChat(message) && message?.__supportAccess?.source === "supporter") {
+    output = `⭐ Supporter • Priority\n${text}`;
+  }
+  await tg(env, "sendMessage", {
+    chat_id: message.chat.id,
+    text: output,
+    reply_parameters: {message_id: message.message_id},
+    disable_web_page_preview: true
+  });
+}
+
+
+async function handleSupportMessage(env, message) {
+  const privateChat = isPrivateChat(message);
+  const access = await supportPrivilegeForMessage(env, message);
+  const privileged = Boolean(access.privileged);
+  message.__supportAccess = access;
+  if (!privateChat && !isOfficialSupportGroup(env, message)) return false;
+  if (isNormalBotMessage(message)) return false;
+
+  let invocation = supportInvocation(message, env);
+  const command = invocation.command?.command || "";
+  const commerceDmCommand = privateChat && ["support", "supporter", "supporters", "terms", "paysupport"].includes(command);
+
+  // Regular users are Group-only for support. Commerce/status commands remain
+  // available in DM so anyone can buy/check a Supporter Pass.
+  if (privateChat && !privileged && !commerceDmCommand) {
+    const text = String(message?.text || "").trim();
+    if (!text) return false;
+    await sendSupportReply(env, message, [
+      "Support BMP Terbuka tersedia di Group Terbuka.",
+      SUPPORT_GROUP_JOIN_URL,
+      "",
+      "DM bot tetap digunakan untuk aktivasi/verifikasi extension dan Supporter Pass (/support)."
+    ].join("\n"));
+    return true;
+  }
+
+  // Privileged/supporter users may use plain-text support in DM.
+  if (privateChat && privileged && !invocation.invoked) {
+    const text = String(message?.text || "").trim();
+    if (text) invocation = {invoked: true, command: null, query: text};
+  }
+  if (!invocation.invoked) return false;
+
+  const currentCommand = invocation.command?.command || "";
+  if (currentCommand === "support") {
+    await sendSupporterMenu(env, message, access);
+    return true;
+  }
+  if (currentCommand === "terms") {
+    await sendSupportReply(env, message, supporterTermsText());
+    return true;
+  }
+  if (currentCommand === "paysupport") {
+    await handlePaymentSupportCommand(env, message, invocation.command?.args || "");
+    return true;
+  }
+  if (currentCommand === "supporter") {
+    const arg = String(invocation.command?.args || "").trim().toLowerCase();
+    if (["public", "anonymous", "private"].includes(arg)) {
+      await setSupporterWallMode(env, message, arg);
+    } else {
+      await sendSupportReply(env, message, await supporterStatusText(env, message?.from?.id));
+    }
+    return true;
+  }
+  if (currentCommand === "supporters") {
+    await sendSupportReply(env, message, await supporterWallText(env));
+    return true;
+  }
+  if (currentCommand === "bmphelp" || currentCommand === "faq") {
+    await sendSupportReply(env, message, supportHelpText(access));
+    return true;
+  }
+  if (currentCommand === "tutorial") {
+    await sendSupportReply(env, message, tutorialText());
+    return true;
+  }
+  if (currentCommand === "install") {
+    await sendSupportReply(env, message, installText());
+    return true;
+  }
+  if (currentCommand === "android") {
+    await sendSupportReply(env, message, [
+      "📱 Android — Microsoft Edge Canary",
+      "",
+      "Tutorial instalasi (teks): " + SUPPORT_ANDROID_INSTALL_TEXT_URL,
+      "Video penggunaan v1.0.4: " + SUPPORT_ANDROID_USAGE_VIDEO_V104_URL,
+      "",
+      "Untuk fitur v1.0.5 ketik /tutorial atau /fitur.",
+      "Release: " + SUPPORT_RELEASE_URL
+    ].join("\n"));
+    return true;
+  }
+  if (currentCommand === "desktop") {
+    await sendSupportReply(env, message, [
+      "🖥 Desktop — Google Chrome / Microsoft Edge",
+      "",
+      "Video penggunaan v1.0.4: " + SUPPORT_DESKTOP_USAGE_VIDEO_V104_URL,
+      "Untuk fitur v1.0.5 ketik /tutorial atau /fitur.",
+      "",
+      "Release: " + SUPPORT_RELEASE_URL
+    ].join("\n"));
+    return true;
+  }
+  if (currentCommand === "group") {
+    await sendSupportReply(env, message, `Group Terbuka: ${SUPPORT_GROUP_JOIN_URL}`);
+    return true;
+  }
+  if (currentCommand === "update") {
+    await sendSupportReply(env, message, `Versi terbaru: v1.0.5\n${SUPPORT_RELEASE_URL}`);
+    return true;
+  }
+  if (currentCommand === "fitur") {
+    await sendSupportReply(env, message, featuresText());
+    return true;
+  }
+  if (currentCommand === "storage") {
+    await sendSupportReply(env, message, storageText());
+    return true;
+  }
+  if (currentCommand === "bug") {
+    await sendSupportReply(env, message, bugReportText());
+    return true;
+  }
+  if (currentCommand === "quota") {
+    if (privileged) {
+      const label = access.source === "supporter"
+        ? `unlimited (Supporter Pass aktif sampai ${formatWibDateTime(access.supporter?.supporter_until)}).`
+        : "unlimited (akun khusus).";
+      await sendSupportReply(env, message, `Kuota AI support: ${label}`);
+    } else {
+      const status = await supportAiQuotaStatus(env, supportActorId(message));
+      await sendSupportReply(env, message, `Sisa kuota AI hari ini: ${status.remaining} dari ${SUPPORT_AI_MAX_CALLS_PER_DAY}`);
+    }
+    return true;
+  }
+
+  const query = normalizeSupportQuery(invocation.query);
+  if (!query) {
+    await sendSupportReply(env, message, "Tulis pertanyaannya setelah /ask ya. Contoh: /ask kenapa modul tidak tersedia?");
+    return true;
+  }
+
+  if (!isBmpSupportQuestion(query)) {
+    await sendSupportReply(env, message, "Bot ini khusus bantuan BMP Terbuka. Ketik /bmphelp untuk menu bantuan.");
+    return true;
+  }
+
+  const directAnswer = directSupportKbAnswer(query);
+  if (directAnswer) {
+    await sendSupportReply(env, message, directAnswer);
+    if (access.source === "supporter" && !isAnonymousAdminMessage(message)) {
+      await rememberSupporterTurn(env, message.from.id, message.chat.id, query, directAnswer);
+    }
+    return true;
+  }
+
+  const quota = privileged
+    ? {allowed: true, unlimited: true, count: 0, remaining: null}
+    : await supportAiAllowed(env, supportActorId(message));
+
+  if (!quota.allowed) {
+    await sendSupportReply(env, message, "Kuota AI support hari ini sudah habis (sisa 0 dari 6). Coba lagi besok. FAQ yang bisa dijawab langsung dari basis pengetahuan serta command seperti /tutorial, /install, /android, /desktop, /storage, /fitur, dan /bug tetap bisa dipakai tanpa kuota AI. Supporter Pass dapat diaktifkan lewat /support.");
+    return true;
+  }
+
+  try {
+    const turns = access.source === "supporter" && !isAnonymousAdminMessage(message)
+      ? await supporterContext(env, message.from.id, message.chat.id)
+      : [];
+    const aiAnswer = await answerWithSupportAi(env, query, formatSupporterContext(turns), access.source === "supporter");
+    if (aiAnswer) {
+      const footer = access.source === "supporter"
+        ? `AI support unlimited • Supporter aktif sampai ${formatWibDateTime(access.supporter?.supporter_until)}`
+        : access.source === "allowlist"
+          ? "AI support: unlimited (akun khusus)."
+          : `Sisa kuota AI hari ini: ${quota.remaining} dari ${SUPPORT_AI_MAX_CALLS_PER_DAY}`;
+      await sendSupportReply(env, message, `${aiAnswer}\n\n${footer}`);
+      if (access.source === "supporter" && !isAnonymousAdminMessage(message)) {
+        await rememberSupporterTurn(env, message.from.id, message.chat.id, query, aiAnswer);
+      }
+    } else {
+      await sendSupportReply(env, message, "Jawaban AI belum berhasil dibuat. Coba gunakan command /bmphelp atau kirim pertanyaan BMP Terbuka dengan konteks yang lebih spesifik.");
+    }
+  } catch (e) {
+    console.error("support_ai_failed", {error: String(e?.stack || e)});
+    await sendSupportReply(env, message, "AI support sedang tidak tersedia. Command bantuan seperti /tutorial, /storage, dan /bug tetap bisa dipakai.");
+  }
+  return true;
+}
+
+
+async function handleTelegram(env, update) {
+  if (update.pre_checkout_query) {
+    await handleSupporterPreCheckout(env, update.pre_checkout_query);
+    return;
+  }
+
+  if (update.message) {
+    const message = update.message;
+    const userId = message.from?.id;
+    const chatId = message.chat?.id;
+    const text = String(message.text || "").trim();
+    const command = parseBotCommand(text, env);
+
+    // Payment receipt must be processed before support routing.
+    if (message.successful_payment) {
+      await applySuccessfulSupporterPayment(env, message);
+      return;
+    }
+
+    // Privacy moderation runs first for all ordinary group messages.
+    if (await handlePrivacyGate(env, message)) return;
+
+    // Lazily remove stale BMP Supporter tags after expiry when the member speaks.
+    await reconcileSupporterTagOnMessage(env, message).catch(() => {});
+
+    // Deep-link /start support opens the private Stars purchase menu instead of
+    // being interpreted as an extension pair ID.
+    if (isPrivateChat(message) && command?.command === "start" && String(command.args || "").toLowerCase() === "support") {
+      const access = await supportPrivilegeForMessage(env, message);
+      message.__supportAccess = access;
+      await sendSupporterMenu(env, message, access);
+      return;
+    }
+
+    // Activation remains available in DM for everyone.
+    if (isPrivateChat(message) && command?.command === "start") {
+      const pairId = command.args || "";
+      if (!pairId) {
+        await tg(env, "sendMessage", {
+          chat_id: chatId,
+          text:
+            "BMP Terbuka\n\n" +
+            "Mulai aktivasi dari popup extension. Jika Telegram Web tidak membawa " +
+            "kode aktivasi, salin kode dari popup lalu kirim langsung ke bot ini.\n\n" +
+            "Untuk Supporter Pass ketik /support."
+        });
+        return;
+      }
+      await verifyPairForUser(env, pairId, userId, chatId);
+      return;
+    }
+
+    if (isPrivateChat(message) && command?.command === "verify") {
+      const pairId = command.args || "";
+      if (!pairId) {
+        await tg(env, "sendMessage", {
+          chat_id: chatId,
+          text: "Kirim /verify diikuti kode aktivasi dari popup BMP Terbuka."
+        });
+        return;
+      }
+      await verifyPairForUser(env, pairId, userId, chatId);
+      return;
+    }
+
+    if (isPrivateChat(message) && /^[A-Za-z0-9_-]{10,20}$/.test(text)) {
+      await verifyPairForUser(env, text, userId, chatId);
+      return;
+    }
+
+    if (await handleSupportMessage(env, message)) return;
+  }
+
+  if (update.edited_message) {
+    await handlePrivacyGate(env, update.edited_message);
+    return;
+  }
+
+  if (update.callback_query) {
+    const q = update.callback_query;
+    const data = String(q.data || "");
+    if (data.startsWith("verify:")) {
+      const pairId = data.slice("verify:".length);
+      await tg(env, "answerCallbackQuery", {
+        callback_query_id: q.id,
+        text: "Memeriksa keanggotaan..."
+      }).catch(() => {});
+      await verifyPairForUser(env, pairId, q.from.id, q.message.chat.id);
+      return;
+    }
+    if (data.startsWith("support:select:")) {
+      const packageId = data.slice("support:select:".length);
+      const pkg = supporterPackage(packageId);
+      if (!pkg || !q.message || !isPrivateChat(q.message)) {
+        await tg(env, "answerCallbackQuery", {callback_query_id: q.id, text: "Buka /support lewat DM bot."}).catch(() => {});
+        return;
+      }
+      await tg(env, "answerCallbackQuery", {callback_query_id: q.id}).catch(() => {});
+      await sendSupporterPackageConfirmation(env, q.from.id, q.message.chat.id, packageId);
+      return;
+    }
+    if (data === "support:terms") {
+      await tg(env, "answerCallbackQuery", {callback_query_id: q.id}).catch(() => {});
+      if (q.message?.chat?.id) await tg(env, "sendMessage", {chat_id: q.message.chat.id, text: supporterTermsText()});
+      return;
+    }
+    if (data.startsWith("support:buy:")) {
+      const packageId = data.slice("support:buy:".length);
+      const pkg = supporterPackage(packageId);
+      if (!pkg || !q.message || !isPrivateChat(q.message)) {
+        await tg(env, "answerCallbackQuery", {callback_query_id: q.id, text: "Buka /support lewat DM bot."}).catch(() => {});
+        return;
+      }
+      await tg(env, "answerCallbackQuery", {callback_query_id: q.id, text: `Membuat invoice ${pkg.stars} Stars...`}).catch(() => {});
+      await sendSupporterInvoice(env, q.from.id, q.message.chat.id, packageId);
+      return;
+    }
+  }
+}
+
+async function checkPairRateLimit(request, env) {
+  const ip = request.headers.get("CF-Connecting-IP") || "";
+  if (!ip || !env.MEMBER_HASH_SALT) return true;
+
+  const fingerprint = await sha256Hex(`rate:${ip}:${env.MEMBER_HASH_SALT}`);
+  const key = `rate:${fingerprint}`;
+  const count = Number(await env.PAIRINGS.get(key) || 0);
+  if (count >= 5) return false;
+
+  await env.PAIRINGS.put(key, String(count + 1), {expirationTtl: 60});
+  return true;
+}
+
+function normalizeDistributionChannel(value) {
+  const channel = String(value || "github").trim().toLowerCase();
+  return DISTRIBUTION_CHANNELS.includes(channel) ? channel : "github";
+}
+
+function envString(env, name, fallback = "") {
+  const value = env?.[name];
+  if (value == null) return fallback;
+  return String(value).trim();
+}
+
+function envBoolean(env, name, fallback = false) {
+  const raw = envString(env, name, "").toLowerCase();
+  if (!raw) return fallback;
+  return ["1", "true", "yes", "on"].includes(raw);
+}
+
+function channelEnvName(channel, suffix) {
+  return `EXTENSION_${String(channel).toUpperCase()}_${suffix}`;
+}
+
+function storeChannel(channel) {
+  return channel === "cws" || channel === "edge";
+}
+
+function channelPolicy(env, channelValue) {
+  const channel = normalizeDistributionChannel(channelValue);
+  const latestVersion = envString(
+    env,
+    channelEnvName(channel, "LATEST_VERSION"),
+    envString(env, "EXTENSION_LATEST_VERSION", "1.0.5")
+  );
+  const configuredMinimum = envString(
+    env,
+    channelEnvName(channel, "MINIMUM_VERSION"),
+    envString(env, "EXTENSION_MINIMUM_VERSION", "1.0.2")
+  );
+  const forceAfter = envString(
+    env,
+    channelEnvName(channel, "FORCE_AFTER"),
+    envString(env, "EXTENSION_FORCE_AFTER", "")
+  ) || null;
+  const releaseUrlValue = envString(
+    env,
+    channelEnvName(channel, "RELEASE_URL"),
+    releaseUrl(env)
+  );
+  const message = envString(
+    env,
+    channelEnvName(channel, "UPDATE_MESSAGE"),
+    envString(env, "EXTENSION_UPDATE_MESSAGE", "")
+  );
+  const storeReady = storeChannel(channel)
+    ? envBoolean(env, channelEnvName(channel, "STORE_READY"), false)
+    : true;
+
+  // Never lock Store users to a version that is not actually available in that Store.
+  const minimumVersion = storeChannel(channel) && !storeReady ? "" : configuredMinimum;
+
+  return {
+    channel,
+    latestVersion,
+    minimumVersion,
+    forceAfter,
+    releaseUrl: releaseUrlValue,
+    message,
+    storeReady
+  };
+}
+
+function safeCloudText(value, max = 700) {
+  return String(value ?? "").replace(/[\u0000-\u001F\u007F]/g, " ").trim().slice(0, max);
+}
+
+function safeHttpsUrl(value) {
+  const raw = safeCloudText(value, 2048);
+  if (!raw) return "";
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" ? u.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function sanitizeCloudAction(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const type = safeCloudText(raw.type, 32).toUpperCase();
+  const allowed = new Set(["OPEN_URL", "OPEN_CHANNEL", "OPEN_GROUP", "OPEN_ABOUT"]);
+  if (!allowed.has(type)) return null;
+  const label = safeCloudText(raw.label, 48);
+  if (!label) return null;
+  if (type === "OPEN_URL") {
+    const url = safeHttpsUrl(raw.url);
+    return url ? {type, label, url} : null;
+  }
+  return {type, label};
+}
+
+function sanitizeExtensionState(raw) {
+  const out = {
+    schema_version: 1,
+    generated_at: new Date().toISOString(),
+    ttl_seconds: CLOUD_STATE_DEFAULT_TTL_SECONDS,
+    sections: [],    supporter: {active: false, until: null, label: ""},
+    features: {supporter_card: false, community_banner: false}
+  };
+  if (!raw || typeof raw !== "object" || Number(raw.schema_version) !== 1) return out;
+
+  const ttl = Number(raw.ttl_seconds);
+  if (Number.isFinite(ttl)) out.ttl_seconds = Math.max(60, Math.min(86400, Math.floor(ttl)));
+
+  if (Array.isArray(raw.sections)) {
+    for (let i = 0; i < raw.sections.length && out.sections.length < 8; i++) {
+      const item = raw.sections[i];
+      if (!item || typeof item !== "object" || item.visible !== true) continue;
+      const rawId = safeCloudText(item.id, 48);
+      const id = /^[a-z0-9][a-z0-9_-]{0,47}$/i.test(rawId) ? rawId : `section-${i + 1}`;
+      const kindRaw = safeCloudText(item.kind, 24).toLowerCase();
+      const kind = ["info", "warning", "success", "community", "supporter", "sponsor"].includes(kindRaw) ? kindRaw : "info";
+      const title = safeCloudText(item.title, 96);
+      const text = safeCloudText(item.text, 700);
+      if (!title && !text) continue;
+      let action = sanitizeCloudAction(item.action);
+      if (kind === "sponsor" && action?.type !== "OPEN_URL") action = null;
+      out.sections.push({id, visible: true, kind, title, text, action});
+    }
+  }
+
+  const supporter = raw.supporter && typeof raw.supporter === "object" ? raw.supporter : {};
+  out.supporter = {
+    active: supporter.active === true,
+    until: safeCloudText(supporter.until, 64) || null,
+    label: safeCloudText(supporter.label, 64)
+  };
+  const features = raw.features && typeof raw.features === "object" ? raw.features : {};
+  out.features = {
+    supporter_card: features.supporter_card === true,
+    community_banner: features.community_banner === true
+  };
+  return out;
+}
+
+function extensionStateKey(channel) {
+  return `extension-state:${normalizeDistributionChannel(channel)}`;
+}
+
+async function extensionState(request, env, url) {
+  const channel = normalizeDistributionChannel(url.searchParams.get("distribution_channel"));
+  let state = null;
+  if (env.PAIRINGS) state = await env.PAIRINGS.get(extensionStateKey(channel), "json");
+  if (!state) {
+    const raw = envString(env, channelEnvName(channel, "STATE_JSON"), envString(env, "EXTENSION_STATE_JSON", ""));
+    if (raw) {
+      try { state = JSON.parse(raw); } catch { state = null; }
+    }
+  }
+  return json(sanitizeExtensionState(state), 200, corsHeaders(request));
+}
+
+async function adminExtensionState(request, env, url) {
+  const auth = request.headers.get("Authorization") || "";
+  if (!env.ADMIN_SETUP_TOKEN || auth !== `Bearer ${env.ADMIN_SETUP_TOKEN}`) {
+    return json({error: "unauthorized"}, 401, corsHeaders(request));
+  }
+  if (!env.PAIRINGS) return json({error: "PAIRINGS KV belum dikonfigurasi"}, 503, corsHeaders(request));
+  const channel = normalizeDistributionChannel(url.searchParams.get("distribution_channel"));
+  const key = extensionStateKey(channel);
+
+  if (request.method === "GET") {
+    const existing = await env.PAIRINGS.get(key, "json");
+    return json({channel, state: sanitizeExtensionState(existing)}, 200, corsHeaders(request));
+  }
+
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object") return json({error: "JSON body tidak valid"}, 400, corsHeaders(request));
+  const state = sanitizeExtensionState(body);
+  await env.PAIRINGS.put(key, JSON.stringify(state));
+  return json({ok: true, channel, state}, 200, corsHeaders(request));
+}
+
+function secureHtml(body) {
+  return new Response(body, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "no-referrer"
+    }
+  });
+}
+
+function reviewerPage() {
+  return secureHtml(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BMP Terbuka Store Review</title><style>body{font:16px system-ui;max-width:560px;margin:40px auto;padding:0 18px;line-height:1.5}label{display:block;margin:14px 0 5px}input{width:100%;box-sizing:border-box;padding:10px}button{margin-top:16px;padding:10px 14px}</style><h1>BMP Terbuka Store Review</h1><p>Use only the temporary reviewer code supplied privately in Microsoft/Chrome certification notes.</p><form method="post" action="/v1/reviewer/activate"><label>Pair ID</label><input name="pair_id" autocomplete="off" required><label>Reviewer code</label><input name="reviewer_code" type="password" autocomplete="off" required><button type="submit">Activate review installation</button></form></html>`);
+}
+
+async function reviewerRateLimit(request, env) {
+  if (!env.PAIRINGS || !env.MEMBER_HASH_SALT) return true;
+  const ip = request.headers.get("CF-Connecting-IP") || "";
+  if (!ip) return true;
+  const fingerprint = await sha256Hex(`review-rate:${ip}:${env.MEMBER_HASH_SALT}`);
+  const key = `review-rate:${fingerprint}`;
+  const count = Number(await env.PAIRINGS.get(key) || 0);
+  if (count >= 10) return false;
+  await env.PAIRINGS.put(key, String(count + 1), {expirationTtl: 10 * 60});
+  return true;
+}
+
+async function issueReviewerToken(env, installId) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = {alg: "RS256", typ: "JWT"};
+  const payload = {
+    iss: TOKEN_ISSUER,
+    aud: TOKEN_AUDIENCE,
+    install_id: installId,
+    iat: now,
+    exp: now + REVIEWER_TOKEN_TTL_SECONDS,
+    scope: ["community_access", "store_review"],
+    member_ref: await sha256Hex(`store-reviewer:${env.MEMBER_HASH_SALT || ""}`)
+  };
+  const h = b64urlJson(header);
+  const p = b64urlJson(payload);
+  const signingInput = `${h}.${p}`;
+  const key = await importSigningKey(env);
+  const sig = await crypto.subtle.sign({name: "RSASSA-PKCS1-v1_5"}, key, new TextEncoder().encode(signingInput));
+  return `${signingInput}.${b64url(new Uint8Array(sig))}`;
+}
+
+async function reviewerActivate(request, env) {
+  if (!(await reviewerRateLimit(request, env))) {
+    return new Response("Too many attempts.", {status: 429, headers: {"Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store"}});
+  }
+  if (!env.STORE_REVIEWER_SECRET) {
+    return new Response("Reviewer activation is not configured.", {status: 503, headers: {"Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store"}});
+  }
+  const contentType = request.headers.get("Content-Type") || "";
+  let pairId = "";
+  let reviewerCode = "";
+  if (contentType.includes("application/json")) {
+    const body = await request.json().catch(() => ({}));
+    pairId = String(body.pair_id || "").trim();
+    reviewerCode = String(body.reviewer_code || "");
+  } else {
+    const form = await request.formData().catch(() => null);
+    pairId = String(form?.get("pair_id") || "").trim();
+    reviewerCode = String(form?.get("reviewer_code") || "");
+  }
+  if (!pairId || reviewerCode !== String(env.STORE_REVIEWER_SECRET)) {
+    return new Response("Invalid pair ID or reviewer code.", {status: 403, headers: {"Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store"}});
+  }
+  const key = `pair:${pairId}`;
+  const record = await env.PAIRINGS.get(key, "json");
+  if (!record) return new Response("Pair session expired. Start activation again in the extension.", {status: 410, headers: {"Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store"}});
+  if (!storeChannel(normalizeDistributionChannel(record.distribution_channel))) {
+    return new Response("This pair is not a Store review build.", {status: 403, headers: {"Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store"}});
+  }
+  const token = await issueReviewerToken(env, record.install_id);
+  await env.PAIRINGS.put(key, JSON.stringify({...record, status: "verified", token, verified_at: Date.now(), verification_source: "store_reviewer"}), {expirationTtl: PAIR_TTL_SECONDS});
+  return secureHtml('<!doctype html><html lang="en"><meta charset="utf-8"><title>Activated</title><body style="font:16px system-ui;max-width:560px;margin:40px auto;padding:0 18px"><h1>Review installation activated</h1><p>Return to the BMP Terbuka extension popup. It will detect activation automatically.</p></body></html>');
+}
+
+function versionParts(value) {
+  return String(value || "")
+    .split(".")
+    .slice(0, 4)
+    .map(x => Number.parseInt(x, 10))
+    .map(x => Number.isFinite(x) ? x : 0);
+}
+
+function compareVersions(a, b) {
+  const x = versionParts(a);
+  const y = versionParts(b);
+  const n = Math.max(x.length, y.length, 3);
+  for (let i = 0; i < n; i++) {
+    const xa = x[i] || 0;
+    const ya = y[i] || 0;
+    if (xa < ya) return -1;
+    if (xa > ya) return 1;
+  }
+  return 0;
+}
+
+function releaseUrl(env) {
+  return String(
+    env.EXTENSION_RELEASE_URL || env.CHANNEL_URL || "https://t.me/bukabmp"
+  ).trim();
+}
+
+async function pairStart(request, env) {
+  if (!(await checkPairRateLimit(request, env))) {
+    return json({error: "Terlalu banyak permintaan aktivasi. Coba lagi sebentar."}, 429, corsHeaders(request));
+  }
+  const body = await request.json().catch(() => ({}));
+  const extensionVersion = String(body.extension_version || "").trim();
+  const distributionChannel = normalizeDistributionChannel(body.distribution_channel);
+  const policy = channelPolicy(env, distributionChannel);
+  const minimumVersion = policy.minimumVersion;
+  if (!extensionVersion || (minimumVersion && compareVersions(extensionVersion, minimumVersion) < 0)) {
+    return json({
+      error: `Versi BMP Terbuka ini sudah tidak didukung. Update ke versi ${minimumVersion || policy.latestVersion} atau lebih baru.`,
+      code: "update_required",
+      minimum_version: minimumVersion || null,
+      release_url: policy.releaseUrl,
+      distribution_channel: distributionChannel
+    }, 426, corsHeaders(request));
+  }
+
+  const installId = String(body.install_id || "");
+  if (!/^[0-9a-fA-F-]{20,64}$/.test(installId)) {
+    return json({error: "install_id tidak valid"}, 400);
+  }
+  if (!env.BOT_USERNAME) {
+    return json({error: "BOT_USERNAME belum dikonfigurasi"}, 503);
+  }
+
+  const pairId = randomToken(9);
+  const pollSecret = randomToken(24);
+  const now = Date.now();
+  const record = {
+    install_id: installId,
+    extension_version: extensionVersion,
+    distribution_channel: distributionChannel,
+    poll_secret_hash: await sha256Hex(pollSecret),
+    status: "pending",
+    created_at: now
+  };
+
+  await env.PAIRINGS.put(`pair:${pairId}`, JSON.stringify(record), {
+    expirationTtl: PAIR_TTL_SECONDS
+  });
+
+  return json({
+    pair_id: pairId,
+    poll_secret: pollSecret,
+    deep_link: `https://t.me/${env.BOT_USERNAME}?start=${encodeURIComponent(pairId)}`,
+    expires_at: now + PAIR_TTL_SECONDS * 1000
+  }, 200, corsHeaders(request));
+}
+
+async function pairStatus(request, env, url) {
+  const pairId = String(url.searchParams.get("pair_id") || "");
+  const auth = request.headers.get("Authorization") || "";
+  const pollSecret = auth.startsWith("Pair ") ? auth.slice(5) : "";
+  if (!pairId || !pollSecret) {
+    return json({error: "Pair authorization diperlukan"}, 401, corsHeaders(request));
+  }
+
+  const record = await env.PAIRINGS.get(`pair:${pairId}`, "json");
+  if (!record) return json({status: "expired"}, 200, corsHeaders(request));
+
+  const expected = record.poll_secret_hash;
+  const actual = await sha256Hex(pollSecret);
+  if (!expected || expected !== actual) {
+    return json({error: "Pair authorization tidak valid"}, 403, corsHeaders(request));
+  }
+
+  if (record.status === "verified" && record.token) {
+    return json({status: "verified", token: record.token}, 200, corsHeaders(request));
+  }
+  return json({status: "pending"}, 200, corsHeaders(request));
+}
+
+
+function versionPolicy(request, env, url) {
+  const currentVersion = String(url.searchParams.get("extension_version") || "").trim();
+  const channel = normalizeDistributionChannel(url.searchParams.get("distribution_channel"));
+  const policy = channelPolicy(env, channel);
+
+  return json({
+    current_version: currentVersion || null,
+    distribution_channel: policy.channel,
+    latest_version: policy.latestVersion,
+    minimum_version: policy.minimumVersion || null,
+    force_after: policy.forceAfter,
+    release_url: policy.releaseUrl,
+    message: policy.message,
+    store_ready: policy.storeReady,
+    check_after_seconds: VERSION_CHECK_AFTER_SECONDS
+  }, 200, corsHeaders(request));
+}
+
+
+async function adminSetWebhook(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  if (!env.ADMIN_SETUP_TOKEN || auth !== `Bearer ${env.ADMIN_SETUP_TOKEN}`) {
+    return json({error: "unauthorized"}, 401);
+  }
+  if (!env.PUBLIC_BASE_URL || !env.TELEGRAM_WEBHOOK_SECRET) {
+    return json({error: "PUBLIC_BASE_URL / TELEGRAM_WEBHOOK_SECRET belum diset"}, 503);
+  }
+
+  const webhook = `${env.PUBLIC_BASE_URL.replace(/\/$/, "")}/telegram/webhook`;
+  const result = await tg(env, "setWebhook", {
+    url: webhook,
+    secret_token: env.TELEGRAM_WEBHOOK_SECRET,
+    allowed_updates: ["message", "edited_message", "callback_query", "pre_checkout_query"],
+    drop_pending_updates: true
+  });
+  await tg(env, "setMyCommands", {
+    commands: [
+      {command: "start", description: "Aktivasi BMP Terbuka"},
+      {command: "verify", description: "Verifikasi kode aktivasi"},
+      {command: "ask", description: "Tanya BMP Terbuka Assistant"},
+      {command: "tutorial", description: "Cara pakai v1.0.5"},
+      {command: "install", description: "Cara instalasi"},
+      {command: "android", description: "Tutorial Android"},
+      {command: "desktop", description: "Tutorial Desktop"},
+      {command: "group", description: "Join Group Terbuka"},
+      {command: "update", description: "Versi terbaru"},
+      {command: "fitur", description: "Fitur v1.0.5"},
+      {command: "storage", description: "Storage/resume/export"},
+      {command: "bug", description: "Format laporan kendala"},
+      {command: "quota", description: "Cek sisa kuota AI"},
+      {command: "support", description: "Supporter Pass via Stars"},
+      {command: "supporter", description: "Status Supporter Pass"},
+      {command: "supporters", description: "Supporter Wall"},
+      {command: "terms", description: "Terms Supporter Pass"},
+      {command: "paysupport", description: "Bantuan pembayaran Stars"},
+      {command: "bmphelp", description: "Bantuan bot"}
+    ]
+  }).catch(() => {});
+  return json({ok: true, webhook, result});
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, {status: 204, headers: corsHeaders(request)});
+    }
+
+    try {
+      if (url.pathname === "/" || url.pathname === "/health") {
+        return json({
+          service: "BMP Terbuka Community",
+          version: APP_VERSION,
+          status: "ok",
+          stores_documents: false,
+          stores_source_credentials: false,
+          support_bot: true,
+          support_kb_entries: SUPPORT_KB.length,
+          support_ai_model: SUPPORT_AI_MODEL,
+          support_ai_configured: Boolean(env.AI && typeof env.AI.run === "function"),
+          support_access_mode: "group_only_except_privileged_or_active_supporter",
+          support_privileged_users_configured: supportPrivilegedUserIds(env).size,
+          support_group_configured: Boolean(env.SUPPORT_GROUP_ID || env.GROUP_ID),
+          support_explicit_trigger_only: true,
+          privacy_gate_enabled: true,
+          privacy_gate_scope: "official_group_text_caption_contact_location",
+          supporter_pass: true,
+          supporter_packages: {day: {stars: 2, days: 1}, month: {stars: 50, days: 30}},
+          supporter_activation_bonus_days: SUPPORTER_ACTIVATION_BONUS_DAYS,
+          supporter_activation_max_days: SUPPORTER_ACTIVATION_MAX_DAYS,
+          supporter_context_turns: SUPPORTER_CONTEXT_MAX_TURNS,
+          store_channels: ["cws", "edge"],
+          realtime_extension_state: true,
+          reviewer_activation_configured: Boolean(env.STORE_REVIEWER_SECRET)
+        }, 200, corsHeaders(request));
+      }
+
+      if (url.pathname === "/v1/version" && request.method === "GET") {
+        return versionPolicy(request, env, url);
+      }
+
+      if (url.pathname === "/v1/extension-state" && request.method === "GET") {
+        return await extensionState(request, env, url);
+      }
+
+      if (url.pathname === "/review" && request.method === "GET") {
+        return reviewerPage();
+      }
+
+      if (url.pathname === "/v1/reviewer/activate" && request.method === "POST") {
+        return await reviewerActivate(request, env);
+      }
+
+      if (url.pathname === "/v1/pair/start" && request.method === "POST") {
+        return await pairStart(request, env);
+      }
+
+      if (url.pathname === "/v1/pair/status" && request.method === "GET") {
+        return await pairStatus(request, env, url);
+      }
+
+      if (url.pathname === "/telegram/webhook" && request.method === "POST") {
+        const secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
+        if (!env.TELEGRAM_WEBHOOK_SECRET || secret !== env.TELEGRAM_WEBHOOK_SECRET) {
+          return json({error: "unauthorized"}, 401);
+        }
+
+        const update = await request.json();
+
+        try {
+          await handleTelegram(env, update);
+        } catch (e) {
+          console.error("telegram_update_failed", {
+            update_id: update?.update_id,
+            error: String(e?.stack || e)
+          });
+
+          const chatId =
+            update?.message?.chat?.id ??
+            update?.callback_query?.message?.chat?.id ??
+            null;
+
+          if (chatId) {
+            const isGroupUpdate = ["group", "supergroup"].includes(update?.message?.chat?.type || "");
+            await tg(env, "sendMessage", {
+              chat_id: chatId,
+              text: isGroupUpdate
+                ? "⚠️ BMP Terbuka Assistant lagi error sebentar. Coba lagi nanti atau kirim detail kendalanya supaya member lain bisa bantu."
+                : "⚠️ Aktivasi belum selesai karena terjadi kesalahan backend. Update sudah diterima dan tidak akan mengunci antrean bot."
+            }).catch(() => {});
+          }
+        }
+
+        // Important: always acknowledge a valid Telegram webhook with HTTP 200.
+        // A poisoned activation update must never block later /start messages.
+        return json({ok: true});
+      }
+
+      if (url.pathname === "/admin/extension-state" && ["GET", "POST"].includes(request.method)) {
+        return await adminExtensionState(request, env, url);
+      }
+
+      if (url.pathname === "/admin/set-webhook" && request.method === "POST") {
+        return await adminSetWebhook(request, env);
+      }
+
+      return json({error: "not_found"}, 404, corsHeaders(request));
+    } catch (e) {
+      console.error(e);
+      return json({error: "internal_error"}, 500, corsHeaders(request));
+    }
+  }
+};
