@@ -57,6 +57,16 @@ import {
 import {getSupporterEntitlement, putSupporterEntitlement} from "./data/supporter.js";
 import {PAIR_TTL_SECONDS, TOKEN_TTL_DAYS, verifyPairForUser} from "./features/activation.js";
 import {
+  formatSupporterContext,
+  rememberSupporterTurn,
+  setSupporterWallMode,
+  supportAccessForUser,
+  supporterContext,
+  supporterStatusText,
+  supporterWallText,
+  supportPrivilegeForMessage
+} from "./features/supporter.js";
+import {
   SUPPORT_AI_MAX_CALLS_PER_DAY,
   SUPPORT_AI_MODEL,
   runSupportAi,
@@ -98,26 +108,6 @@ function corsHeaders(request) {
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Vary": "Origin"
   };
-}
-
-async function supportAccessForUser(env, userId) {
-  const id = String(userId || "").trim();
-  if (!id) return {privileged: false, source: null, supporter: null};
-  if (supportPrivilegedUserIds(env).has(id)) {
-    return {privileged: true, source: "allowlist", supporter: await getSupporterEntitlement(env, id)};
-  }
-  const supporter = await getSupporterEntitlement(env, id);
-  if (supporterIsActive(supporter)) {
-    return {privileged: true, source: "supporter", supporter};
-  }
-  return {privileged: false, source: null, supporter};
-}
-
-async function supportPrivilegeForMessage(env, message) {
-  if (isAnonymousAdminMessage(message)) {
-    return {privileged: false, source: null, supporter: null};
-  }
-  return await supportAccessForUser(env, message?.from?.id);
 }
 
 async function handlePaymentSupportCommand(env, message, details = "") {
@@ -165,98 +155,6 @@ async function handlePaymentSupportCommand(env, message, details = "") {
       : "⚠️ Kontak payment support belum terkonfigurasi. Gunakan Group Terbuka untuk menghubungi pengelola tanpa membagikan detail transaksi sensitif."
   });
 }
-
-async function supporterContext(env, userId, chatId) {
-  if (!env.PAIRINGS || !userId || !chatId) return [];
-  const record = await env.PAIRINGS.get(supporterContextKey(userId, chatId), "json");
-  return Array.isArray(record?.turns) ? record.turns.slice(-SUPPORTER_CONTEXT_MAX_TURNS) : [];
-}
-
-async function rememberSupporterTurn(env, userId, chatId, query, answer) {
-  if (!env.PAIRINGS || !userId || !chatId || !query || !answer) return;
-  const turns = await supporterContext(env, userId, chatId);
-  turns.push({
-    q: redactSensitiveSupportText(String(query)).slice(0, 1200),
-    a: redactSensitiveSupportText(String(answer)).slice(0, 2500),
-    at: Date.now()
-  });
-  await env.PAIRINGS.put(supporterContextKey(userId, chatId), JSON.stringify({turns: turns.slice(-SUPPORTER_CONTEXT_MAX_TURNS)}), {
-    expirationTtl: SUPPORTER_CONTEXT_TTL_SECONDS
-  });
-}
-
-function formatSupporterContext(turns) {
-  if (!Array.isArray(turns) || !turns.length) return "";
-  return turns.map((t, i) => `Turn ${i + 1}\nUser: ${t.q}\nBot: ${t.a}`).join("\n\n").slice(-6000);
-}
-
-async function supporterStatusText(env, userId) {
-  const access = await supportAccessForUser(env, userId);
-  if (access.source === "allowlist" && !supporterIsActive(access.supporter)) {
-    return "Akun khusus aktif: DM + Group + AI unlimited. Supporter Pass berbayar belum aktif.";
-  }
-  const record = access.supporter;
-  if (!supporterIsActive(record)) {
-    return "Supporter Pass belum aktif. Ketik /support untuk melihat paket 2 ⭐ / 1 hari atau 50 ⭐ / 30 hari.";
-  }
-  return [
-    "⭐ BMP Supporter aktif",
-    `Berlaku sampai: ${formatWibDateTime(record.supporter_until)}`,
-    "DM + AI unlimited: aktif",
-    "Priority support: aktif",
-    `Konteks troubleshooting: ${SUPPORTER_CONTEXT_MAX_TURNS} turn / 6 jam`,
-    `Supporter Wall: ${record.wall_mode || "private"}`,
-    Number(record.activation_until || 0) > Date.now()
-      ? `Target aktivasi extension: ${formatWibDateTime(record.activation_until)}`
-      : Number(record.activation_bonus_pending_days || 0) > 0
-        ? `Bonus aktivasi tertunda: +${record.activation_bonus_pending_days} hari` 
-        : "Bonus aktivasi tertunda: tidak ada"
-  ].join("\n");
-}
-
-async function setSupporterWallMode(env, message, mode) {
-  const userId = String(message?.from?.id || "");
-  const record = await getSupporterEntitlement(env, userId);
-  if (!supporterIsActive(record)) {
-    await sendSupportReply(env, message, "Supporter Pass belum aktif. Ketik /support untuk melihat paket.");
-    return;
-  }
-  const normalized = ["public", "anonymous", "private"].includes(mode) ? mode : "private";
-  record.wall_mode = normalized;
-  record.username = String(message?.from?.username || record.username || "");
-  record.first_name = String(message?.from?.first_name || record.first_name || "");
-  await putSupporterEntitlement(env, userId, record);
-  if (normalized === "private") {
-    if (env.PAIRINGS.delete) await env.PAIRINGS.delete(supporterWallKey(userId)).catch(() => {});
-  } else {
-    await env.PAIRINGS.put(supporterWallKey(userId), JSON.stringify({
-      user_id: userId,
-      mode: normalized,
-      username: record.username || "",
-      first_name: record.first_name || "",
-      supporter_until: record.supporter_until
-    }));
-  }
-  await sendSupportReply(env, message, `Supporter Wall diatur ke: ${normalized}.`);
-}
-
-async function supporterWallText(env) {
-  if (!env.PAIRINGS?.list) return "Supporter Wall belum tersedia pada binding KV ini.";
-  const listed = await env.PAIRINGS.list({prefix: "supporter-wall:", limit: 100});
-  const values = await Promise.all((listed.keys || []).map(k => env.PAIRINGS.get(k.name, "json")));
-  const active = values
-    .filter(Boolean)
-    .filter(x => Number(x.supporter_until || 0) > Date.now())
-    .slice(0, 50);
-  if (!active.length) return "⭐ Supporter Wall\n\nBelum ada supporter yang memilih tampil di wall.";
-  const names = active.map((x, i) => {
-    if (x.mode === "anonymous") return `${i + 1}. Anonymous Supporter`;
-    if (x.username) return `${i + 1}. @${x.username}`;
-    return `${i + 1}. ${String(x.first_name || "Supporter").slice(0, 40)}`;
-  });
-  return ["⭐ Supporter Wall", "", ...names].join("\n");
-}
-
 
 const SUPPORT_KB = [
   {
@@ -1651,7 +1549,11 @@ async function handleSupportMessage(env, message) {
   if (currentCommand === "supporter") {
     const arg = String(invocation.command?.args || "").trim().toLowerCase();
     if (["public", "anonymous", "private"].includes(arg)) {
-      await setSupporterWallMode(env, message, arg);
+      await sendSupportReply(
+        env,
+        message,
+        await setSupporterWallMode(env, message, arg)
+      );
     } else {
       await sendSupportReply(env, message, await supporterStatusText(env, message?.from?.id));
     }
