@@ -1,5 +1,5 @@
 import {randomToken} from "../security/crypto.js";
-import {d1ReferralEnabled} from "../data/d1/mode.js";
+import {d1ActivationLedgerEnabled, d1ReferralEnabled} from "../data/d1/mode.js";
 import {
   createOpaqueReferralCode,
   referralDeepLink,
@@ -13,6 +13,7 @@ import {
 import {qualifyReferralForActivatedUser} from "../data/d1/referral-qualification.js";
 import {getSupporterEntitlement, mirrorSupporterEntitlementToKv} from "../data/supporter.js";
 import {auditErrorName} from "../security/audit.js";
+import {getActivationLedger} from "../data/d1/activation-ledger.js";
 
 export async function ensureReferralUser(env, telegramUserId) {
   if (!d1ReferralEnabled(env)) return {available: false, user: null};
@@ -37,6 +38,17 @@ export async function ensureReferralUser(env, telegramUserId) {
 
 export async function attributeReferralFromCode(env, referredUserId, referralCode) {
   if (!d1ReferralEnabled(env)) return {available: false, created: false};
+
+  if (d1ActivationLedgerEnabled(env)) {
+    const activation = await getActivationLedger(env, referredUserId);
+    if (activation.activated) {
+      return {
+        available: true,
+        created: false,
+        reason: "already_activated"
+      };
+    }
+  }
 
   const referred = await ensureReferralUser(env, referredUserId);
   if (!referred.user) {
