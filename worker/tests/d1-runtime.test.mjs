@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {d1BindingAvailable, d1WritesEnabled} from "../src/data/d1/mode.js";
+import {d1BindingAvailable, d1ReplayEnabled, d1WritesEnabled} from "../src/data/d1/mode.js";
 import {qualifyReferralForActivatedUser} from "../src/data/d1/referral-qualification.js";
 import {applySupporterPaymentTransaction} from "../src/data/d1/payment-transaction.js";
 import {ensureReferralUser} from "../src/features/referral-service.js";
@@ -155,4 +155,43 @@ test("supporter payment contract starts with unique payment insert in one transa
   assert.doesNotMatch(db.batches[0][0].sql, /OR IGNORE/);
   assert.match(db.batches[0][2].sql, /UPDATE supporter_state/);
   assert.deepEqual(result, state);
+});
+
+test("atomic replay guard can be enabled independently from general D1 writes", async () => {
+  const seen = new Set();
+  const db = {
+    prepare(sql) {
+      assert.match(sql, /INSERT OR IGNORE INTO processed_updates/);
+      return {
+        bind(updateId) {
+          return {
+            async run() {
+              const duplicate = seen.has(updateId);
+              seen.add(updateId);
+              return {meta: {changes: duplicate ? 0 : 1}};
+            }
+          };
+        }
+      };
+    }
+  };
+  const env = {
+    BOT_DB: db,
+    BOT_V2_D1_REPLAY_ENABLED: "true",
+    PAIRINGS: {
+      async get() { throw new Error("KV must not be read in D1 replay mode"); },
+      async put() { throw new Error("KV must not be written in D1 replay mode"); }
+    }
+  };
+
+  assert.equal(d1ReplayEnabled(env), true);
+  assert.equal(d1WritesEnabled(env), false);
+
+  const {claimTelegramUpdate} = await import("../src/security/idempotency.js");
+  const first = await claimTelegramUpdate(env, 9001);
+  const second = await claimTelegramUpdate(env, 9001);
+  assert.equal(first.process, true);
+  assert.equal(first.authority, "d1");
+  assert.equal(second.process, false);
+  assert.equal(second.duplicate, true);
 });
