@@ -13,7 +13,7 @@ import {
 import {parseTelegramCallback} from "./telegram/callbacks.js";
 import {SUPPORT_KB} from "./knowledge.generated.js";
 import {supportPrivilegedUserIds} from "./security/permissions.js";
-import {v21UiCanaryCount, v21UiCanaryEnabled, v21UiCanaryUser} from "./features/ui-canary.js";
+import {v21UiCanaryCount, v21UiCanaryEnabled, v21UiCanaryUser, v21UiGlobalEnabled} from "./features/ui-canary.js";
 import {b64url, b64urlJson, importSigningKey, randomToken, sha256Hex} from "./security/crypto.js";
 import {checkPairRateLimit} from "./security/rate-limit.js";
 import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
@@ -1742,6 +1742,7 @@ export default {
           bot_v2_referral_d1_enabled: d1ReferralEnabled(env),
           bot_v2_referral_self_test_enabled: d1ReferralSelfTestEnabled(env),
           bot_v2_activation_ledger_enabled: d1ActivationLedgerEnabled(env),
+          bot_v21_ui_enabled: v21UiGlobalEnabled(env),
           bot_v21_ui_canary_enabled: v21UiCanaryEnabled(env),
           bot_v21_ui_canary_user_count: v21UiCanaryCount(env)
         }, 200, corsHeaders(request));
