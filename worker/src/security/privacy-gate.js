@@ -1,4 +1,5 @@
 import {tg} from "../telegram/api.js";
+import {auditErrorName} from "./audit.js";
 import {isNormalBotMessage, isOfficialSupportGroup} from "../telegram/router.js";
 
 const PRIVACY_WARNING_TEXT = "Pesan tadi dihapus karena terdeteksi mengandung data pribadi atau kredensial. Kirim ulang setelah bagian sensitif disamarkan.";
@@ -80,7 +81,7 @@ export async function handlePrivacyGate(env, message) {
     console.error("privacy_delete_failed", {
       update_message_id: message?.message_id || null,
       kind: detection.kind || "unknown",
-      error: String(error?.message || error)
+      error_name: auditErrorName(error)
     });
   }
 
