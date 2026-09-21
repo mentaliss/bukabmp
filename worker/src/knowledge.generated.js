@@ -375,14 +375,17 @@ export const SUPPORT_KB = Object.freeze([
       "cara join grup",
       "join group",
       "gabung grup",
-      "group terbuka"
+      "group terbuka",
+      "link grup",
+      "link group"
     ],
     "keywords": [
       "join",
       "group",
-      "grup"
+      "grup",
+      "telegram"
     ],
-    "answer": "Cara join Group Terbuka: https://t.me/bukabmp/13"
+    "answer": "Buka https://t.me/bukabmp/13. Jika Telegram membuka posting komunitas, buka komentar/diskusinya lalu tekan Join/Gabung pada Group Terbuka. Setelah masuk, kamu bisa mention @bukabmp_bot, reply pesan bot, atau ketik /ask diikuti pertanyaan."
   },
   {
     "id": "activation",
@@ -1166,7 +1169,7 @@ export const SUPPORT_KB = Object.freeze([
       "member",
       "bantu"
     ],
-    "answer": "Kalau jawaban bot belum menyelesaikan masalah, kirim detail kendala di Group Terbuka. Member lain bisa ikut bantu; sertakan screenshot, versi, platform, Kode BMP, dan modul yang bermasalah."
+    "answer": "Kalau jawaban bot belum menyelesaikan masalah, kirim detail kendala di Group Terbuka: https://t.me/bukabmp/13. Jika link membuka posting komunitas, buka komentar/diskusinya lalu tekan Join/Gabung. Sertakan screenshot, versi, platform, Kode BMP, dan modul yang bermasalah."
   },
   {
     "id": "greeting",
@@ -1180,6 +1183,77 @@ export const SUPPORT_KB = Object.freeze([
       "halo",
       "hai"
     ],
-    "answer": "Halo 👋 Tanya aja soal instalasi, Kode BMP, Android/Desktop, aktivasi, error, atau fitur v1.0.5. Bisa juga pakai /tutorial, /fitur, atau /bug."
+    "answer": "Halo 👋 Tanya aja soal instalasi, Kode BMP, Android/Desktop, aktivasi, error, atau fitur v1.0.5. Gunakan menu Bantuan/Ekstensi atau tanyakan langsung ke BMP Terbuka Assistant di Group Terbuka."
+  },
+  {
+    "id": "features-v105",
+    "title": "Fitur utama v1.0.5",
+    "aliases": [
+      "fitur bmp",
+      "fitur 1.0.5",
+      "fitur terbaru",
+      "apa saja fiturnya"
+    ],
+    "keywords": [
+      "fitur",
+      "1.0.5",
+      "resume",
+      "storage",
+      "merge"
+    ],
+    "answer": "Fitur utama v1.0.5: resume dari penyimpanan lokal, ringkasan modul/ukuran storage per Kode BMP, download ulang hanya range yang dipilih, PDF gabungan FULL atau range, proteksi gap saat merge, ekspor ulang tanpa OCR, hapus storage per BMP tanpa menghapus Downloads, dan page-count yang berhenti di halaman terakhir reader."
+  },
+  {
+    "id": "ai-quota",
+    "title": "Kuota BMP Terbuka Assistant",
+    "aliases": [
+      "kuota ai",
+      "sisa kuota",
+      "berapa kali ai",
+      "limit ai",
+      "ai unlimited"
+    ],
+    "keywords": [
+      "kuota",
+      "ai",
+      "assistant",
+      "supporter"
+    ],
+    "answer": "Akun reguler mendapat maksimal 6 pertanyaan AI per hari. Jawaban FAQ yang cocok dengan basis pengetahuan tidak memakai kuota AI. Supporter aktif dan akun khusus mendapat akses AI unlimited sesuai status akun saat itu."
+  },
+  {
+    "id": "supporter-pass-help",
+    "title": "Bantuan Supporter Pass",
+    "aliases": [
+      "supporter pass",
+      "status supporter",
+      "cara supporter",
+      "supporter wall",
+      "terms supporter"
+    ],
+    "keywords": [
+      "supporter",
+      "status",
+      "terms",
+      "wall"
+    ],
+    "answer": "Kelola Supporter Pass lewat menu Supporter di DM bot. Di sana tersedia status Supporter, paket, terms, Supporter Wall, dan alur pembayaran. Informasi dinamis seperti status aktif dan masa berlaku dibaca langsung dari akunmu."
+  },
+  {
+    "id": "supporter-payment-help",
+    "title": "Bantuan pembayaran Supporter",
+    "aliases": [
+      "pembayaran supporter bermasalah",
+      "stars sudah bayar",
+      "supporter belum aktif",
+      "payment supporter"
+    ],
+    "keywords": [
+      "supporter",
+      "pembayaran",
+      "stars",
+      "payment"
+    ],
+    "answer": "Kalau pembayaran Telegram Stars terdeteksi tetapi Supporter belum aktif, jangan bayar ulang. Buka menu Supporter di DM bot dan gunakan bantuan pembayaran agar transaksi bisa diperiksa. Jangan kirim password, OTP, token, cookie, atau data kartu."
   }
 ]);
