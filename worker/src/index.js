@@ -17,7 +17,7 @@ import {b64url, b64urlJson, importSigningKey, randomToken, sha256Hex} from "./se
 import {checkPairRateLimit} from "./security/rate-limit.js";
 import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
 import {claimTelegramUpdate} from "./security/idempotency.js";
-import {d1MigrationEnabled, d1PaymentEnabled, d1ReadProbe, d1ReferralEnabled, d1ReferralSelfTestEnabled, d1ReplayEnabled, d1SupporterEnabled, d1WritesEnabled} from "./data/d1/mode.js";
+import {d1ActivationLedgerEnabled, d1MigrationEnabled, d1PaymentEnabled, d1ReadProbe, d1ReferralEnabled, d1ReferralSelfTestEnabled, d1ReplayEnabled, d1SupporterEnabled, d1WritesEnabled} from "./data/d1/mode.js";
 import {kvInventorySummary} from "./security/kv-inventory.js";
 import {supporterMigrationApply, supporterMigrationCompare, supporterMigrationDryRun} from "./features/supporter-migration.js";
 import {runReferralSelfTest} from "./features/referral-self-test.js";
@@ -40,14 +40,22 @@ import {
 import {
   sendSupporterMenu,
   sendSupporterPackageConfirmation,
+  sendSupporterPackages,
+  sendSupporterPaymentPanel,
+  sendSupporterStatusPanel,
+  sendSupporterTermsPanel,
+  sendSupporterWallPanel,
   supporterDeepLink,
   supporterTermsText
 } from "./menus/supporter.js";
 import {menuDeepLink, sendMainMenu} from "./menus/main.js";
 import {sendAccountMenu} from "./menus/account.js";
-import {sendReferralMenu} from "./menus/referral.js";
+import {sendAiMenu, sendAiPrompt, sendAiQuotaPanel} from "./menus/ai.js";
+import {sendExtensionMenu, sendExtensionPage} from "./menus/extension.js";
+import {sendGroupBotPanel} from "./menus/group.js";
+import {sendReferralMenu, sendReferralRewards, sendReferralRules} from "./menus/referral.js";
 import {sendActivationMenu} from "./menus/activation.js";
-import {sendHelpPanel} from "./menus/help-panel.js";
+import {sendBotHelpPanel, sendHelpPanel, sendReportHelpPanel} from "./menus/help-panel.js";
 import {
   SUPPORTER_ACTIVATION_BONUS_DAYS,
   SUPPORTER_ACTIVATION_MAX_DAYS,
@@ -513,38 +521,36 @@ async function handleTelegram(env, update) {
     const chatId = message.chat?.id;
     const text = String(message.text || "").trim();
     const command = parseBotCommand(text, env);
+    const commandName = command?.command || "";
 
-    // Payment receipt must be processed before support routing.
     if (message.successful_payment) {
       await applySuccessfulSupporterPayment(env, message);
       return;
     }
 
-    // Privacy moderation runs first for all ordinary group messages.
     if (await handlePrivacyGate(env, message)) return;
-
-    // Lazily remove stale BMP Supporter tags after expiry when the member speaks.
     await reconcileSupporterTagOnMessage(env, message).catch(() => {});
 
-    // Personal account/control actions are DM-only. Group invocations only
-    // receive a deep-link and never expose account/supporter/referral state.
-    if (!isPrivateChat(message) && command?.command === "menu") {
+    if (
+      !isPrivateChat(message) &&
+      ["start", "menu", "help", "bmphelp"].includes(commandName)
+    ) {
+      await sendGroupBotPanel(env, message);
+      return;
+    }
+
+    if (commandName === "id") {
       await tg(env, "sendMessage", {
         chat_id: chatId,
-        text: "Menu akun BMP Terbuka dibuka lewat DM bot.",
-        reply_parameters: {message_id: message.message_id},
-        reply_markup: {
-          inline_keyboard: [[{text: "Buka Menu Saya", url: menuDeepLink(env)}]]
-        }
+        text: "👤 Telegram User ID kamu: " + String(userId || "tidak tersedia"),
+        reply_parameters: {message_id: message.message_id}
       });
       return;
     }
 
-    // Deep-link /start support opens the private Stars purchase menu instead of
-    // being interpreted as an extension pair ID.
     if (
       isPrivateChat(message) &&
-      command?.command === "start" &&
+      commandName === "start" &&
       String(command.args || "").toLowerCase() === "support"
     ) {
       const access = await supportPrivilegeForMessage(env, message);
@@ -555,27 +561,47 @@ async function handleTelegram(env, update) {
 
     if (
       isPrivateChat(message) &&
-      (
-        command?.command === "menu" ||
-        (
-          command?.command === "start" &&
-          ["", "menu"].includes(String(command.args || "").trim().toLowerCase())
-        )
-      )
+      commandName === "start" &&
+      String(command.args || "").toLowerCase() === "help_extension"
     ) {
-      await sendMainMenu(env, chatId);
-      return;
-    }
-
-    if (isPrivateChat(message) && command?.command === "help") {
-      const access = await supportPrivilegeForMessage(env, message);
-      await sendHelpPanel(env, chatId, access);
+      await sendExtensionMenu(env, chatId, userId);
       return;
     }
 
     if (
       isPrivateChat(message) &&
-      command?.command === "start" &&
+      commandName === "start" &&
+      String(command.args || "").toLowerCase() === "ai"
+    ) {
+      await sendAiMenu(env, chatId, message.from);
+      return;
+    }
+
+    if (
+      isPrivateChat(message) &&
+      (
+        commandName === "menu" ||
+        (
+          commandName === "start" &&
+          ["", "menu"].includes(
+            String(command.args || "").trim().toLowerCase()
+          )
+        )
+      )
+    ) {
+      await sendMainMenu(env, chatId, userId);
+      return;
+    }
+
+    if (isPrivateChat(message) && commandName === "help") {
+      const access = await supportPrivilegeForMessage(env, message);
+      await sendHelpPanel(env, chatId, access, userId);
+      return;
+    }
+
+    if (
+      isPrivateChat(message) &&
+      commandName === "start" &&
       String(command.args || "").startsWith("ref_")
     ) {
       const code = parseReferralStartArg(command.args);
@@ -584,7 +610,7 @@ async function handleTelegram(env, update) {
           chat_id: chatId,
           text: "Link referral tidak valid."
         });
-        await sendMainMenu(env, chatId);
+        await sendMainMenu(env, chatId, userId);
         return;
       }
 
@@ -593,34 +619,51 @@ async function handleTelegram(env, update) {
       if (result.available) {
         if (result.created) {
           referralText =
-            "✅ Referral tersimpan. Reward baru dihitung setelah syarat komunitas dan aktivasi terpenuhi.";
+            "✅ Referral tersimpan. Referral baru menjadi valid setelah syarat komunitas dan aktivasi terpenuhi.";
+        } else if (result.reason === "already_activated") {
+          referralText =
+            "Referral tidak dapat diterapkan karena akun ini sudah tercatat pernah melakukan aktivasi BMP.";
         } else if (result.reason === "already_attributed") {
-          referralText = "Referral pertama akun ini sudah tercatat.";
+          referralText =
+            "Akun ini sudah terikat ke referral pertama yang tercatat.";
+        } else if (result.reason === "self_referral") {
+          referralText = "Referral diri sendiri tidak berlaku.";
         } else {
           referralText = "Link referral tidak valid.";
         }
       }
+
       await tg(env, "sendMessage", {
         chat_id: chatId,
         text: referralText
       });
-      await sendMainMenu(env, chatId);
+      await sendReferralMenu(env, chatId, userId);
       return;
     }
 
-    // Activation remains available in DM for everyone.
-    if (isPrivateChat(message) && command?.command === "start") {
+    if (isPrivateChat(message) && commandName === "start") {
       const pairId = command.args || "";
       await verifyPairForUser(env, pairId, userId, chatId);
       return;
     }
 
-    if (isPrivateChat(message) && command?.command === "verify") {
+    if (isPrivateChat(message) && commandName === "verify") {
       const pairId = command.args || "";
       if (!pairId) {
         await tg(env, "sendMessage", {
           chat_id: chatId,
-          text: "Kirim /verify diikuti kode aktivasi dari popup BMP Terbuka."
+          text: [
+            "🔐 Verifikasi manual",
+            "",
+            "Gunakan ini hanya kalau popup extension memberi kode aktivasi tetapi Telegram tidak membawanya otomatis.",
+            "",
+            "1. Buka popup BMP Terbuka.",
+            "2. Mulai aktivasi.",
+            "3. Salin kode yang tampil.",
+            "4. Kirim: /verify KODE",
+            "",
+            "Kalau kode sudah kedaluwarsa, mulai ulang aktivasi dari popup."
+          ].join("\n")
         });
         return;
       }
@@ -653,71 +696,268 @@ async function handleTelegram(env, update) {
       return;
     }
 
-    if (callback.namespace === "menu") {
-      if (!q.message || !isPrivateChat(q.message)) {
+    if (callback.namespace === "group") {
+      if (callback.action === "id") {
         await tg(env, "answerCallbackQuery", {
           callback_query_id: q.id,
-          text: "Buka menu lewat DM bot."
+          text: "Telegram User ID kamu: " + String(q.from?.id || "tidak tersedia"),
+          show_alert: true
         }).catch(() => {});
         return;
       }
+      if (callback.action === "ask") {
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id,
+          text: "Ketik /ask lalu pertanyaan kamu di Group Terbuka. Bisa juga mention @bukabmp_bot atau reply pesan bot.",
+          show_alert: true
+        }).catch(() => {});
+        return;
+      }
+    }
 
-      await tg(env, "answerCallbackQuery", {callback_query_id: q.id}).catch(() => {});
-      const chatId = q.message.chat.id;
-      const userId = q.from?.id;
+    const isPrivateCallback = q.message && isPrivateChat(q.message);
+    if (
+      ["menu", "ai", "extension", "help", "referral", "supporter", "activation"]
+        .includes(callback.namespace) &&
+      !isPrivateCallback
+    ) {
+      await tg(env, "answerCallbackQuery", {
+        callback_query_id: q.id,
+        text: "Buka menu pribadi lewat DM bot."
+      }).catch(() => {});
+      return;
+    }
+
+    const chatId = q.message?.chat?.id;
+    const userId = q.from?.id;
+    const menuMessageId = q.message?.message_id;
+
+    if (callback.namespace === "menu") {
+      await tg(env, "answerCallbackQuery", {
+        callback_query_id: q.id
+      }).catch(() => {});
 
       if (callback.action === "main") {
-        await sendMainMenu(env, chatId);
+        await sendMainMenu(env, chatId, userId, menuMessageId);
         return;
       }
       if (callback.action === "account") {
-        await sendAccountMenu(env, chatId, userId);
+        await sendAccountMenu(env, chatId, q.from, menuMessageId);
+        return;
+      }
+      if (callback.action === "ai") {
+        await sendAiMenu(env, chatId, q.from, menuMessageId);
+        return;
+      }
+      if (callback.action === "extension") {
+        await sendExtensionMenu(env, chatId, userId, menuMessageId);
         return;
       }
       if (callback.action === "supporter") {
         const callbackMessage = {...q.message, from: q.from};
         const access = await supportPrivilegeForMessage(env, callbackMessage);
-        await sendSupporterMenu(env, callbackMessage, access);
+        await sendSupporterMenu(
+          env,
+          callbackMessage,
+          access,
+          menuMessageId
+        );
         return;
       }
       if (callback.action === "referral") {
-        await sendReferralMenu(env, chatId, userId);
+        await sendReferralMenu(env, chatId, userId, menuMessageId);
         return;
       }
       if (callback.action === "activation") {
-        await sendActivationMenu(env, chatId);
+        await sendActivationMenu(
+          env,
+          chatId,
+          userId,
+          menuMessageId
+        );
         return;
       }
       if (callback.action === "help") {
         const callbackMessage = {...q.message, from: q.from};
-        const access = await supportPrivilegeForMessage(env, callbackMessage);
-        await sendHelpPanel(env, chatId, access);
+        const access = await supportPrivilegeForMessage(
+          env,
+          callbackMessage
+        );
+        await sendHelpPanel(
+          env,
+          chatId,
+          access,
+          userId,
+          menuMessageId
+        );
         return;
       }
     }
 
-    if (callback.namespace === "activation" && callback.action === "verify") {
-      if (!q.message || !isPrivateChat(q.message)) {
-        await tg(env, "answerCallbackQuery", {
-          callback_query_id: q.id,
-          text: "Verifikasi aktivasi hanya lewat DM bot."
-        }).catch(() => {});
-        return;
+    if (callback.namespace === "ai") {
+      await tg(env, "answerCallbackQuery", {
+        callback_query_id: q.id
+      }).catch(() => {});
+      if (callback.action === "prompt") {
+        await sendAiPrompt(env, chatId, q.from, menuMessageId);
+      } else if (callback.action === "quota") {
+        await sendAiQuotaPanel(env, chatId, q.from, menuMessageId);
       }
+      return;
+    }
+
+    if (callback.namespace === "extension") {
+      await tg(env, "answerCallbackQuery", {
+        callback_query_id: q.id
+      }).catch(() => {});
+      await sendExtensionPage(
+        env,
+        chatId,
+        userId,
+        menuMessageId,
+        callback.action
+      );
+      return;
+    }
+
+    if (callback.namespace === "help") {
+      await tg(env, "answerCallbackQuery", {
+        callback_query_id: q.id
+      }).catch(() => {});
+      const callbackMessage = {...q.message, from: q.from};
+      const access = await supportPrivilegeForMessage(env, callbackMessage);
+      if (callback.action === "bot") {
+        await sendBotHelpPanel(
+          env,
+          chatId,
+          userId,
+          menuMessageId,
+          access
+        );
+      } else if (callback.action === "report") {
+        await sendReportHelpPanel(
+          env,
+          chatId,
+          userId,
+          menuMessageId
+        );
+      }
+      return;
+    }
+
+    if (callback.namespace === "referral") {
+      await tg(env, "answerCallbackQuery", {
+        callback_query_id: q.id
+      }).catch(() => {});
+      if (callback.action === "rewards") {
+        await sendReferralRewards(env, chatId, userId, menuMessageId);
+      } else if (callback.action === "rules") {
+        await sendReferralRules(env, chatId, userId, menuMessageId);
+      }
+      return;
+    }
+
+    if (
+      callback.namespace === "activation" &&
+      callback.action === "verify"
+    ) {
       await tg(env, "answerCallbackQuery", {
         callback_query_id: q.id,
         text: "Memeriksa keanggotaan..."
       }).catch(() => {});
-      await verifyPairForUser(env, callback.pairId, q.from.id, q.message.chat.id);
+      await verifyPairForUser(
+        env,
+        callback.pairId,
+        q.from.id,
+        q.message.chat.id
+      );
       return;
     }
 
     if (callback.namespace === "supporter") {
-      if (!q.message || !isPrivateChat(q.message)) {
+      const callbackMessage = {...q.message, from: q.from};
+
+      if (callback.action === "packages") {
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id
+        }).catch(() => {});
+        await sendSupporterPackages(
+          env,
+          chatId,
+          userId,
+          menuMessageId
+        );
+        return;
+      }
+
+      if (callback.action === "status") {
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id
+        }).catch(() => {});
+        await sendSupporterStatusPanel(
+          env,
+          chatId,
+          userId,
+          menuMessageId
+        );
+        return;
+      }
+
+      if (callback.action === "wall") {
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id
+        }).catch(() => {});
+        await sendSupporterWallPanel(
+          env,
+          chatId,
+          userId,
+          menuMessageId
+        );
+        return;
+      }
+
+      if (callback.action === "payment") {
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id
+        }).catch(() => {});
+        await sendSupporterPaymentPanel(
+          env,
+          chatId,
+          userId,
+          menuMessageId
+        );
+        return;
+      }
+
+      if (callback.action === "terms") {
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id
+        }).catch(() => {});
+        await sendSupporterTermsPanel(
+          env,
+          chatId,
+          userId,
+          menuMessageId
+        );
+        return;
+      }
+
+      if (callback.action === "wall-mode") {
+        const result = await setSupporterWallMode(
+          env,
+          callbackMessage,
+          callback.mode
+        );
         await tg(env, "answerCallbackQuery", {
           callback_query_id: q.id,
-          text: "Buka Supporter lewat DM bot."
+          text: result
         }).catch(() => {});
+        await sendSupporterWallPanel(
+          env,
+          chatId,
+          userId,
+          menuMessageId
+        );
         return;
       }
 
@@ -730,17 +970,16 @@ async function handleTelegram(env, update) {
           }).catch(() => {});
           return;
         }
-        await tg(env, "answerCallbackQuery", {callback_query_id: q.id}).catch(() => {});
-        await sendSupporterPackageConfirmation(env, q.from.id, q.message.chat.id, callback.packageId);
-        return;
-      }
-
-      if (callback.action === "terms") {
-        await tg(env, "answerCallbackQuery", {callback_query_id: q.id}).catch(() => {});
-        await tg(env, "sendMessage", {
-          chat_id: q.message.chat.id,
-          text: supporterTermsText()
-        });
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id
+        }).catch(() => {});
+        await sendSupporterPackageConfirmation(
+          env,
+          userId,
+          chatId,
+          callback.packageId,
+          menuMessageId
+        );
         return;
       }
 
@@ -755,9 +994,14 @@ async function handleTelegram(env, update) {
         }
         await tg(env, "answerCallbackQuery", {
           callback_query_id: q.id,
-          text: `Membuat invoice ${pkg.stars} Stars...`
+          text: "Membuat invoice " + pkg.stars + " Stars..."
         }).catch(() => {});
-        await sendSupporterInvoice(env, q.from.id, q.message.chat.id, callback.packageId);
+        await sendSupporterInvoice(
+          env,
+          q.from.id,
+          q.message.chat.id,
+          callback.packageId
+        );
         return;
       }
     }
@@ -1288,7 +1532,8 @@ export default {
           bot_v2_supporter_d1_enabled: d1SupporterEnabled(env),
           bot_v2_payment_d1_enabled: d1PaymentEnabled(env),
           bot_v2_referral_d1_enabled: d1ReferralEnabled(env),
-          bot_v2_referral_self_test_enabled: d1ReferralSelfTestEnabled(env)
+          bot_v2_referral_self_test_enabled: d1ReferralSelfTestEnabled(env),
+          bot_v2_activation_ledger_enabled: d1ActivationLedgerEnabled(env)
         }, 200, corsHeaders(request));
       }
 
