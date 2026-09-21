@@ -15,7 +15,7 @@ import {SUPPORT_KB} from "./knowledge.generated.js";
 import {supportPrivilegedUserIds} from "./security/permissions.js";
 import {v21UiCanaryCount, v21UiCanaryEnabled, v21UiCanaryUser, v21UiGlobalEnabled} from "./features/ui-canary.js";
 import {b64url, b64urlJson, importSigningKey, randomToken, sha256Hex} from "./security/crypto.js";
-import {checkPairRateLimit} from "./security/rate-limit.js";
+import {checkActivationRefreshRateLimit, checkPairRateLimit} from "./security/rate-limit.js";
 import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
 import {claimTelegramUpdate} from "./security/idempotency.js";
 import {d1ActivationLedgerEnabled, d1MigrationEnabled, d1PaymentEnabled, d1ReadProbe, d1ReferralEnabled, d1ReferralSelfTestEnabled, d1ReplayEnabled, d1SupporterEnabled, d1WritesEnabled} from "./data/d1/mode.js";
@@ -85,7 +85,7 @@ import {
   supporterWallKey
 } from "./features/supporter-model.js";
 import {getSupporterEntitlement, putSupporterEntitlement} from "./data/supporter.js";
-import {PAIR_TTL_SECONDS, TOKEN_TTL_DAYS, verifyPairForUser} from "./features/activation.js";
+import {PAIR_TTL_SECONDS, TOKEN_REFRESH_MIN_VERSION, TOKEN_TTL_DAYS, refreshActivationToken, verifyPairForUser} from "./features/activation.js";
 import {
   formatSupporterContext,
   rememberSupporterTurn,
@@ -113,7 +113,7 @@ import {
 import {parseReferralStartArg} from "./features/referral.js";
 import {attributeReferralFromCode} from "./features/referral-service.js";
 
-const APP_VERSION = "1.0.5-support-bot-v16-ignore-foreign-commands";
+const APP_VERSION = "1.0.5-support-bot-v17-activation-refresh-v110";
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
 const VERSION_CHECK_AFTER_SECONDS = 24 * 60 * 60;
@@ -1609,6 +1609,85 @@ async function pairStart(request, env) {
   }, 200, corsHeaders(request));
 }
 
+
+async function tokenRefresh(request, env) {
+  const auth = String(request.headers.get("Authorization") || "");
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  if (!token) {
+    return json(
+      {error: "Token aktivasi diperlukan.", code: "missing_token"},
+      401,
+      corsHeaders(request)
+    );
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const installId = String(body.install_id || "");
+
+  if (!(await checkActivationRefreshRateLimit(env, installId))) {
+    return json(
+      {
+        error: "Terlalu banyak permintaan pembaruan aktivasi. Coba lagi sebentar.",
+        code: "rate_limited"
+      },
+      429,
+      corsHeaders(request)
+    );
+  }
+
+  let result;
+  try {
+    result = await refreshActivationToken(env, {
+      token,
+      installId,
+      extensionVersion: String(body.extension_version || "")
+    });
+  } catch (error) {
+    console.error("activation_refresh_failed", {
+      error_name: auditErrorName(error)
+    });
+    return json(
+      {error: "Aktivasi belum dapat diperbarui.", code: "refresh_failed"},
+      503,
+      corsHeaders(request)
+    );
+  }
+
+  if (!result.ok) {
+    const status = result.reason === "update_required"
+      ? 426
+      : result.reason === "membership_required"
+        ? 403
+        : result.reason === "legacy_token"
+          ? 409
+          : 401;
+
+    const message = result.reason === "update_required"
+      ? "Pembaruan aktivasi tersedia mulai BMP Terbuka " +
+        TOKEN_REFRESH_MIN_VERSION + "."
+      : result.reason === "membership_required"
+        ? "Keanggotaan Buka BMP + Group Terbuka perlu dipenuhi untuk memperbarui aktivasi."
+        : result.reason === "legacy_token"
+          ? "Token lama belum mendukung pembaruan otomatis. Verifikasi ulang satu kali dari extension."
+          : "Token aktivasi tidak valid untuk pembaruan.";
+
+    return json({
+      error: message,
+      code: result.reason,
+      minimum_version:
+        result.minimumVersion || TOKEN_REFRESH_MIN_VERSION
+    }, status, corsHeaders(request));
+  }
+
+  return json({
+    ok: true,
+    token: result.token,
+    expires_at: result.expiresAt,
+    changed: result.changed,
+    supporter_bonus_applied: result.supporterBonusApplied
+  }, 200, corsHeaders(request));
+}
+
 async function pairStatus(request, env, url) {
   const pairId = String(url.searchParams.get("pair_id") || "");
   const auth = request.headers.get("Authorization") || "";
@@ -1918,6 +1997,10 @@ export default {
 
       if (url.pathname === "/v1/pair/status" && request.method === "GET") {
         return await pairStatus(request, env, url);
+      }
+
+      if (url.pathname === "/v1/token/refresh" && request.method === "POST") {
+        return await tokenRefresh(request, env);
       }
 
       if (url.pathname === "/telegram/webhook" && request.method === "POST") {
