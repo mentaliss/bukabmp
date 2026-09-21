@@ -43,6 +43,11 @@ export function d1ReferralSelfTestEnabled(env) {
     envFlagEnabled(env, "BOT_V2_REFERRAL_SELF_TEST_ENABLED");
 }
 
+export function d1ActivationLedgerEnabled(env) {
+  return d1BindingAvailable(env) &&
+    envFlagEnabled(env, "BOT_V2_ACTIVATION_LEDGER_ENABLED");
+}
+
 export async function d1ReadProbe(env) {
   if (!d1BindingAvailable(env)) {
     return {bound: false, readable: false};
