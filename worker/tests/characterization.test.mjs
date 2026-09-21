@@ -584,3 +584,112 @@ test("owner-only KV inventory returns counts without raw keys", async () => {
   const serialized = JSON.stringify(body);
   assert.doesNotMatch(serialized, /PairSecretABC|424242|chargehash|private-value/);
 });
+
+test("supporter migration dry-run rejects missing admin auth", async () => {
+  const response = await worker.fetch(
+    new Request("https://worker.test/admin/supporter-migration-dry-run"),
+    baseEnv({ADMIN_SETUP_TOKEN: "fixture-admin"})
+  );
+  assert.equal(response.status, 401);
+});
+
+test("supporter migration dry-run summarizes authority without exposing records", async () => {
+  const kv = new Map([
+    ["supporter:user:111", JSON.stringify({
+      user_id: "111",
+      supporter_until: Date.now() + 86400000,
+      activation_until: 0,
+      activation_bonus_pending_days: 14,
+      total_stars: 2,
+      payment_count: 1,
+      last_payment_at: 1700000000000,
+      last_package_id: "day",
+      wall_mode: "private",
+      username: "private-user"
+    })],
+    ["supporter:user:222", JSON.stringify({
+      user_id: "222",
+      supporter_until: 1,
+      activation_until: 0,
+      activation_bonus_pending_days: 0,
+      total_stars: 0,
+      payment_count: 0,
+      last_payment_at: 0,
+      wall_mode: "anonymous"
+    })],
+    ["supporter-payment:abcdef", JSON.stringify({
+      processed_at: 1700000000000,
+      user_id: "111",
+      package_id: "day",
+      stars: 2,
+      telegram_payment_charge_id: "secret-charge-id"
+    })]
+  ]);
+
+  const pairings = {
+    async list({prefix}) {
+      return {
+        list_complete: true,
+        keys: [...kv.keys()]
+          .filter(key => key.startsWith(prefix))
+          .map(name => ({name}))
+      };
+    },
+    async get(key, type) {
+      const value = kv.get(String(key));
+      if (value == null) return null;
+      return type === "json" ? JSON.parse(value) : value;
+    }
+  };
+
+  const db = {
+    prepare(sql) {
+      assert.match(sql, /^SELECT COUNT\(\*\) AS count FROM (users|supporter_state|payments)$/);
+      return {
+        async first() {
+          return {count: 0};
+        }
+      };
+    }
+  };
+
+  const response = await worker.fetch(
+    new Request("https://worker.test/admin/supporter-migration-dry-run", {
+      headers: {Authorization: "Bearer fixture-admin"}
+    }),
+    baseEnv({
+      ADMIN_SETUP_TOKEN: "fixture-admin",
+      PAIRINGS: pairings,
+      BOT_DB: db
+    })
+  );
+
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.apply_ready, true);
+  assert.deepEqual(body.source.supporter_entitlement, {
+    total: 2,
+    valid: 2,
+    invalid: 0,
+    active: 1,
+    expired: 1
+  });
+  assert.deepEqual(body.source.supporter_payment_marker, {
+    total: 1,
+    valid: 1,
+    invalid: 0,
+    linked_to_known_entitlement: 1,
+    without_known_entitlement: 0
+  });
+  assert.deepEqual(body.target_d1, {
+    available: true,
+    counts: {users: 0, supporter_state: 0, payments: 0}
+  });
+
+  const serialized = JSON.stringify(body);
+  assert.doesNotMatch(
+    serialized,
+    /111|222|private-user|secret-charge-id|abcdef/
+  );
+});
