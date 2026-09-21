@@ -997,7 +997,8 @@ function supportHelpText(access = null) {
     "🤖 BMP Terbuka Assistant",
     "",
     privileged
-      ? "Kamu bisa bertanya langsung lewat DM, atau di Group Terbuka gunakan /ask, mention @bukabmp_bot, atau reply pesan bot."      : "Di Group Terbuka gunakan /ask, mention @bukabmp_bot, atau reply pesan bot.",
+      ? "Kamu bisa bertanya langsung lewat DM, atau di Group Terbuka gunakan /ask, mention @bukabmp_bot, atau reply pesan bot."
+      : "Di Group Terbuka gunakan /ask, mention @bukabmp_bot, atau reply pesan bot.",
     "",
     accessLine,
     "",
@@ -1996,7 +1997,8 @@ const SUPPORT_KB = [
     "id": "merge-range",
     "title": "PDF gabungan range",
     "aliases": [
-      "gabung m3 m6",      "merge range",
+      "gabung m3 m6",
+      "merge range",
       "pdf m3-m6"
     ],
     "keywords": [
@@ -2995,7 +2997,8 @@ function sanitizeExtensionState(raw) {
     schema_version: 1,
     generated_at: new Date().toISOString(),
     ttl_seconds: CLOUD_STATE_DEFAULT_TTL_SECONDS,
-    sections: [],    supporter: {active: false, until: null, label: ""},
+    sections: [],
+    supporter: {active: false, until: null, label: ""},
     features: {supporter_card: false, community_banner: false}
   };
   if (!raw || typeof raw !== "object" || Number(raw.schema_version) !== 1) return out;
