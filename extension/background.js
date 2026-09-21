@@ -668,7 +668,7 @@ async function navigateCurrentModule() {
     url: viewerUrl(state.code, state.currentModule)
   });
 
-  // Edge Canary Android does not always deliver tabs.onUpdated reliably
+  // Edge Android does not always deliver tabs.onUpdated reliably
   // for extension-driven navigation. Kick off the content-script handoff
   // directly as well; startModule() will retry until the page is ready.
   setTimeout(async () => {
