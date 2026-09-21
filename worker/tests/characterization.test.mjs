@@ -65,11 +65,12 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.status, "ok");
-  assert.equal(body.version, "1.0.5-support-bot-v13-command-cleanup-badge-state");
+  assert.equal(body.version, "1.0.5-support-bot-v14-hidden-command-menu-kb");
   assert.equal(body.supporter_pass, true);
   assert.equal(body.privacy_gate_enabled, true);
   assert.equal(body.realtime_extension_state, true);
   assert.equal(body.extension_state_status_badge, true);
+  assert.equal(body.telegram_command_menu_hidden, false);
   assert.equal(body.supporter_packages.day.stars, 2);
   assert.equal(body.supporter_packages.month.stars, 50);
   assert.equal(body.bot_v2_d1_bound, false);
@@ -595,6 +596,55 @@ test("group slash commands other than ask are removed without replies", async ()
   }
 });
 
+test("first webhook auto-clears stale Telegram command menus when hidden mode is enabled", async () => {
+  const env = baseEnv({TELEGRAM_COMMAND_MENU_HIDDEN: "true"});
+  const calls = [];
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = telegramFetchRecorder(calls);
+  try {
+    const response = await webhook(env, {
+      update_id: 4104,
+      message: {
+        message_id: 54,
+        from: {id: 424242, is_bot: false},
+        chat: {id: 424242, type: "private"},
+        text: "/start"
+      }
+    });
+    assert.equal(response.status, 200);
+    assert.equal(
+      calls.filter(call => call.method === "deleteMyCommands").length,
+      4
+    );
+    assert.equal(
+      calls.some(call => call.method === "setMyCommands"),
+      false
+    );
+    assert.equal(
+      await env.PAIRINGS.get("telegram-command-scopes:hidden-v1"),
+      "ok"
+    );
+
+    calls.length = 0;
+    const second = await webhook(env, {
+      update_id: 4105,
+      message: {
+        message_id: 55,
+        from: {id: 424242, is_bot: false},
+        chat: {id: 424242, type: "private"},
+        text: "/start"
+      }
+    });
+    assert.equal(second.status, 200);
+    assert.equal(
+      calls.filter(call => call.method === "deleteMyCommands").length,
+      0
+    );
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
 test("legacy tutorial command in DM opens current extension UI", async () => {
   const env = baseEnv({BOT_V21_UI_ENABLED: "true"});
   const calls = [];
@@ -622,7 +672,7 @@ test("legacy tutorial command in DM opens current extension UI", async () => {
   }
 });
 
-test("admin command sync publishes minimal private and group scopes", async () => {
+test("admin command sync clears Telegram autocomplete in every global scope", async () => {
   const env = baseEnv({ADMIN_SETUP_TOKEN: "fixture-admin"});
   const calls = [];
   const oldFetch = globalThis.fetch;
@@ -637,37 +687,19 @@ test("admin command sync publishes minimal private and group scopes", async () =
     ), env);
     assert.equal(response.status, 200);
     const body = await response.json();
-    assert.deepEqual(body.private_commands, [
-      "start", "menu", "verify", "ask"
-    ]);
-    assert.deepEqual(body.group_commands, ["ask"]);
+    assert.deepEqual(body.private_commands, []);
+    assert.deepEqual(body.group_commands, []);
 
-    assert.equal(
-      calls.filter(call => call.method === "deleteMyCommands").length,
-      4
-    );
-
-    const privateSet = calls.find(call =>
-      call.method === "setMyCommands" &&
-      call.body.scope?.type === "all_private_chats"
-    );
+    const deletes = calls.filter(call => call.method === "deleteMyCommands");
+    assert.equal(deletes.length, 4);
     assert.deepEqual(
-      privateSet.body.commands.map(item => item.command),
-      ["start", "menu", "verify", "ask"]
+      deletes.map(call => call.body.scope?.type),
+      ["default", "all_private_chats", "all_group_chats", "all_chat_administrators"]
     );
-
-    const groupSets = calls.filter(call =>
-      call.method === "setMyCommands" &&
-      ["all_group_chats", "all_chat_administrators"]
-        .includes(call.body.scope?.type)
+    assert.equal(
+      calls.some(call => call.method === "setMyCommands"),
+      false
     );
-    assert.equal(groupSets.length, 2);
-    for (const call of groupSets) {
-      assert.deepEqual(
-        call.body.commands.map(item => item.command),
-        ["ask"]
-      );
-    }
   } finally {
     globalThis.fetch = oldFetch;
   }

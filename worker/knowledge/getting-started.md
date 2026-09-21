@@ -83,10 +83,10 @@ Gunakan asset dari GitHub Releases, bukan “Source code ZIP”. Desktop memakai
 ## join-group
 order: 24
 title: "Cara join Group Terbuka"
-aliases: ["cara join grup","join group","gabung grup","group terbuka"]
-keywords: ["join","group","grup"]
+aliases: ["cara join grup","join group","gabung grup","group terbuka","link grup","link group"]
+keywords: ["join","group","grup","telegram"]
 
-Cara join Group Terbuka: https://t.me/bukabmp/13
+Buka https://t.me/bukabmp/13. Jika Telegram membuka posting komunitas, buka komentar/diskusinya lalu tekan Join/Gabung pada Group Terbuka. Setelah masuk, kamu bisa mention @bukabmp_bot, reply pesan bot, atau ketik /ask diikuti pertanyaan.
 
 ## activation
 order: 25
@@ -142,7 +142,7 @@ title: "Kalau bot tidak tahu"
 aliases: ["bot ga tau","jawaban tidak membantu","masih error","butuh admin"]
 keywords: ["bot","admin","member","bantu"]
 
-Kalau jawaban bot belum menyelesaikan masalah, kirim detail kendala di Group Terbuka. Member lain bisa ikut bantu; sertakan screenshot, versi, platform, Kode BMP, dan modul yang bermasalah.
+Kalau jawaban bot belum menyelesaikan masalah, kirim detail kendala di Group Terbuka: https://t.me/bukabmp/13. Jika link membuka posting komunitas, buka komentar/diskusinya lalu tekan Join/Gabung. Sertakan screenshot, versi, platform, Kode BMP, dan modul yang bermasalah.
 
 ## greeting
 order: 76
@@ -150,4 +150,37 @@ title: "Sapaan"
 aliases: ["halo","hai","hi"]
 keywords: ["halo","hai"]
 
-Halo 👋 Tanya aja soal instalasi, Kode BMP, Android/Desktop, aktivasi, error, atau fitur v1.0.5. Bisa juga pakai /tutorial, /fitur, atau /bug.
+Halo 👋 Tanya aja soal instalasi, Kode BMP, Android/Desktop, aktivasi, error, atau fitur v1.0.5. Gunakan menu Bantuan/Ekstensi atau tanyakan langsung ke BMP Terbuka Assistant di Group Terbuka.
+
+## features-v105
+order: 77
+title: "Fitur utama v1.0.5"
+aliases: ["fitur bmp","fitur 1.0.5","fitur terbaru","apa saja fiturnya"]
+keywords: ["fitur","1.0.5","resume","storage","merge"]
+
+Fitur utama v1.0.5: resume dari penyimpanan lokal, ringkasan modul/ukuran storage per Kode BMP, download ulang hanya range yang dipilih, PDF gabungan FULL atau range, proteksi gap saat merge, ekspor ulang tanpa OCR, hapus storage per BMP tanpa menghapus Downloads, dan page-count yang berhenti di halaman terakhir reader.
+
+## ai-quota
+order: 78
+title: "Kuota BMP Terbuka Assistant"
+aliases: ["kuota ai","sisa kuota","berapa kali ai","limit ai","ai unlimited"]
+keywords: ["kuota","ai","assistant","supporter"]
+
+Akun reguler mendapat maksimal 6 pertanyaan AI per hari. Jawaban FAQ yang cocok dengan basis pengetahuan tidak memakai kuota AI. Supporter aktif dan akun khusus mendapat akses AI unlimited sesuai status akun saat itu.
+
+## supporter-pass-help
+order: 79
+title: "Bantuan Supporter Pass"
+aliases: ["supporter pass","status supporter","cara supporter","supporter wall","terms supporter"]
+keywords: ["supporter","status","terms","wall"]
+
+Kelola Supporter Pass lewat menu Supporter di DM bot. Di sana tersedia status Supporter, paket, terms, Supporter Wall, dan alur pembayaran. Informasi dinamis seperti status aktif dan masa berlaku dibaca langsung dari akunmu.
+
+## supporter-payment-help
+order: 80
+title: "Bantuan pembayaran Supporter"
+aliases: ["pembayaran supporter bermasalah","stars sudah bayar","supporter belum aktif","payment supporter"]
+keywords: ["supporter","pembayaran","stars","payment"]
+
+Kalau pembayaran Telegram Stars terdeteksi tetapi Supporter belum aktif, jangan bayar ulang. Buka menu Supporter di DM bot dan gunakan bantuan pembayaran agar transaksi bisa diperiksa. Jangan kirim password, OTP, token, cookie, atau data kartu.
+

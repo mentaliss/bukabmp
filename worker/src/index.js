@@ -113,13 +113,14 @@ import {
 import {parseReferralStartArg} from "./features/referral.js";
 import {attributeReferralFromCode} from "./features/referral-service.js";
 
-const APP_VERSION = "1.0.5-support-bot-v13-command-cleanup-badge-state";
+const APP_VERSION = "1.0.5-support-bot-v14-hidden-command-menu-kb";
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
 const VERSION_CHECK_AFTER_SECONDS = 24 * 60 * 60;
 const REVIEWER_TOKEN_TTL_SECONDS = 24 * 60 * 60;
 const CLOUD_STATE_DEFAULT_TTL_SECONDS = 5 * 60;
 const DISTRIBUTION_CHANNELS = Object.freeze(["github", "android", "cws", "edge"]);
+const TELEGRAM_COMMAND_SCOPE_STATE_KEY = "telegram-command-scopes:hidden-v1";
 
 function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data, null, 2), {
@@ -1740,21 +1741,6 @@ async function adminReferralSelfTest(request, env) {
 }
 
 
-function telegramPrivateCommands() {
-  return [
-    {command: "start", description: "Buka BMP Terbuka"},
-    {command: "menu", description: "Buka menu utama"},
-    {command: "verify", description: "Verifikasi kode aktivasi"},
-    {command: "ask", description: "Tanya BMP Terbuka Assistant"}
-  ];
-}
-
-function telegramGroupCommands() {
-  return [
-    {command: "ask", description: "Tanya BMP Terbuka Assistant"}
-  ];
-}
-
 async function syncTelegramCommandScopes(env) {
   const scopesToClear = [
     {type: "default"},
@@ -1764,29 +1750,30 @@ async function syncTelegramCommandScopes(env) {
   ];
 
   for (const scope of scopesToClear) {
-    await tg(env, "deleteMyCommands", {scope}).catch(() => {});
+    await tg(env, "deleteMyCommands", {scope});
   }
 
-  const privateCommands = telegramPrivateCommands();
-  const groupCommands = telegramGroupCommands();
-
-  await tg(env, "setMyCommands", {
-    scope: {type: "all_private_chats"},
-    commands: privateCommands
-  });
-  await tg(env, "setMyCommands", {
-    scope: {type: "all_group_chats"},
-    commands: groupCommands
-  });
-  await tg(env, "setMyCommands", {
-    scope: {type: "all_chat_administrators"},
-    commands: groupCommands
-  });
-
   return {
-    private_commands: privateCommands.map(item => item.command),
-    group_commands: groupCommands.map(item => item.command)
+    private_commands: [],
+    group_commands: []
   };
+}
+
+async function ensureTelegramCommandScopesHidden(env) {
+  if (String(env.TELEGRAM_COMMAND_MENU_HIDDEN || "").toLowerCase() !== "true") {
+    return;
+  }
+
+  if (env.PAIRINGS) {
+    const marker = await env.PAIRINGS.get(TELEGRAM_COMMAND_SCOPE_STATE_KEY);
+    if (marker === "ok") return;
+  }
+
+  await syncTelegramCommandScopes(env);
+
+  if (env.PAIRINGS) {
+    await env.PAIRINGS.put(TELEGRAM_COMMAND_SCOPE_STATE_KEY, "ok");
+  }
 }
 
 
@@ -1856,6 +1843,7 @@ export default {
           store_channels: ["cws", "edge"],
           realtime_extension_state: true,
           extension_state_status_badge: true,
+          telegram_command_menu_hidden: String(env.TELEGRAM_COMMAND_MENU_HIDDEN || "").toLowerCase() === "true",
           reviewer_activation_configured: Boolean(env.STORE_REVIEWER_SECRET),
           bot_v2_d1_bound: d1.bound,
           bot_v2_d1_readable: d1.readable,
@@ -1903,6 +1891,15 @@ export default {
         }
 
         const update = await request.json();
+
+        // The UI now exposes help through buttons/AI instead of Telegram's slash-command
+        // autocomplete. Clean stale BotFather/API command menus once per deployment state.
+        await ensureTelegramCommandScopesHidden(env).catch(error => {
+          console.error("telegram_command_scope_cleanup_failed", {
+            error_name: auditErrorName(error)
+          });
+        });
+
         const claim = await claimTelegramUpdate(env, update?.update_id);
         if (!claim.process) {
           return json({ok: true});

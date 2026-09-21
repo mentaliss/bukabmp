@@ -1,4 +1,4 @@
-import {supportHelpText, bugReportText} from "./help.js";
+import {SUPPORT_GROUP_JOIN_URL, supportHelpText, bugReportText} from "./help.js";
 import {renderMenu} from "./ui.js";
 
 export async function sendHelpPanel(
@@ -22,6 +22,7 @@ export async function sendHelpPanel(
         [{text: "📚 Penggunaan Ekstensi", callback_data: "menu:extension"}],
         [{text: "🤖 Bot & AI", callback_data: "help:bot"}],
         [{text: "🛠 Laporkan Masalah", callback_data: "help:report"}],
+        [{text: "👥 Join Group Terbuka", url: SUPPORT_GROUP_JOIN_URL}],
         [{text: "◀ Menu Utama", callback_data: "menu:main"}]
       ]
     }
