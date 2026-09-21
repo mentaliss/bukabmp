@@ -1,5 +1,5 @@
 import {randomToken} from "../security/crypto.js";
-import {d1WritesEnabled} from "../data/d1/mode.js";
+import {d1ReferralEnabled} from "../data/d1/mode.js";
 import {
   createOpaqueReferralCode,
   referralDeepLink,
@@ -11,9 +11,11 @@ import {
   getQualifiedReferralCount
 } from "../data/d1/referral.js";
 import {qualifyReferralForActivatedUser} from "../data/d1/referral-qualification.js";
+import {getSupporterEntitlement, mirrorSupporterEntitlementToKv} from "../data/supporter.js";
+import {auditErrorName} from "../security/audit.js";
 
 export async function ensureReferralUser(env, telegramUserId) {
-  if (!d1WritesEnabled(env)) return {available: false, user: null};
+  if (!d1ReferralEnabled(env)) return {available: false, user: null};
 
   const id = Number(telegramUserId);
   if (!Number.isSafeInteger(id)) return {available: true, user: null, reason: "invalid_user_id"};
@@ -34,7 +36,7 @@ export async function ensureReferralUser(env, telegramUserId) {
 }
 
 export async function attributeReferralFromCode(env, referredUserId, referralCode) {
-  if (!d1WritesEnabled(env)) return {available: false, created: false};
+  if (!d1ReferralEnabled(env)) return {available: false, created: false};
 
   const referred = await ensureReferralUser(env, referredUserId);
   if (!referred.user) {
@@ -60,7 +62,7 @@ export async function attributeReferralFromCode(env, referredUserId, referralCod
 }
 
 export async function qualifyReferralAfterActivation(env, referredUserId) {
-  if (!d1WritesEnabled(env)) {
+  if (!d1ReferralEnabled(env)) {
     return {available: false, qualified: false};
   }
 
@@ -70,6 +72,26 @@ export async function qualifyReferralAfterActivation(env, referredUserId) {
     rewardEventId: "reward_" + randomToken(18),
     supporterEventId: "support_" + randomToken(18)
   });
+
+  if (result.qualified && result.referrerUserId) {
+    try {
+      const supporter = await getSupporterEntitlement(
+        env,
+        result.referrerUserId
+      );
+      if (supporter) {
+        await mirrorSupporterEntitlementToKv(
+          env,
+          result.referrerUserId,
+          supporter
+        );
+      }
+    } catch (error) {
+      console.warn("referral_supporter_kv_mirror_failed", {
+        error_name: auditErrorName(error)
+      });
+    }
+  }
 
   return {available: true, ...result};
 }
