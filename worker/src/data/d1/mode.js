@@ -17,3 +17,15 @@ export function d1ReplayEnabled(env) {
   return d1BindingAvailable(env) &&
     envFlagEnabled(env, "BOT_V2_D1_REPLAY_ENABLED");
 }
+
+export async function d1ReadProbe(env) {
+  if (!d1BindingAvailable(env)) {
+    return {bound: false, readable: false};
+  }
+  try {
+    const row = await env.BOT_DB.prepare("SELECT 1 AS ok").first();
+    return {bound: true, readable: Number(row?.ok || 0) === 1};
+  } catch {
+    return {bound: true, readable: false};
+  }
+}
