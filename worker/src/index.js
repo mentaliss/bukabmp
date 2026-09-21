@@ -39,6 +39,11 @@ import {
   supporterDeepLink,
   supporterTermsText
 } from "./menus/supporter.js";
+import {menuDeepLink, sendMainMenu} from "./menus/main.js";
+import {sendAccountMenu} from "./menus/account.js";
+import {sendReferralMenu} from "./menus/referral.js";
+import {sendActivationMenu} from "./menus/activation.js";
+import {sendHelpPanel} from "./menus/help-panel.js";
 import {
   SUPPORTER_ACTIVATION_BONUS_DAYS,
   SUPPORTER_ACTIVATION_MAX_DAYS,
@@ -81,6 +86,8 @@ import {
   reconcileSupporterTagOnMessage,
   sendSupporterInvoice
 } from "./features/payment.js";
+import {parseReferralStartArg} from "./features/referral.js";
+import {attributeReferralFromCode} from "./features/referral-service.js";
 
 const APP_VERSION = "1.0.5-support-bot-v12-sponsor-surface";
 const TOKEN_ISSUER = "bmp-terbuka-community";
@@ -382,7 +389,7 @@ async function handleSupportMessage(env, message) {
     await sendSupportReply(env, message, await supporterWallText(env));
     return true;
   }
-  if (currentCommand === "bmphelp" || currentCommand === "faq") {
+  if (currentCommand === "help" || currentCommand === "bmphelp" || currentCommand === "faq") {
     await sendSupportReply(env, message, supportHelpText(access));
     return true;
   }
@@ -515,29 +522,91 @@ async function handleTelegram(env, update) {
     // Lazily remove stale BMP Supporter tags after expiry when the member speaks.
     await reconcileSupporterTagOnMessage(env, message).catch(() => {});
 
+    // Personal account/control actions are DM-only. Group invocations only
+    // receive a deep-link and never expose account/supporter/referral state.
+    if (!isPrivateChat(message) && command?.command === "menu") {
+      await tg(env, "sendMessage", {
+        chat_id: chatId,
+        text: "Menu akun BMP Terbuka dibuka lewat DM bot.",
+        reply_parameters: {message_id: message.message_id},
+        reply_markup: {
+          inline_keyboard: [[{text: "Buka Menu Saya", url: menuDeepLink(env)}]]
+        }
+      });
+      return;
+    }
+
     // Deep-link /start support opens the private Stars purchase menu instead of
     // being interpreted as an extension pair ID.
-    if (isPrivateChat(message) && command?.command === "start" && String(command.args || "").toLowerCase() === "support") {
+    if (
+      isPrivateChat(message) &&
+      command?.command === "start" &&
+      String(command.args || "").toLowerCase() === "support"
+    ) {
       const access = await supportPrivilegeForMessage(env, message);
       message.__supportAccess = access;
       await sendSupporterMenu(env, message, access);
       return;
     }
 
+    if (
+      isPrivateChat(message) &&
+      (
+        command?.command === "menu" ||
+        (
+          command?.command === "start" &&
+          ["", "menu"].includes(String(command.args || "").trim().toLowerCase())
+        )
+      )
+    ) {
+      await sendMainMenu(env, chatId);
+      return;
+    }
+
+    if (isPrivateChat(message) && command?.command === "help") {
+      const access = await supportPrivilegeForMessage(env, message);
+      await sendHelpPanel(env, chatId, access);
+      return;
+    }
+
+    if (
+      isPrivateChat(message) &&
+      command?.command === "start" &&
+      String(command.args || "").startsWith("ref_")
+    ) {
+      const code = parseReferralStartArg(command.args);
+      if (!code) {
+        await tg(env, "sendMessage", {
+          chat_id: chatId,
+          text: "Link referral tidak valid."
+        });
+        await sendMainMenu(env, chatId);
+        return;
+      }
+
+      const result = await attributeReferralFromCode(env, userId, code);
+      let referralText = "Referral belum diaktifkan di environment ini.";
+      if (result.available) {
+        if (result.created) {
+          referralText =
+            "✅ Referral tersimpan. Reward baru dihitung setelah syarat komunitas dan aktivasi terpenuhi.";
+        } else if (result.reason === "already_attributed") {
+          referralText = "Referral pertama akun ini sudah tercatat.";
+        } else {
+          referralText = "Link referral tidak valid.";
+        }
+      }
+      await tg(env, "sendMessage", {
+        chat_id: chatId,
+        text: referralText
+      });
+      await sendMainMenu(env, chatId);
+      return;
+    }
+
     // Activation remains available in DM for everyone.
     if (isPrivateChat(message) && command?.command === "start") {
       const pairId = command.args || "";
-      if (!pairId) {
-        await tg(env, "sendMessage", {
-          chat_id: chatId,
-          text:
-            "BMP Terbuka\n\n" +
-            "Mulai aktivasi dari popup extension. Jika Telegram Web tidak membawa " +
-            "kode aktivasi, salin kode dari popup lalu kirim langsung ke bot ini.\n\n" +
-            "Untuk Supporter Pass ketik /support."
-        });
-        return;
-      }
       await verifyPairForUser(env, pairId, userId, chatId);
       return;
     }
@@ -578,6 +647,49 @@ async function handleTelegram(env, update) {
         text: "Aksi tidak dikenali."
       }).catch(() => {});
       return;
+    }
+
+    if (callback.namespace === "menu") {
+      if (!q.message || !isPrivateChat(q.message)) {
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id,
+          text: "Buka menu lewat DM bot."
+        }).catch(() => {});
+        return;
+      }
+
+      await tg(env, "answerCallbackQuery", {callback_query_id: q.id}).catch(() => {});
+      const chatId = q.message.chat.id;
+      const userId = q.from?.id;
+
+      if (callback.action === "main") {
+        await sendMainMenu(env, chatId);
+        return;
+      }
+      if (callback.action === "account") {
+        await sendAccountMenu(env, chatId, userId);
+        return;
+      }
+      if (callback.action === "supporter") {
+        const callbackMessage = {...q.message, from: q.from};
+        const access = await supportPrivilegeForMessage(env, callbackMessage);
+        await sendSupporterMenu(env, callbackMessage, access);
+        return;
+      }
+      if (callback.action === "referral") {
+        await sendReferralMenu(env, chatId, userId);
+        return;
+      }
+      if (callback.action === "activation") {
+        await sendActivationMenu(env, chatId);
+        return;
+      }
+      if (callback.action === "help") {
+        const callbackMessage = {...q.message, from: q.from};
+        const access = await supportPrivilegeForMessage(env, callbackMessage);
+        await sendHelpPanel(env, chatId, access);
+        return;
+      }
     }
 
     if (callback.namespace === "activation" && callback.action === "verify") {
@@ -1051,25 +1163,10 @@ async function adminSetWebhook(request, env) {
   });
   await tg(env, "setMyCommands", {
     commands: [
-      {command: "start", description: "Aktivasi BMP Terbuka"},
-      {command: "verify", description: "Verifikasi kode aktivasi"},
+      {command: "start", description: "Buka BMP Terbuka"},
+      {command: "menu", description: "Buka menu akun"},
       {command: "ask", description: "Tanya BMP Terbuka Assistant"},
-      {command: "tutorial", description: "Cara pakai v1.0.5"},
-      {command: "install", description: "Cara instalasi"},
-      {command: "android", description: "Tutorial Android"},
-      {command: "desktop", description: "Tutorial Desktop"},
-      {command: "group", description: "Join Group Terbuka"},
-      {command: "update", description: "Versi terbaru"},
-      {command: "fitur", description: "Fitur v1.0.5"},
-      {command: "storage", description: "Storage/resume/export"},
-      {command: "bug", description: "Format laporan kendala"},
-      {command: "quota", description: "Cek sisa kuota AI"},
-      {command: "support", description: "Supporter Pass via Stars"},
-      {command: "supporter", description: "Status Supporter Pass"},
-      {command: "supporters", description: "Supporter Wall"},
-      {command: "terms", description: "Terms Supporter Pass"},
-      {command: "paysupport", description: "Bantuan pembayaran Stars"},
-      {command: "bmphelp", description: "Bantuan bot"}
+      {command: "help", description: "Bantuan BMP Terbuka"}
     ]
   }).catch(() => {});
   return json({ok: true, webhook, result});
