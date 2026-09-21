@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {d1BindingAvailable, d1PaymentEnabled, d1ReferralEnabled, d1ReplayEnabled, d1SupporterEnabled, d1WritesEnabled} from "../src/data/d1/mode.js";
 import {qualifyReferralForActivatedUser} from "../src/data/d1/referral-qualification.js";
 import {applySupporterPaymentTransaction} from "../src/data/d1/payment-transaction.js";
-import {ensureReferralUser} from "../src/features/referral-service.js";
+import {ensureReferralUser, qualifyReferralAfterActivation} from "../src/features/referral-service.js";
 
 function fakeDb({
   firstRows = new Map(),
@@ -252,4 +252,59 @@ test("referral D1 gate is independent from the legacy general write gate", async
     BOT_V2_D1_WRITE_ENABLED: "true"
   }, 424242);
   assert.deepEqual(disabled, {available: false, user: null});
+});
+
+test("qualified referral reward mirrors D1 supporter state to KV rollback copy", async () => {
+  const supporterState = {
+    user_id: 1001,
+    supporter_until: 1800000000000,
+    referral_entitlement_total: 7,
+    activation_until: 0,
+    activation_bonus_pending_days: 0,
+    total_stars: 0,
+    payment_count: 0,
+    last_payment_at: 0,
+    last_package_id: null,
+    wall_mode: "private",
+    tag_applied: 0,
+    updated_at: 1700000000000
+  };
+  const db = fakeDb({
+    firstRows: new Map([
+      ["FROM referral_rewards WHERE reward_event_id", {
+        user_id: 1001,
+        valid_referral_count: 3,
+        entitlement_total_days: 7,
+        credited_delta_days: 3
+      }],
+      ["SELECT * FROM supporter_state WHERE user_id", supporterState]
+    ])
+  });
+
+  const writes = new Map();
+  const kv = {
+    async get() {
+      return null;
+    },
+    async put(key, value) {
+      writes.set(String(key), String(value));
+    }
+  };
+
+  const result = await qualifyReferralAfterActivation({
+    BOT_DB: db,
+    BOT_V2_SUPPORTER_D1_ENABLED: "true",
+    BOT_V2_REFERRAL_D1_ENABLED: "true",
+    PAIRINGS: kv
+  }, 2002);
+
+  assert.equal(result.available, true);
+  assert.equal(result.qualified, true);
+  assert.equal(result.referrerUserId, 1001);
+  assert.equal(db.batches.length, 1);
+
+  const mirrored = JSON.parse(writes.get("supporter:user:1001"));
+  assert.equal(mirrored.user_id, "1001");
+  assert.equal(mirrored.supporter_until, supporterState.supporter_until);
+  assert.equal(mirrored.referral_entitlement_total, 7);
 });
