@@ -94,8 +94,11 @@ test("legacy re-verification does not delete the active token", () => {
 test("popup exposes current realtime surfaces and Edge Stable Android path", () => {
   assert.match(popupHtml, /id="refreshActivation"/);
   assert.match(popup, /REFRESH_ACTIVATION/);
-  assert.match(popup, /Aktifkan pembaruan/);
-  assert.doesNotMatch(popup, /Aktifkan pembaruan 1\.1\.0/);
+  assert.match(popup, /Verifikasi ulang/);
+  assert.match(popup, /menyinkronkan akun BMP Terbuka/);
+  assert.match(popup, /Akun dan aktivasi sudah tersinkron/);
+  assert.doesNotMatch(popup, /Aktifkan pembaruan/);
+  assert.doesNotMatch(popup, /token lama/);
   assert.match(popupHtml, /id="cloudStatusBadge"/);
   assert.match(popupHtml, /id="supporterBadge"/);
   assert.match(popupHtml, /id="sponsorSlot"/);

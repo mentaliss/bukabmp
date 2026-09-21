@@ -510,21 +510,21 @@ async function refreshAccess(){
     el("refreshActivation").disabled=Boolean(latestVersionPolicy?.updateRequired);
     if(pendingRefresh){
       el("activationManageText").textContent=
-        "Menunggu verifikasi ulang satu kali untuk mengaktifkan pembaruan aktivasi.";
+        "Menunggu verifikasi ulang untuk menyinkronkan akun BMP Terbuka kamu.";
       el("activationManageCode").textContent=a.pending?.pairId
         ? `Kode verifikasi: ${a.pending.pairId}`
         : "";
       el("refreshActivation").textContent="Buka Telegram lagi";
     }else if(a.refreshEligible){
       el("activationManageText").textContent=
-        "Aktivasi ini mendukung pembaruan status dan masa aktif tanpa menunggu token lama kedaluwarsa.";
+        `Aktif sampai ${formatDate(a.expiresAt)}. Akun dan aktivasi sudah tersinkron.`
       el("activationManageCode").textContent="";
       el("refreshActivation").textContent="Perbarui aktivasi";
     }else{
       el("activationManageText").textContent=
-        "Aktivasi ini memakai token lama. Verifikasi ulang satu kali untuk mengaktifkan pembaruan; akses yang masih aktif tidak dihapus.";
+        "Verifikasi ulang sekali untuk memperbarui aktivasi dan menyinkronkan akun BMP Terbuka kamu. Akses yang masih aktif tetap berlaku selama proses.";
       el("activationManageCode").textContent="";
-      el("refreshActivation").textContent="Aktifkan pembaruan";
+      el("refreshActivation").textContent="Verifikasi ulang";
     }
   }else{
     el("activationManage").style.display="none";
@@ -822,7 +822,7 @@ async function refreshActivationNow({quiet=false,force=true}={}){
     if(!access.refreshEligible){
       if(!quiet){
         el("activationManageText").textContent=
-          "Menyiapkan verifikasi ulang satu kali. Token aktif saat ini tetap berlaku selama proses.";
+          "Menyiapkan verifikasi ulang untuk menyinkronkan akun dan aktivasi. Akses yang masih aktif tetap berlaku selama proses.";
       }
       const r=await send("START_PAIRING");
       if(!r?.ok)throw new Error(r?.error||"Verifikasi ulang tidak dapat dimulai.");
