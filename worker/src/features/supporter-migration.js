@@ -312,6 +312,95 @@ async function inspectTargetState(env, snapshot) {
   };
 }
 
+export async function supporterMigrationCompare(env) {
+  const snapshot = await sourceSnapshot(env);
+  if (!snapshot.ok) {
+    return {
+      ok: false,
+      reason: snapshot.reason || "source_validation_failed"
+    };
+  }
+  if (!d1BindingAvailable(env)) {
+    return {ok: false, reason: "d1_unavailable"};
+  }
+
+  let stateMatchesCount = 0;
+  let userMatchesCount = 0;
+  let migrationEventMatchesCount = 0;
+
+  for (const source of snapshot.entitlements) {
+    const user = await env.BOT_DB
+      .prepare("SELECT telegram_user_id FROM users WHERE telegram_user_id = ?1")
+      .bind(source.userId)
+      .first();
+    if (Number(user?.telegram_user_id) === source.userId) {
+      userMatchesCount += 1;
+    }
+
+    const state = await env.BOT_DB
+      .prepare("SELECT * FROM supporter_state WHERE user_id = ?1")
+      .bind(source.userId)
+      .first();
+    if (stateMatches(state, source)) {
+      stateMatchesCount += 1;
+    }
+
+    const sourceHash = await sha256Hex("migration:entitlement:" + source.key);
+    const sourceRef = "migration:kv:" + sourceHash;
+    const event = await env.BOT_DB
+      .prepare(
+        "SELECT user_id, source, days_delta, source_ref " +
+        "FROM supporter_events WHERE source_ref = ?1"
+      )
+      .bind(sourceRef)
+      .first();
+    if (
+      Number(event?.user_id) === source.userId &&
+      String(event?.source || "") === "migration" &&
+      Number(event?.days_delta || 0) === 0 &&
+      String(event?.source_ref || "") === sourceRef
+    ) {
+      migrationEventMatchesCount += 1;
+    }
+  }
+
+  let paymentMatchesCount = 0;
+  for (const source of snapshot.payments) {
+    const payment = await env.BOT_DB
+      .prepare("SELECT * FROM payments WHERE telegram_charge_ref = ?1")
+      .bind(source.chargeRef)
+      .first();
+    if (paymentMatches(payment, source)) {
+      paymentMatchesCount += 1;
+    }
+  }
+
+  const expected = {
+    users: snapshot.entitlements.length,
+    supporter_state: snapshot.entitlements.length,
+    payments: snapshot.payments.length,
+    migration_events: snapshot.entitlements.length
+  };
+  const matched = {
+    users: userMatchesCount,
+    supporter_state: stateMatchesCount,
+    payments: paymentMatchesCount,
+    migration_events: migrationEventMatchesCount
+  };
+
+  return {
+    ok: (
+      matched.users === expected.users &&
+      matched.supporter_state === expected.supporter_state &&
+      matched.payments === expected.payments &&
+      matched.migration_events === expected.migration_events
+    ),
+    expected,
+    matched,
+    kv_untouched: true
+  };
+}
+
 export async function supporterMigrationDryRun(env) {
   const snapshot = await sourceSnapshot(env);
   if (!snapshot.ok) {
