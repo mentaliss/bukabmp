@@ -65,7 +65,7 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.status, "ok");
-  assert.equal(body.version, "1.0.5-support-bot-v12-sponsor-surface");
+  assert.equal(body.version, "1.0.5-support-bot-v13-command-cleanup-badge-state");
   assert.equal(body.supporter_pass, true);
   assert.equal(body.privacy_gate_enabled, true);
   assert.equal(body.realtime_extension_state, true);
