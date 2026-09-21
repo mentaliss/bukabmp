@@ -13,6 +13,7 @@ import {
 import {parseTelegramCallback} from "./telegram/callbacks.js";
 import {SUPPORT_KB} from "./knowledge.generated.js";
 import {supportPrivilegedUserIds} from "./security/permissions.js";
+import {v21UiCanaryCount, v21UiCanaryEnabled, v21UiCanaryUser} from "./features/ui-canary.js";
 import {b64url, b64urlJson, importSigningKey, randomToken, sha256Hex} from "./security/crypto.js";
 import {checkPairRateLimit} from "./security/rate-limit.js";
 import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
@@ -54,6 +55,16 @@ import {sendAccountMenu} from "./menus/account.js";
 import {sendAiMenu, sendAiPrompt, sendAiQuotaPanel} from "./menus/ai.js";
 import {sendExtensionMenu, sendExtensionPage} from "./menus/extension.js";
 import {sendGroupBotPanel} from "./menus/group.js";
+import {
+  legacyMenuDeepLink,
+  sendLegacyAccountMenu,
+  sendLegacyActivationMenu,
+  sendLegacyHelpPanel,
+  sendLegacyMainMenu,
+  sendLegacyReferralMenu,
+  sendLegacySupporterMenu,
+  sendLegacySupporterPackageConfirmation
+} from "./menus/legacy.js";
 import {sendReferralMenu, sendReferralRewards, sendReferralRules} from "./menus/referral.js";
 import {sendActivationMenu} from "./menus/activation.js";
 import {sendBotHelpPanel, sendHelpPanel, sendReportHelpPanel} from "./menus/help-panel.js";
@@ -536,15 +547,37 @@ async function handleTelegram(env, update) {
     if (await handlePrivacyGate(env, message)) return;
     await reconcileSupporterTagOnMessage(env, message).catch(() => {});
 
+    const v21Canary = v21UiCanaryUser(env, userId);
+
     if (
       !isPrivateChat(message) &&
+      v21Canary &&
       ["start", "menu", "help", "bmphelp"].includes(commandName)
     ) {
       await sendGroupBotPanel(env, message);
       return;
     }
 
-    if (commandName === "id") {
+    if (
+      !isPrivateChat(message) &&
+      !v21Canary &&
+      commandName === "menu"
+    ) {
+      await tg(env, "sendMessage", {
+        chat_id: chatId,
+        text: "Menu akun BMP Terbuka dibuka lewat DM bot.",
+        reply_parameters: {message_id: message.message_id},
+        reply_markup: {
+          inline_keyboard: [[{
+            text: "Buka Menu Saya",
+            url: legacyMenuDeepLink(env)
+          }]]
+        }
+      });
+      return;
+    }
+
+    if (v21Canary && commandName === "id") {
       await tg(env, "sendMessage", {
         chat_id: chatId,
         text: "👤 Telegram User ID kamu: " + String(userId || "tidak tersedia"),
@@ -560,7 +593,11 @@ async function handleTelegram(env, update) {
     ) {
       const access = await supportPrivilegeForMessage(env, message);
       message.__supportAccess = access;
-      await sendSupporterMenu(env, message, access);
+      if (v21Canary) {
+        await sendSupporterMenu(env, message, access);
+      } else {
+        await sendLegacySupporterMenu(env, message, access);
+      }
       return;
     }
 
@@ -569,7 +606,11 @@ async function handleTelegram(env, update) {
       commandName === "start" &&
       String(command.args || "").toLowerCase() === "help_extension"
     ) {
-      await sendExtensionMenu(env, chatId, userId);
+      if (v21Canary) {
+        await sendExtensionMenu(env, chatId, userId);
+      } else {
+        await sendLegacyMainMenu(env, chatId);
+      }
       return;
     }
 
@@ -578,7 +619,11 @@ async function handleTelegram(env, update) {
       commandName === "start" &&
       String(command.args || "").toLowerCase() === "ai"
     ) {
-      await sendAiMenu(env, chatId, message.from);
+      if (v21Canary) {
+        await sendAiMenu(env, chatId, message.from);
+      } else {
+        await sendLegacyMainMenu(env, chatId);
+      }
       return;
     }
 
@@ -594,13 +639,21 @@ async function handleTelegram(env, update) {
         )
       )
     ) {
-      await sendMainMenu(env, chatId, userId);
+      if (v21Canary) {
+        await sendMainMenu(env, chatId, userId);
+      } else {
+        await sendLegacyMainMenu(env, chatId);
+      }
       return;
     }
 
     if (isPrivateChat(message) && commandName === "help") {
       const access = await supportPrivilegeForMessage(env, message);
-      await sendHelpPanel(env, chatId, access, userId);
+      if (v21Canary) {
+        await sendHelpPanel(env, chatId, access, userId);
+      } else {
+        await sendLegacyHelpPanel(env, chatId, access);
+      }
       return;
     }
 
@@ -615,7 +668,11 @@ async function handleTelegram(env, update) {
           chat_id: chatId,
           text: "Link referral tidak valid."
         });
-        await sendMainMenu(env, chatId, userId);
+        if (v21Canary) {
+          await sendMainMenu(env, chatId, userId);
+        } else {
+          await sendLegacyMainMenu(env, chatId);
+        }
         return;
       }
 
@@ -642,7 +699,11 @@ async function handleTelegram(env, update) {
         chat_id: chatId,
         text: referralText
       });
-      await sendReferralMenu(env, chatId, userId);
+      if (v21Canary) {
+        await sendReferralMenu(env, chatId, userId);
+      } else {
+        await sendLegacyMainMenu(env, chatId);
+      }
       return;
     }
 
@@ -702,6 +763,13 @@ async function handleTelegram(env, update) {
     }
 
     if (callback.namespace === "group") {
+      if (!v21UiCanaryUser(env, q.from?.id)) {
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id,
+          text: "Menu ini sedang diuji terbatas."
+        }).catch(() => {});
+        return;
+      }
       if (callback.action === "id") {
         await tg(env, "answerCallbackQuery", {
           callback_query_id: q.id,
@@ -736,6 +804,7 @@ async function handleTelegram(env, update) {
     const chatId = q.message?.chat?.id;
     const userId = q.from?.id;
     const menuMessageId = q.message?.message_id;
+    const v21Canary = v21UiCanaryUser(env, userId);
 
     if (callback.namespace === "menu") {
       await tg(env, "answerCallbackQuery", {
@@ -743,43 +812,71 @@ async function handleTelegram(env, update) {
       }).catch(() => {});
 
       if (callback.action === "main") {
-        await sendMainMenu(env, chatId, userId, menuMessageId);
+        if (v21Canary) {
+          await sendMainMenu(env, chatId, userId, menuMessageId);
+        } else {
+          await sendLegacyMainMenu(env, chatId);
+        }
         return;
       }
       if (callback.action === "account") {
-        await sendAccountMenu(env, chatId, q.from, menuMessageId);
+        if (v21Canary) {
+          await sendAccountMenu(env, chatId, q.from, menuMessageId);
+        } else {
+          await sendLegacyAccountMenu(env, chatId, userId);
+        }
         return;
       }
       if (callback.action === "ai") {
-        await sendAiMenu(env, chatId, q.from, menuMessageId);
+        if (v21Canary) {
+          await sendAiMenu(env, chatId, q.from, menuMessageId);
+        } else {
+          await sendLegacyMainMenu(env, chatId);
+        }
         return;
       }
       if (callback.action === "extension") {
-        await sendExtensionMenu(env, chatId, userId, menuMessageId);
+        if (v21Canary) {
+          await sendExtensionMenu(env, chatId, userId, menuMessageId);
+        } else {
+          await sendLegacyMainMenu(env, chatId);
+        }
         return;
       }
       if (callback.action === "supporter") {
         const callbackMessage = {...q.message, from: q.from};
         const access = await supportPrivilegeForMessage(env, callbackMessage);
-        await sendSupporterMenu(
-          env,
-          callbackMessage,
-          access,
-          menuMessageId
-        );
+        if (v21Canary) {
+          await sendSupporterMenu(
+            env,
+            callbackMessage,
+            access,
+            menuMessageId
+          );
+        } else {
+          await sendLegacySupporterMenu(env, callbackMessage, access);
+        }
         return;
       }
       if (callback.action === "referral") {
-        await sendReferralMenu(env, chatId, userId, menuMessageId);
+        if (v21Canary) {
+          await sendReferralMenu(env, chatId, userId, menuMessageId);
+        } else {
+          await sendLegacyReferralMenu(env, chatId, userId);
+        }
         return;
       }
       if (callback.action === "activation") {
-        await sendActivationMenu(
-          env,
-          chatId,
-          userId,
-          menuMessageId
-        );
+        if (v21Canary) {
+          await sendActivationMenu(
+            env,
+            chatId,
+            userId,
+            menuMessageId
+          );
+        } else {
+          await sendLegacyActivationMenu(env, chatId);
+        }
         return;
       }
       if (callback.action === "help") {
@@ -788,18 +885,29 @@ async function handleTelegram(env, update) {
           env,
           callbackMessage
         );
-        await sendHelpPanel(
-          env,
-          chatId,
-          access,
-          userId,
-          menuMessageId
-        );
+        if (v21Canary) {
+          await sendHelpPanel(
+            env,
+            chatId,
+            access,
+            userId,
+            menuMessageId
+          );
+        } else {
+          await sendLegacyHelpPanel(env, chatId, access);
+        }
         return;
       }
     }
 
     if (callback.namespace === "ai") {
+      if (!v21Canary) {
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id,
+          text: "Menu ini sedang diuji terbatas."
+        }).catch(() => {});
+        return;
+      }
       await tg(env, "answerCallbackQuery", {
         callback_query_id: q.id
       }).catch(() => {});
@@ -812,6 +920,13 @@ async function handleTelegram(env, update) {
     }
 
     if (callback.namespace === "extension") {
+      if (!v21Canary) {
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id,
+          text: "Menu ini sedang diuji terbatas."
+        }).catch(() => {});
+        return;
+      }
       await tg(env, "answerCallbackQuery", {
         callback_query_id: q.id
       }).catch(() => {});
@@ -826,6 +941,13 @@ async function handleTelegram(env, update) {
     }
 
     if (callback.namespace === "help") {
+      if (!v21Canary) {
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id,
+          text: "Menu ini sedang diuji terbatas."
+        }).catch(() => {});
+        return;
+      }
       await tg(env, "answerCallbackQuery", {
         callback_query_id: q.id
       }).catch(() => {});
@@ -851,6 +973,13 @@ async function handleTelegram(env, update) {
     }
 
     if (callback.namespace === "referral") {
+      if (!v21Canary) {
+        await tg(env, "answerCallbackQuery", {
+          callback_query_id: q.id,
+          text: "Menu ini sedang diuji terbatas."
+        }).catch(() => {});
+        return;
+      }
       await tg(env, "answerCallbackQuery", {
         callback_query_id: q.id
       }).catch(() => {});
@@ -883,6 +1012,13 @@ async function handleTelegram(env, update) {
       const callbackMessage = {...q.message, from: q.from};
 
       if (callback.action === "packages") {
+        if (!v21Canary) {
+          await tg(env, "answerCallbackQuery", {
+            callback_query_id: q.id,
+            text: "Menu ini sedang diuji terbatas."
+          }).catch(() => {});
+          return;
+        }
         await tg(env, "answerCallbackQuery", {
           callback_query_id: q.id
         }).catch(() => {});
@@ -896,6 +1032,13 @@ async function handleTelegram(env, update) {
       }
 
       if (callback.action === "status") {
+        if (!v21Canary) {
+          await tg(env, "answerCallbackQuery", {
+            callback_query_id: q.id,
+            text: "Menu ini sedang diuji terbatas."
+          }).catch(() => {});
+          return;
+        }
         await tg(env, "answerCallbackQuery", {
           callback_query_id: q.id
         }).catch(() => {});
@@ -909,6 +1052,13 @@ async function handleTelegram(env, update) {
       }
 
       if (callback.action === "wall") {
+        if (!v21Canary) {
+          await tg(env, "answerCallbackQuery", {
+            callback_query_id: q.id,
+            text: "Menu ini sedang diuji terbatas."
+          }).catch(() => {});
+          return;
+        }
         await tg(env, "answerCallbackQuery", {
           callback_query_id: q.id
         }).catch(() => {});
@@ -922,6 +1072,13 @@ async function handleTelegram(env, update) {
       }
 
       if (callback.action === "payment") {
+        if (!v21Canary) {
+          await tg(env, "answerCallbackQuery", {
+            callback_query_id: q.id,
+            text: "Menu ini sedang diuji terbatas."
+          }).catch(() => {});
+          return;
+        }
         await tg(env, "answerCallbackQuery", {
           callback_query_id: q.id
         }).catch(() => {});
@@ -938,16 +1095,30 @@ async function handleTelegram(env, update) {
         await tg(env, "answerCallbackQuery", {
           callback_query_id: q.id
         }).catch(() => {});
-        await sendSupporterTermsPanel(
-          env,
-          chatId,
-          userId,
-          menuMessageId
-        );
+        if (v21Canary) {
+          await sendSupporterTermsPanel(
+            env,
+            chatId,
+            userId,
+            menuMessageId
+          );
+        } else {
+          await tg(env, "sendMessage", {
+            chat_id: chatId,
+            text: supporterTermsText()
+          });
+        }
         return;
       }
 
       if (callback.action === "wall-mode") {
+        if (!v21Canary) {
+          await tg(env, "answerCallbackQuery", {
+            callback_query_id: q.id,
+            text: "Menu ini sedang diuji terbatas."
+          }).catch(() => {});
+          return;
+        }
         const result = await setSupporterWallMode(
           env,
           callbackMessage,
@@ -978,13 +1149,22 @@ async function handleTelegram(env, update) {
         await tg(env, "answerCallbackQuery", {
           callback_query_id: q.id
         }).catch(() => {});
-        await sendSupporterPackageConfirmation(
-          env,
-          userId,
-          chatId,
-          callback.packageId,
-          menuMessageId
-        );
+        if (v21Canary) {
+          await sendSupporterPackageConfirmation(
+            env,
+            userId,
+            chatId,
+            callback.packageId,
+            menuMessageId
+          );
+        } else {
+          await sendLegacySupporterPackageConfirmation(
+            env,
+            userId,
+            chatId,
+            callback.packageId
+          );
+        }
         return;
       }
 
@@ -1561,7 +1741,9 @@ export default {
           bot_v2_payment_d1_enabled: d1PaymentEnabled(env),
           bot_v2_referral_d1_enabled: d1ReferralEnabled(env),
           bot_v2_referral_self_test_enabled: d1ReferralSelfTestEnabled(env),
-          bot_v2_activation_ledger_enabled: d1ActivationLedgerEnabled(env)
+          bot_v2_activation_ledger_enabled: d1ActivationLedgerEnabled(env),
+          bot_v21_ui_canary_enabled: v21UiCanaryEnabled(env),
+          bot_v21_ui_canary_user_count: v21UiCanaryCount(env)
         }, 200, corsHeaders(request));
       }
 
