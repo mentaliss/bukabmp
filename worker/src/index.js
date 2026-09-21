@@ -21,6 +21,7 @@ import {d1ActivationLedgerEnabled, d1MigrationEnabled, d1PaymentEnabled, d1ReadP
 import {kvInventorySummary} from "./security/kv-inventory.js";
 import {supporterMigrationApply, supporterMigrationCompare, supporterMigrationDryRun} from "./features/supporter-migration.js";
 import {runReferralSelfTest} from "./features/referral-self-test.js";
+import {activationLedgerMigrationApply, activationLedgerMigrationDryRun} from "./features/activation-ledger-migration.js";
 import {handlePrivacyGate} from "./security/privacy-gate.js";
 import {auditErrorName} from "./security/audit.js";
 import {normalizeSupportQuery, redactSensitiveSupportText} from "./security/redaction.js";
@@ -1453,6 +1454,29 @@ async function adminSupporterMigrationApply(request, env) {
 }
 
 
+async function adminActivationLedgerMigrationDryRun(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  if (!env.ADMIN_SETUP_TOKEN || auth !== `Bearer ${env.ADMIN_SETUP_TOKEN}`) {
+    return json({error: "unauthorized"}, 401, corsHeaders(request));
+  }
+
+  const result = await activationLedgerMigrationDryRun(env);
+  return json(result, result.ok ? 200 : 409, corsHeaders(request));
+}
+
+
+async function adminActivationLedgerMigrationApply(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  if (!env.ADMIN_SETUP_TOKEN || auth !== `Bearer ${env.ADMIN_SETUP_TOKEN}`) {
+    return json({error: "unauthorized"}, 401, corsHeaders(request));
+  }
+
+  const body = await request.json().catch(() => null);
+  const result = await activationLedgerMigrationApply(env, body?.confirm);
+  return json(result, result.ok ? 200 : 409, corsHeaders(request));
+}
+
+
 async function adminReferralSelfTest(request, env) {
   const auth = request.headers.get("Authorization") || "";
   if (!env.ADMIN_SETUP_TOKEN || auth !== `Bearer ${env.ADMIN_SETUP_TOKEN}`) {
@@ -1632,6 +1656,14 @@ export default {
 
       if (url.pathname === "/admin/referral-self-test" && request.method === "POST") {
         return await adminReferralSelfTest(request, env);
+      }
+
+      if (url.pathname === "/admin/activation-ledger-migration-dry-run" && request.method === "GET") {
+        return await adminActivationLedgerMigrationDryRun(request, env);
+      }
+
+      if (url.pathname === "/admin/activation-ledger-migration-apply" && request.method === "POST") {
+        return await adminActivationLedgerMigrationApply(request, env);
       }
 
       if (url.pathname === "/admin/set-webhook" && request.method === "POST") {
