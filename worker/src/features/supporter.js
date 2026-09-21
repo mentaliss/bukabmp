@@ -116,8 +116,6 @@ export async function setSupporterWallMode(env, message, mode) {
     ? mode
     : "private";
   record.wall_mode = normalized;
-  record.username = String(message?.from?.username || record.username || "");
-  record.first_name = String(message?.from?.first_name || record.first_name || "");
   await putSupporterEntitlement(env, userId, record);
 
   if (normalized === "private") {
@@ -130,8 +128,8 @@ export async function setSupporterWallMode(env, message, mode) {
       JSON.stringify({
         user_id: userId,
         mode: normalized,
-        username: record.username || "",
-        first_name: record.first_name || "",
+        username: String(message?.from?.username || ""),
+        first_name: String(message?.from?.first_name || ""),
         supporter_until: record.supporter_until
       })
     );
