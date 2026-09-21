@@ -518,3 +518,69 @@ test("invalid referral deep-link never falls through to activation verification"
     globalThis.fetch = oldFetch;
   }
 });
+
+test("owner-only KV inventory rejects missing admin auth", async () => {
+  const response = await worker.fetch(
+    new Request("https://worker.test/admin/kv-inventory"),
+    baseEnv({
+      ADMIN_SETUP_TOKEN: "fixture-admin",
+      PAIRINGS: {
+        async list() {
+          throw new Error("must not list without auth");
+        }
+      }
+    })
+  );
+  assert.equal(response.status, 401);
+});
+
+test("owner-only KV inventory returns counts without raw keys", async () => {
+  const pages = [
+    {
+      list_complete: false,
+      cursor: "next",
+      keys: [
+        {name: "pair:PairSecretABC"},
+        {name: "supporter:user:424242"},
+        {name: "supporter-payment:chargehash"},
+        {name: "support-ai-day:424242:2026-09-21"}
+      ]
+    },
+    {
+      list_complete: true,
+      keys: [
+        {name: "telegram-update:9001"},
+        {name: "mystery:private-value"}
+      ]
+    }
+  ];
+  let page = 0;
+  const env = baseEnv({
+    ADMIN_SETUP_TOKEN: "fixture-admin",
+    PAIRINGS: {
+      async list() {
+        return pages[page++];
+      }
+    }
+  });
+
+  const response = await worker.fetch(
+    new Request("https://worker.test/admin/kv-inventory", {
+      headers: {Authorization: "Bearer fixture-admin"}
+    }),
+    env
+  );
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.total_keys, 6);
+  assert.deepEqual(body.families, {
+    pair: 1,
+    supporter_entitlement: 1,
+    supporter_payment_marker: 1,
+    support_ai_quota: 1,
+    telegram_update_legacy: 1,
+    other: 1
+  });
+  const serialized = JSON.stringify(body);
+  assert.doesNotMatch(serialized, /PairSecretABC|424242|chargehash|private-value/);
+});
