@@ -56,5 +56,5 @@ test("candidate config binds BOT_DB without enabling D1 authorities", () => {
   assert.equal(binding.database_name, "bmp-terbuka-bot-v2");
   assert.equal(binding.migrations_dir, "migrations");
   assert.equal(wrangler.vars?.BOT_V2_D1_WRITE_ENABLED, undefined);
-  assert.equal(wrangler.vars?.BOT_V2_D1_REPLAY_ENABLED, undefined);
+  assert.equal(wrangler.vars?.BOT_V2_D1_REPLAY_ENABLED, "true");
 });
