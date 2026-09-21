@@ -51,7 +51,7 @@ import {
   supporterWallKey
 } from "./features/supporter-model.js";
 import {getSupporterEntitlement, putSupporterEntitlement} from "./data/supporter.js";
-import {PAIR_TTL_SECONDS, verifyPairForUser} from "./features/activation.js";
+import {PAIR_TTL_SECONDS, TOKEN_TTL_DAYS, verifyPairForUser} from "./features/activation.js";
 
 const APP_VERSION = "1.0.5-support-bot-v12-sponsor-surface";
 const TOKEN_ISSUER = "bmp-terbuka-community";
