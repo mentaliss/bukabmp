@@ -19,6 +19,7 @@ import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
 import {claimTelegramUpdate} from "./security/idempotency.js";
 import {d1ReadProbe, d1ReplayEnabled, d1WritesEnabled} from "./data/d1/mode.js";
 import {kvInventorySummary} from "./security/kv-inventory.js";
+import {supporterMigrationDryRun} from "./features/supporter-migration.js";
 import {handlePrivacyGate} from "./security/privacy-gate.js";
 import {auditErrorName} from "./security/audit.js";
 import {normalizeSupportQuery, redactSensitiveSupportText} from "./security/redaction.js";
@@ -1166,6 +1167,18 @@ async function adminKvInventory(request, env) {
 }
 
 
+async function adminSupporterMigrationDryRun(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  if (!env.ADMIN_SETUP_TOKEN || auth !== `Bearer ${env.ADMIN_SETUP_TOKEN}`) {
+    return json({error: "unauthorized"}, 401, corsHeaders(request));
+  }
+
+  const result = await supporterMigrationDryRun(env);
+  const status = result.ok ? 200 : 409;
+  return json(result, status, corsHeaders(request));
+}
+
+
 async function adminSetWebhook(request, env) {
   const auth = request.headers.get("Authorization") || "";
   if (!env.ADMIN_SETUP_TOKEN || auth !== `Bearer ${env.ADMIN_SETUP_TOKEN}`) {
@@ -1305,6 +1318,10 @@ export default {
 
       if (url.pathname === "/admin/kv-inventory" && request.method === "GET") {
         return await adminKvInventory(request, env);
+      }
+
+      if (url.pathname === "/admin/supporter-migration-dry-run" && request.method === "GET") {
+        return await adminSupporterMigrationDryRun(request, env);
       }
 
       if (url.pathname === "/admin/set-webhook" && request.method === "POST") {
