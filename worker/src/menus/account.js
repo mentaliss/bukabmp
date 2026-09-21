@@ -15,7 +15,7 @@ function actorId(actor) {
 
 function usernameLine(actor) {
   const username = String(actor?.username || "").trim();
-  return username ? "@" + username : "Tidak digunakan";
+  return username ? "@" + username : "Tidak ada";
 }
 
 export async function sendAccountMenu(
@@ -57,7 +57,7 @@ export async function sendAccountMenu(
   if (!activation.available) {
     activationLines = [
       "Status            Belum tercatat",
-      "Catatan           Registry baru aktif setelah migrasi schema"
+      "Catatan           Akan tercatat pada aktivasi berikutnya setelah registry aktif"
     ];
   } else if (!activation.activated) {
     activationLines = [
