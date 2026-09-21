@@ -7,8 +7,9 @@ const VERSION_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const CLOUD_FAILURE_BACKOFF_MS = 5 * 60 * 1000;
 const CLOUD_CACHE_KEY = "bmpCloudStateCacheV3";
 const ACTIVATION_REFRESH_META_KEY = "bmpActivationRefreshMetaV110";
-const ACTIVATION_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
-const ACTIVATION_REFRESH_FAILURE_BACKOFF_MS = 5 * 60 * 1000;
+const ACTIVATION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const ACTIVATION_REFRESH_NO_SUPPORTER_INTERVAL_MS = 60 * 1000;
+const ACTIVATION_REFRESH_FAILURE_BACKOFF_MS = 60 * 1000;
 const DEFAULT_STATE = {
   running: false,
   tabId: null,
@@ -538,9 +539,16 @@ async function refreshActivation({force = false} = {}) {
   const lastAttemptAt = Number(meta.lastAttemptAt || 0);
   const lastSuccessAt = Number(meta.lastSuccessAt || 0);
   const lastError = String(meta.lastError || "");
+  const supporterStillActive = Boolean(
+    verified.payload?.supporter_active === true &&
+    Number(verified.payload?.supporter_until || 0) * 1000 > now
+  );
+  const successIntervalMs = supporterStillActive
+    ? ACTIVATION_REFRESH_INTERVAL_MS
+    : ACTIVATION_REFRESH_NO_SUPPORTER_INTERVAL_MS;
   const retryAfterMs = lastError
     ? ACTIVATION_REFRESH_FAILURE_BACKOFF_MS
-    : ACTIVATION_REFRESH_INTERVAL_MS;
+    : successIntervalMs;
   const throttleAnchor = lastError
     ? lastAttemptAt
     : (lastSuccessAt || lastAttemptAt);
