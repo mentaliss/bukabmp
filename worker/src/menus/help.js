@@ -59,7 +59,7 @@ export function installText() {
   return [
     "📦 Instalasi BMP Terbuka",
     "",
-    "Android: Microsoft Edge Canary + paket Android-CRX.",
+    "Android: Microsoft Edge Stable + paket Android-CRX.",
     "Tutorial instalasi Android: " + SUPPORT_ANDROID_INSTALL_TEXT_URL,
     "",
     "Desktop: Google Chrome atau Microsoft Edge. Download ZIP release → extract → Developer mode → Load unpacked.",
@@ -70,7 +70,7 @@ export function installText() {
 
 export function androidHelpText() {
   return [
-    "📱 Android — Microsoft Edge Canary",
+    "📱 Android — Microsoft Edge Stable",
     "",
     "Tutorial instalasi (teks): " + SUPPORT_ANDROID_INSTALL_TEXT_URL,
     "Video penggunaan v1.0.4: " + SUPPORT_ANDROID_USAGE_VIDEO_V104_URL,
