@@ -15,9 +15,9 @@ export function supportHelpText(access = null) {
     "Bot membantu penggunaan BMP Terbuka, bukan topik umum.",
     "",
     "Di Group Terbuka:",
-    "• ketik /ask diikuti pertanyaan;",
-    "• mention @bukabmp_bot;",
-    "• atau reply pesan bot.",
+    "• buka " + SUPPORT_GROUP_JOIN_URL + ";",
+    "• jika yang terbuka posting komunitas, buka komentar/diskusinya lalu tekan Join/Gabung;",
+    "• setelah masuk, mention @bukabmp_bot, reply pesan bot, atau ketik /ask diikuti pertanyaan.",
     "",
     privileged
       ? "Kamu juga bisa bertanya langsung lewat DM."
@@ -92,7 +92,14 @@ export function desktopHelpText() {
 }
 
 export function groupHelpText() {
-  return "Group Terbuka: " + SUPPORT_GROUP_JOIN_URL;
+  return [
+    "👥 Cara join Group Terbuka",
+    "",
+    "1. Buka: " + SUPPORT_GROUP_JOIN_URL,
+    "2. Jika Telegram membuka posting komunitas, buka komentar/diskusinya.",
+    "3. Tekan Join/Gabung pada Group Terbuka.",
+    "4. Setelah masuk, kamu bisa mention @bukabmp_bot, reply pesan bot, atau ketik /ask diikuti pertanyaan."
+  ].join("\n");
 }
 
 export function updateHelpText() {
