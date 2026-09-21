@@ -34,6 +34,8 @@ import {
   referralRewardDelta
 } from "../src/features/referral.js";
 
+import {mainMenuKeyboard, menuDeepLink} from "../src/menus/main.js";
+
 test("telegram routing helpers preserve command and chat-scope behavior", () => {
   const env = {BOT_USERNAME: "bukabmp_bot", SUPPORT_GROUP_ID: "-10042"};
   assert.deepEqual(parseBotCommand("/ask halo", env), {command: "ask", args: "halo"});
@@ -197,4 +199,23 @@ test("referral links use opaque codes and strict start parsing", () => {
 test("referred-user +1 day policy is intentionally absent from referral core", () => {
   const source = referralRewardDelta.toString() + referralEntitlementTotalDays.toString();
   assert.doesNotMatch(source, /referred.*1\s*day/i);
+});
+
+test("DM main menu keeps personal domains separated", () => {
+  const keyboard = mainMenuKeyboard().inline_keyboard.flat();
+  const callbacks = keyboard.map(button => button.callback_data).filter(Boolean);
+  assert.ok(callbacks.includes("menu:account"));
+  assert.ok(callbacks.includes("menu:supporter"));
+  assert.ok(callbacks.includes("menu:referral"));
+  assert.ok(callbacks.includes("menu:activation"));
+  assert.ok(callbacks.includes("menu:help"));
+  assert.equal(
+    menuDeepLink({BOT_USERNAME: "bukabmp_bot"}),
+    "https://t.me/bukabmp_bot?start=menu"
+  );
+  assert.deepEqual(
+    parseTelegramCallback("menu:account"),
+    {namespace: "menu", action: "account"}
+  );
+  assert.equal(parseTelegramCallback("menu:admin"), null);
 });
