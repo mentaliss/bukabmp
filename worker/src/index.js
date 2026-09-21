@@ -17,6 +17,7 @@ import {b64url, b64urlJson, importSigningKey, randomToken, sha256Hex} from "./se
 import {checkPairRateLimit} from "./security/rate-limit.js";
 import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
 import {claimTelegramUpdate} from "./security/idempotency.js";
+import {d1ReadProbe, d1ReplayEnabled, d1WritesEnabled} from "./data/d1/mode.js";
 import {handlePrivacyGate} from "./security/privacy-gate.js";
 import {auditErrorName} from "./security/audit.js";
 import {normalizeSupportQuery, redactSensitiveSupportText} from "./security/redaction.js";
@@ -1182,6 +1183,7 @@ export default {
 
     try {
       if (url.pathname === "/" || url.pathname === "/health") {
+        const d1 = await d1ReadProbe(env);
         return json({
           service: "BMP Terbuka Community",
           version: APP_VERSION,
@@ -1205,7 +1207,11 @@ export default {
           supporter_context_turns: SUPPORTER_CONTEXT_MAX_TURNS,
           store_channels: ["cws", "edge"],
           realtime_extension_state: true,
-          reviewer_activation_configured: Boolean(env.STORE_REVIEWER_SECRET)
+          reviewer_activation_configured: Boolean(env.STORE_REVIEWER_SECRET),
+          bot_v2_d1_bound: d1.bound,
+          bot_v2_d1_readable: d1.readable,
+          bot_v2_d1_write_enabled: d1WritesEnabled(env),
+          bot_v2_d1_replay_enabled: d1ReplayEnabled(env)
         }, 200, corsHeaders(request));
       }
 
