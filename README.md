@@ -33,7 +33,7 @@ Service eksternal diperlakukan sebagai API yang digunakan extension. Public endp
 - Watermark sumber **tidak dihapus atau dimodifikasi**.
 - Saat sumber menolak akses (`403`, `429`, login ulang, `Request Rejected`), proses berhenti tanpa blind retry.
 - Aktivasi komunitas menggunakan **Buka BMP** dan **Group Terbuka**.
-- Mendukung desktop Chromium dan jalur Android melalui **Microsoft Edge Canary**.
+- Mendukung desktop Chromium dan jalur Android utama melalui **Microsoft Edge Stable + Microsoft Edge Add-ons**. Edge Canary tetap menjadi fallback/testing.
 
 ## Instalasi
 
@@ -48,13 +48,17 @@ Gunakan paket dari **GitHub Releases**, bukan Source code ZIP.
 5. Klik **Load unpacked** dan pilih folder hasil extract yang berisi `manifest.json`.
 6. Buka popup BMP Terbuka dan selesaikan aktivasi Telegram.
 
-### Android — Microsoft Edge Canary
+### Android — Microsoft Edge Stable
 
-1. Install/update **Microsoft Edge Canary**.
-2. Aktifkan dukungan pemasangan extension/CRX pada pengaturan developer/eksperimental Edge Canary yang tersedia di perangkat.
-3. Download paket Android/CRX BMP Terbuka dari GitHub Releases dan pasang melalui fitur install extension Edge Canary.
+1. Install/update **Microsoft Edge** dari Google Play.
+2. Buka listing BMP Terbuka di **Microsoft Edge Add-ons** melalui Edge.
+3. Tekan **Dapatkan** dan konfirmasi pemasangan.
 4. Buka popup BMP Terbuka dan selesaikan aktivasi Telegram.
 5. Login ke portal reader dengan akun Anda sendiri, isi kode BMP + modul, lalu tekan **Mulai**.
+
+Pada sebagian listing Google Play, Edge Stable dapat tampil sebagai **Microsoft Edge: Ekstensi / Microsoft Edge: Extensions**. Edge Canary dipertahankan sebagai fallback/testing, bukan jalur utama user umum.
+
+Desktop Chromium non-Edge sementara menggunakan paket GitHub/manual. Chrome Android bukan target instalasi resmi.
 
 Panduan Android yang lebih detail, screenshot, dan troubleshooting dipusatkan di komunitas **Buka BMP** di Telegram.
 
