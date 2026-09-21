@@ -26,6 +26,14 @@ import {
 import {parseTelegramCallback} from "../src/telegram/callbacks.js";
 import {claimTelegramUpdate, telegramUpdateKey} from "../src/security/idempotency.js";
 
+import {
+  createOpaqueReferralCode,
+  parseReferralStartArg,
+  referralDeepLink,
+  referralEntitlementTotalDays,
+  referralRewardDelta
+} from "../src/features/referral.js";
+
 test("telegram routing helpers preserve command and chat-scope behavior", () => {
   const env = {BOT_USERNAME: "bukabmp_bot", SUPPORT_GROUP_ID: "-10042"};
   assert.deepEqual(parseBotCommand("/ask halo", env), {command: "ask", args: "halo"});
@@ -147,4 +155,46 @@ test("KV replay helper rejects a sequential duplicate update id", async () => {
   assert.equal(first.process, true);
   assert.equal(second.process, false);
   assert.equal(telegramUpdateKey(12345), "telegram-update:12345");
+});
+
+test("referral core preserves the frozen inviter entitlement schedule", () => {
+  assert.equal(referralEntitlementTotalDays(0), 0);
+  assert.equal(referralEntitlementTotalDays(1), 2);
+  assert.equal(referralEntitlementTotalDays(2), 4);
+  assert.equal(referralEntitlementTotalDays(3), 7);
+  assert.equal(referralEntitlementTotalDays(4), 9);
+  assert.equal(referralEntitlementTotalDays(5), 12);
+  assert.equal(referralEntitlementTotalDays(9), 12);
+  assert.equal(referralEntitlementTotalDays(10), 20);
+  assert.equal(referralEntitlementTotalDays(19), 20);
+  assert.equal(referralEntitlementTotalDays(20), 40);
+  assert.equal(referralEntitlementTotalDays(29), 40);
+  assert.equal(referralEntitlementTotalDays(30), 60);
+  assert.equal(referralEntitlementTotalDays(31), 62);
+
+  assert.deepEqual(referralRewardDelta(3, 4), {
+    entitlementTotalDays: 7,
+    creditedDeltaDays: 3
+  });
+  assert.deepEqual(referralRewardDelta(5, 12), {
+    entitlementTotalDays: 12,
+    creditedDeltaDays: 0
+  });
+});
+
+test("referral links use opaque codes and strict start parsing", () => {
+  const code = createOpaqueReferralCode();
+  assert.match(code, /^[A-Za-z0-9_-]{12,40}$/);
+  assert.equal(parseReferralStartArg("ref_" + code), code);
+  assert.equal(parseReferralStartArg("ref_424242"), null);
+  assert.equal(parseReferralStartArg("support"), null);
+  assert.equal(
+    referralDeepLink({BOT_USERNAME: "bukabmp_bot"}, code),
+    "https://t.me/bukabmp_bot?start=ref_" + code
+  );
+});
+
+test("referred-user +1 day policy is intentionally absent from referral core", () => {
+  const source = referralRewardDelta.toString() + referralEntitlementTotalDays.toString();
+  assert.doesNotMatch(source, /referred.*1\s*day/i);
 });
