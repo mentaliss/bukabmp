@@ -715,9 +715,9 @@ async function refreshAccess(){
 
   if(a.active&&!a.reviewer){
     const pendingRefresh=Boolean(a.pending);
-    el("activationManage").style.display="block";
     el("refreshActivation").disabled=Boolean(latestVersionPolicy?.updateRequired);
     if(pendingRefresh){
+      el("activationManage").style.display="block";
       el("activationManageText").textContent=
         "Menunggu verifikasi ulang untuk menyinkronkan akun BMP Terbuka kamu.";
       el("activationManageCode").textContent=a.pending?.pairId
@@ -726,11 +726,12 @@ async function refreshAccess(){
       el("refreshActivation").style.display="block";
       el("refreshActivation").textContent="Buka Telegram lagi";
     }else if(a.refreshEligible){
-      el("activationManageText").textContent=
-        `Aktif sampai ${formatDate(a.expiresAt)}. Akun dan aktivasi sudah tersinkron.`;
+      el("activationManage").style.display="none";
+      el("activationManageText").textContent="";
       el("activationManageCode").textContent="";
       el("refreshActivation").style.display="none";
     }else{
+      el("activationManage").style.display="block";
       el("activationManageText").textContent=
         "Verifikasi ulang sekali untuk memperbarui aktivasi dan menyinkronkan akun BMP Terbuka kamu. Akses yang masih aktif tetap berlaku selama proses.";
       el("activationManageCode").textContent="";
