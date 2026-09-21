@@ -65,12 +65,12 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.status, "ok");
-  assert.equal(body.version, "1.0.5-support-bot-v14-hidden-command-menu-kb");
+  assert.equal(body.version, "1.0.5-support-bot-v15-minimal-command-menu");
   assert.equal(body.supporter_pass, true);
   assert.equal(body.privacy_gate_enabled, true);
   assert.equal(body.realtime_extension_state, true);
   assert.equal(body.extension_state_status_badge, true);
-  assert.equal(body.telegram_command_menu_hidden, false);
+  assert.equal(body.telegram_command_menu_mode, "legacy");
   assert.equal(body.supporter_packages.day.stars, 2);
   assert.equal(body.supporter_packages.month.stars, 50);
   assert.equal(body.bot_v2_d1_bound, false);
@@ -559,7 +559,7 @@ test("private start without pair code opens the V2.1 control panel for canary us
   }
 });
 
-test("group slash commands other than ask are removed without replies", async () => {
+test("group slash commands other than ask open the standard assistant panel", async () => {
   const env = baseEnv({
     SUPPORT_GROUP_ID: "-10042",
     BOT_V21_UI_ENABLED: "true"
@@ -567,7 +567,7 @@ test("group slash commands other than ask are removed without replies", async ()
   const oldFetch = globalThis.fetch;
 
   try {
-    for (const [index, text] of ["/menu", "/tutorial", "/terms", "/paysupport"].entries()) {
+    for (const [index, text] of ["/start", "/help", "/menu", "/tutorial", "/terms", "/paysupport"].entries()) {
       const calls = [];
       globalThis.fetch = telegramFetchRecorder(calls);
       const messageId = 50 + index;
@@ -582,64 +582,79 @@ test("group slash commands other than ask are removed without replies", async ()
       });
       assert.equal(response.status, 200);
       assert.equal(
-        calls.some(call => call.method === "sendMessage"),
+        calls.some(call => call.method === "deleteMessage"),
         false,
-        text + " must not produce a group reply"
+        text + " must not be deleted from the group"
       );
-      assert.ok(
-        calls.some(call => call.method === "deleteMessage" && call.body.chat_id === -10042 && call.body.message_id === messageId),
-        text + " should be removed from the group when moderation rights allow it"
+      const panel = calls.find(call =>
+        call.method === "sendMessage" &&
+        String(call.body.text || "").includes("BMP Terbuka Assistant")
       );
+      assert.ok(panel, text + " should open the standard group assistant panel");
+      const callbacks = panel.body.reply_markup.inline_keyboard
+        .flat()
+        .map(button => button.callback_data)
+        .filter(Boolean);
+      assert.ok(callbacks.includes("group:ask"));
     }
   } finally {
     globalThis.fetch = oldFetch;
   }
 });
 
-test("first webhook auto-clears stale Telegram command menus when hidden mode is enabled", async () => {
-  const env = baseEnv({TELEGRAM_COMMAND_MENU_HIDDEN: "true"});
+test("first webhook restores the minimal Telegram command menu", async () => {
+  const env = baseEnv({TELEGRAM_COMMAND_MENU_MODE: "minimal"});
   const calls = [];
   const oldFetch = globalThis.fetch;
   globalThis.fetch = telegramFetchRecorder(calls);
   try {
     const response = await webhook(env, {
-      update_id: 4104,
+      update_id: 4200,
       message: {
-        message_id: 54,
+        message_id: 64,
         from: {id: 424242, is_bot: false},
         chat: {id: 424242, type: "private"},
         text: "/start"
       }
     });
     assert.equal(response.status, 200);
-    assert.equal(
-      calls.filter(call => call.method === "deleteMyCommands").length,
-      4
+    assert.equal(calls.filter(call => call.method === "deleteMyCommands").length, 4);
+
+    const sets = calls.filter(call => call.method === "setMyCommands");
+    assert.equal(sets.length, 3);
+
+    const privateSet = sets.find(call => call.body.scope?.type === "all_private_chats");
+    assert.deepEqual(
+      privateSet.body.commands.map(item => item.command),
+      ["start", "menu", "help", "verify", "ask"]
     );
-    assert.equal(
-      calls.some(call => call.method === "setMyCommands"),
-      false
+
+    const groupSets = sets.filter(call =>
+      ["all_group_chats", "all_chat_administrators"].includes(call.body.scope?.type)
     );
+    assert.equal(groupSets.length, 2);
+    for (const call of groupSets) {
+      assert.deepEqual(call.body.commands.map(item => item.command), ["ask"]);
+    }
+
     assert.equal(
-      await env.PAIRINGS.get("telegram-command-scopes:hidden-v1"),
+      await env.PAIRINGS.get("telegram-command-scopes:minimal-v2"),
       "ok"
     );
 
     calls.length = 0;
     const second = await webhook(env, {
-      update_id: 4105,
+      update_id: 4201,
       message: {
-        message_id: 55,
+        message_id: 65,
         from: {id: 424242, is_bot: false},
         chat: {id: 424242, type: "private"},
         text: "/start"
       }
     });
     assert.equal(second.status, 200);
-    assert.equal(
-      calls.filter(call => call.method === "deleteMyCommands").length,
-      0
-    );
+    assert.equal(calls.filter(call => call.method === "deleteMyCommands").length, 0);
+    assert.equal(calls.filter(call => call.method === "setMyCommands").length, 0);
   } finally {
     globalThis.fetch = oldFetch;
   }
@@ -672,7 +687,7 @@ test("legacy tutorial command in DM opens current extension UI", async () => {
   }
 });
 
-test("admin command sync clears Telegram autocomplete in every global scope", async () => {
+test("admin command sync publishes only the minimal private and group commands", async () => {
   const env = baseEnv({ADMIN_SETUP_TOKEN: "fixture-admin"});
   const calls = [];
   const oldFetch = globalThis.fetch;
@@ -687,8 +702,8 @@ test("admin command sync clears Telegram autocomplete in every global scope", as
     ), env);
     assert.equal(response.status, 200);
     const body = await response.json();
-    assert.deepEqual(body.private_commands, []);
-    assert.deepEqual(body.group_commands, []);
+    assert.deepEqual(body.private_commands, ["start", "menu", "help", "verify", "ask"]);
+    assert.deepEqual(body.group_commands, ["ask"]);
 
     const deletes = calls.filter(call => call.method === "deleteMyCommands");
     assert.equal(deletes.length, 4);
@@ -696,10 +711,9 @@ test("admin command sync clears Telegram autocomplete in every global scope", as
       deletes.map(call => call.body.scope?.type),
       ["default", "all_private_chats", "all_group_chats", "all_chat_administrators"]
     );
-    assert.equal(
-      calls.some(call => call.method === "setMyCommands"),
-      false
-    );
+
+    const sets = calls.filter(call => call.method === "setMyCommands");
+    assert.equal(sets.length, 3);
   } finally {
     globalThis.fetch = oldFetch;
   }
