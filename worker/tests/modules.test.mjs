@@ -102,7 +102,7 @@ import {
 
 test("help menu module preserves current user-visible copy", () => {
   assert.match(supportHelpText(), /Group Terbuka/);
-  assert.match(supportHelpText({privileged: true}), /DM \+ Group Terbuka/);
+  assert.match(supportHelpText({privileged: true}), /bertanya langsung lewat DM/);
   assert.match(androidHelpText(), /Microsoft Edge Canary/);
   assert.equal(groupHelpText(), "Group Terbuka: https://t.me/bukabmp/13");
   assert.match(updateHelpText(), /^Versi terbaru: v1\.0\.5/);
@@ -114,9 +114,9 @@ test("supporter menu module preserves live packages and benefits", () => {
     "https://t.me/bukabmp_bot?start=support"
   );
   const menu = supportMenuText();
-  assert.match(menu, /2 ⭐ — 1 hari/);
-  assert.match(menu, /50 ⭐ — 30 hari/);
   assert.match(menu, /DM bot \+ AI support unlimited/);
+  assert.match(menu, /Supporter Wall opsional/);
+  assert.match(menu, /bonus target aktivasi \+14 hari/);
 
   const terms = supporterTermsText();
   assert.match(terms, /\+14 hari/);
@@ -141,6 +141,23 @@ test("callback parser only accepts known namespaces", () => {
     parseTelegramCallback("support:terms"),
     {namespace: "supporter", action: "terms"}
   );
+  assert.deepEqual(
+    parseTelegramCallback("menu:ai"),
+    {namespace: "menu", action: "ai"}
+  );
+  assert.deepEqual(
+    parseTelegramCallback("ext:resume"),
+    {namespace: "extension", action: "resume"}
+  );
+  assert.deepEqual(
+    parseTelegramCallback("ref:rules"),
+    {namespace: "referral", action: "rules"}
+  );
+  assert.deepEqual(
+    parseTelegramCallback("group:id"),
+    {namespace: "group", action: "id"}
+  );
+
   assert.equal(parseTelegramCallback("support:buy:year"), null);
   assert.equal(parseTelegramCallback("admin:delete:user"), null);
   assert.equal(parseTelegramCallback("verify:bad!"), null);
@@ -207,10 +224,12 @@ test("DM main menu keeps personal domains separated", () => {
   const keyboard = mainMenuKeyboard().inline_keyboard.flat();
   const callbacks = keyboard.map(button => button.callback_data).filter(Boolean);
   assert.ok(callbacks.includes("menu:account"));
+  assert.ok(callbacks.includes("menu:ai"));
+  assert.ok(callbacks.includes("menu:extension"));
   assert.ok(callbacks.includes("menu:supporter"));
   assert.ok(callbacks.includes("menu:referral"));
-  assert.ok(callbacks.includes("menu:activation"));
   assert.ok(callbacks.includes("menu:help"));
+  assert.equal(callbacks.includes("menu:activation"), false);
   assert.equal(
     menuDeepLink({BOT_USERNAME: "bukabmp_bot"}),
     "https://t.me/bukabmp_bot?start=menu"
