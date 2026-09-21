@@ -5,7 +5,7 @@ import {SUPPORTER_ACTIVATION_MAX_DAYS} from "./supporter-model.js";
 
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
-const TOKEN_TTL_DAYS = 14;
+export const TOKEN_TTL_DAYS = 14;
 export const PAIR_TTL_SECONDS = 15 * 60;
 
 async function activationExpiryForIssue(env, telegramUserId) {
