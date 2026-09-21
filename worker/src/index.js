@@ -1,3 +1,34 @@
+import {tg} from "./telegram/api.js";
+import {
+  configuredTelegramChatMatches,
+  isAnonymousAdminMessage,
+  isGroupChat,
+  isNormalBotMessage,
+  isOfficialSupportGroup,
+  isPrivateChat,
+  parseBotCommand,
+  supportInvocation,
+  telegramBotUsername
+} from "./telegram/router.js";
+import {supportPrivilegedUserIds} from "./security/permissions.js";
+import {handlePrivacyGate} from "./security/privacy-gate.js";
+import {
+  SUPPORTER_ACTIVATION_BONUS_DAYS,
+  SUPPORTER_ACTIVATION_MAX_DAYS,
+  SUPPORTER_CONTEXT_MAX_TURNS,
+  SUPPORTER_CONTEXT_TTL_SECONDS,
+  SUPPORTER_MEMBER_TAG,
+  formatWibDateTime,
+  parseSupportInvoicePayload,
+  supporterContextKey,
+  supporterEntitlementKey,
+  supporterInvoiceKey,
+  supporterIsActive,
+  supporterPackage,
+  supporterPaymentKey,
+  supporterWallKey
+} from "./features/supporter-model.js";
+
 const APP_VERSION = "1.0.5-support-bot-v12-sponsor-surface";
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
@@ -15,16 +46,6 @@ const SUPPORT_ANDROID_USAGE_VIDEO_V104_URL = "https://t.me/bukabmp/11?comment=29
 const SUPPORT_DESKTOP_USAGE_VIDEO_V104_URL = "https://t.me/c/4381494564/18";
 const SUPPORT_GROUP_JOIN_URL = "https://t.me/bukabmp/13";
 const SUPPORT_RELEASE_URL = "https://github.com/mentaliss/bukabmp/releases/latest";
-
-const SUPPORTER_ACTIVATION_BONUS_DAYS = 14;
-const SUPPORTER_ACTIVATION_MAX_DAYS = 60;
-const SUPPORTER_CONTEXT_TTL_SECONDS = 6 * 60 * 60;
-const SUPPORTER_CONTEXT_MAX_TURNS = 6;
-const SUPPORTER_MEMBER_TAG = "BMP Supporter";
-const SUPPORTER_PACKAGES = Object.freeze({
-  day: Object.freeze({id: "day", stars: 2, days: 1, title: "Supporter Pass — 1 Hari"}),
-  month: Object.freeze({id: "month", stars: 50, days: 30, title: "Supporter Pass — 30 Hari"})
-});
 
 function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data, null, 2), {
@@ -88,43 +109,6 @@ async function importSigningKey(env) {
 }
 
 
-function supporterEntitlementKey(userId) {
-  return `supporter:user:${String(userId)}`;
-}
-
-function supporterInvoiceKey(nonce) {
-  return `supporter-invoice:${String(nonce)}`;
-}
-
-function supporterPaymentKey(chargeIdHash) {
-  return `supporter-payment:${String(chargeIdHash)}`;
-}
-
-function supporterContextKey(userId, chatId) {
-  return `supporter-context:${String(userId)}:${String(chatId)}`;
-}
-
-function supporterWallKey(userId) {
-  return `supporter-wall:${String(userId)}`;
-}
-
-function supporterPackage(packageId) {
-  return SUPPORTER_PACKAGES[String(packageId || "").trim()] || null;
-}
-
-function formatWibDateTime(ms) {
-  if (!Number.isFinite(Number(ms)) || Number(ms) <= 0) return "-";
-  return new Intl.DateTimeFormat("id-ID", {
-    timeZone: "Asia/Jakarta",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).format(new Date(Number(ms))) + " WIB";
-}
-
 async function getSupporterEntitlement(env, userId) {
   if (!env.PAIRINGS || !userId) return null;
   return await env.PAIRINGS.get(supporterEntitlementKey(userId), "json");
@@ -133,10 +117,6 @@ async function getSupporterEntitlement(env, userId) {
 async function putSupporterEntitlement(env, userId, record) {
   if (!env.PAIRINGS || !userId) return;
   await env.PAIRINGS.put(supporterEntitlementKey(userId), JSON.stringify(record));
-}
-
-function supporterIsActive(record, now = Date.now()) {
-  return Boolean(record && Number(record.supporter_until || 0) > now);
 }
 
 async function supportAccessForUser(env, userId) {
@@ -204,23 +184,6 @@ async function issueToken(env, installId, telegramUserId) {
     new TextEncoder().encode(signingInput)
   );
   return `${signingInput}.${b64url(new Uint8Array(sig))}`;
-}
-
-async function tg(env, method, body) {
-  if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN belum diset.");
-  const r = await fetch(
-    `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,
-    {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify(body)
-    }
-  );
-  const data = await r.json();
-  if (!r.ok || !data.ok) {
-    throw new Error(`Telegram ${method}: ${data.description || r.status}`);
-  }
-  return data.result;
 }
 
 function memberOk(member) {
@@ -340,106 +303,12 @@ async function verifyPairForUser(env, pairId, userId, chatId) {
   return {ok: true};
 }
 
-function isPrivateChat(message) {
-  return message?.chat?.type === "private";
-}
-
-function isGroupChat(message) {
-  return ["group", "supergroup"].includes(message?.chat?.type || "");
-}
-
-// Telegram represents messages sent by an anonymous group admin as a message
-// from GroupAnonymousBot plus sender_chat. Treat that as a human-originated
-// group message for privacy/support routing, while still ignoring normal bots.
-function isAnonymousAdminMessage(message) {
-  if (!isGroupChat(message) || !message?.sender_chat) return false;
-  const username = String(message?.from?.username || "").toLowerCase();
-  return Boolean(message?.from?.is_bot && (username === "groupanonymousbot" || String(message?.from?.id || "") === "1087968824"));
-}
-
-function isNormalBotMessage(message) {
-  return Boolean(message?.from?.is_bot && !isAnonymousAdminMessage(message));
-}
-
-function telegramBotUsername(env) {
-  return String(env.BOT_USERNAME || "bukabmp_bot").replace(/^@/, "").trim();
-}
-
-function supportPrivilegedUserIds(env) {
-  return new Set(
-    String(env.SUPPORT_PRIVILEGED_USER_IDS || "")
-      .split(/[\s,;]+/)
-      .map(x => x.trim())
-      .filter(Boolean)
-  );
-}
-
-
 async function supportPrivilegeForMessage(env, message) {
   if (isAnonymousAdminMessage(message)) {
     return {privileged: false, source: null, supporter: null};
   }
   return await supportAccessForUser(env, message?.from?.id);
 }
-
-function configuredTelegramChatMatches(message, configuredValue) {
-  const configured = String(configuredValue || "").trim();
-  if (!configured) return false;
-  if (configured === String(message?.chat?.id || "")) return true;
-
-  const username = String(message?.chat?.username || "").replace(/^@/, "").toLowerCase();
-  if (configured.startsWith("@") && username) {
-    return configured.slice(1).toLowerCase() === username;
-  }
-  return false;
-}
-
-function isOfficialSupportGroup(env, message) {
-  if (!isGroupChat(message)) return false;
-  // SUPPORT_GROUP_ID can be used only for support/moderation routing without
-  // changing GROUP_ID, which is also used by activation membership checks.
-  const configured = env.SUPPORT_GROUP_ID || env.GROUP_ID;
-  if (!configured) return true;
-  return configuredTelegramChatMatches(message, configured);
-}
-
-function parseBotCommand(text, env) {
-  const m = String(text || "").trim().match(/^\/([a-z0-9_]+)(?:@([a-z0-9_]+))?(?:\s+([\s\S]*))?$/i);
-  if (!m) return null;
-  const addressedTo = String(m[2] || "").toLowerCase();
-  const botUsername = telegramBotUsername(env).toLowerCase();
-  if (addressedTo && botUsername && addressedTo !== botUsername) return null;
-  return {
-    command: String(m[1] || "").toLowerCase(),
-    args: String(m[3] || "").trim()
-  };
-}
-
-function supportInvocation(message, env) {
-  const text = String(message?.text || message?.caption || "").trim();
-  const command = parseBotCommand(text, env);
-  const supportCommands = new Set([
-    "ask", "bmphelp", "tutorial", "install", "android", "desktop", "group", "update", "fitur", "storage", "bug", "faq", "quota", "support", "supporter", "supporters", "terms", "paysupport"
-  ]);
-  if (command && supportCommands.has(command.command)) {
-    return {invoked: true, command, query: command.args};
-  }
-
-  const botUsername = telegramBotUsername(env);
-  const mention = botUsername ? `@${botUsername}` : "";
-  const mentioned = mention && text.toLowerCase().includes(mention.toLowerCase());
-  const replyUsername = String(message?.reply_to_message?.from?.username || "");
-  const repliedToBot = botUsername && replyUsername.toLowerCase() === botUsername.toLowerCase();
-
-  if (!mentioned && !repliedToBot) return {invoked: false};
-
-  let query = text;
-  if (mention) query = query.replace(new RegExp(`@${botUsername}`, "ig"), " ");
-  query = query.replace(/\s+/g, " ").trim();
-  return {invoked: true, command: null, query};
-}
-
-
 
 function supporterDeepLink(env) {
   return `https://t.me/${telegramBotUsername(env)}?start=support`;
@@ -577,12 +446,6 @@ async function handlePaymentSupportCommand(env, message, details = "") {
       ? "✅ Laporan payment support sudah diteruskan ke pengelola BMP Terbuka."
       : "⚠️ Kontak payment support belum terkonfigurasi. Gunakan Group Terbuka untuk menghubungi pengelola tanpa membagikan detail transaksi sensitif."
   });
-}
-
-function parseSupportInvoicePayload(payload) {
-  const m = String(payload || "").match(/^support:v1:(day|month):(\d+):([A-Za-z0-9_-]{8,40})$/);
-  if (!m) return null;
-  return {package_id: m[1], user_id: m[2], nonce: m[3]};
 }
 
 async function sendSupporterInvoice(env, userId, chatId, packageId) {
@@ -881,106 +744,6 @@ async function supporterWallText(env) {
     return `${i + 1}. ${String(x.first_name || "Supporter").slice(0, 40)}`;
   });
   return ["⭐ Supporter Wall", "", ...names].join("\n");
-}
-
-
-const PRIVACY_WARNING_TEXT = "Pesan tadi dihapus karena terdeteksi mengandung data pribadi atau kredensial. Kirim ulang setelah bagian sensitif disamarkan.";
-
-function privacyText(message) {
-  return [
-    String(message?.text || ""),
-    String(message?.caption || ""),
-    String(message?.document?.file_name || "")
-  ].filter(Boolean).join("\n").trim();
-}
-
-function hasContextualNumber(text, labels, minDigits, maxDigits) {
-  const normalized = String(text || "").toLowerCase();
-  const labelPattern = labels.map(x => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-  const re = new RegExp(`(?:${labelPattern})\\s*(?:saya|aku|gue|gw|adalah|:|=|-)?\\s*([+]?\\d[\\d\\s().-]{${Math.max(0, minDigits - 2)},${maxDigits + 8}}\\d)`, "i");
-  const m = normalized.match(re);
-  if (!m) return false;
-  const digits = String(m[1] || "").replace(/\D/g, "");
-  return digits.length >= minDigits && digits.length <= maxDigits;
-}
-
-function detectSensitiveContent(message) {
-  // Telegram contact/location objects are intrinsically personal data. No OCR is
-  // attempted on photos/videos; only their caption is scanned.
-  if (message?.contact) return {blocked: true, kind: "contact"};
-  if (message?.location || message?.venue) return {blocked: true, kind: "location"};
-
-  const raw = privacyText(message);
-  if (!raw) return {blocked: false};
-  const text = raw.normalize("NFKC");
-
-  // Email addresses are direct identifiers.
-  if (/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(text)) {
-    return {blocked: true, kind: "email"};
-  }
-
-  // Explicit credentials/secrets. Requiring a value after the label prevents
-  // phrases such as "password lupa" or "token expired" from being deleted.
-  const credentialPatterns = [
-    /\b(?:password|passwd|pwd|kata\s*sandi)\s*(?:saya|aku|gue|gw|adalah|:|=|-)\s*[^\s,;]{4,}/i,
-    /\b(?:cookie|session(?:_?id)?|access[_ -]?token|refresh[_ -]?token|api[_ -]?key|secret[_ -]?key)\s*(?:saya|aku|gue|gw|adalah|:|=|-)\s*[^\s,;]{8,}/i,
-    /\bbearer\s+[A-Za-z0-9._~+\/-]{12,}/i,
-    /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/,
-    /\b(?:otp|pin)\s*(?:saya|aku|gue|gw|adalah|:|=|-)\s*\d{4,8}\b/i
-  ];
-  if (credentialPatterns.some(re => re.test(text))) {
-    return {blocked: true, kind: "credential"};
-  }
-
-  // Context-aware numeric identifiers to avoid treating module codes, versions,
-  // page numbers, or arbitrary long numbers as personal data.
-  if (hasContextualNumber(text, ["nim", "nomor induk mahasiswa"], 6, 18)) {
-    return {blocked: true, kind: "nim"};
-  }
-  if (hasContextualNumber(text, ["nik", "no nik", "nomor nik", "ktp", "no ktp", "nomor ktp"], 16, 16)) {
-    return {blocked: true, kind: "nik"};
-  }
-  if (hasContextualNumber(text, ["wa", "whatsapp", "no wa", "nomor wa", "hp", "no hp", "nomor hp", "telepon", "telp", "phone"], 9, 15)) {
-    return {blocked: true, kind: "phone"};
-  }
-
-  return {blocked: false};
-}
-
-async function handlePrivacyGate(env, message) {
-  if (!isOfficialSupportGroup(env, message)) return false;
-  if (isNormalBotMessage(message)) return false;
-
-  const detection = detectSensitiveContent(message);
-  if (!detection.blocked) return false;
-
-  let deleted = false;
-  try {
-    await tg(env, "deleteMessage", {
-      chat_id: message.chat.id,
-      message_id: message.message_id
-    });
-    deleted = true;
-  } catch (e) {
-    // Never log the message body or the detected value.
-    console.error("privacy_delete_failed", {
-      update_message_id: message?.message_id || null,
-      kind: detection.kind || "unknown",
-      error: String(e?.message || e)
-    });
-  }
-
-  await tg(env, "sendMessage", {
-    chat_id: message.chat.id,
-    text: deleted
-      ? PRIVACY_WARNING_TEXT
-      : "Pesan terdeteksi mengandung data pribadi atau kredensial dan tidak diproses bot. Mohon hapus pesan tersebut lalu kirim ulang setelah bagian sensitif disamarkan.",
-    disable_web_page_preview: true
-  }).catch(() => {});
-
-  // Returning true stops support/AI processing and therefore does not consume
-  // the user's AI quota.
-  return true;
 }
 
 
