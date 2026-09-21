@@ -79,6 +79,7 @@ test("supporter model preserves live package and entitlement semantics", () => {
 
 import {telegramWebhookAuthorized} from "../src/security/webhook-auth.js";
 import {randomToken, sha256Hex} from "../src/security/crypto.js";
+import {checkActivationRefreshRateLimit} from "../src/security/rate-limit.js";
 
 test("security helpers preserve webhook auth and token primitives", async () => {
   const env = {TELEGRAM_WEBHOOK_SECRET: "fixture-secret"};
@@ -249,6 +250,7 @@ test("KV inventory classifier never needs raw values", () => {
   assert.equal(classifyKvKey("supporter-context:123:456"), "supporter_context");
   assert.equal(classifyKvKey("support-ai-day:123:2026-09-21"), "support_ai_quota");
   assert.equal(classifyKvKey("telegram-update:123"), "telegram_update_legacy");
+  assert.equal(classifyKvKey("activation-refresh-rate:abc"), "activation_refresh_rate");
   assert.equal(classifyKvKey("bot-menu:123"), "bot_menu");
   assert.equal(classifyKvKey("unknown-prefix:123"), "other");
 });
@@ -283,4 +285,25 @@ test("global V2.1 UI rollout overrides the canary allowlist", () => {
   assert.equal(v21UiCanaryCount(env), 0);
   assert.equal(v21UiCanaryUser(env, 111111), true);
   assert.equal(v21UiCanaryUser(env, 424242), true);
+});
+
+test("activation refresh limiter allows three requests per minute", async () => {
+  const map = new Map();
+  const env = {
+    MEMBER_HASH_SALT: "fixture-salt",
+    PAIRINGS: {
+      async get(key) {
+        return map.get(String(key)) ?? null;
+      },
+      async put(key, value) {
+        map.set(String(key), String(value));
+      }
+    }
+  };
+
+  assert.equal(await checkActivationRefreshRateLimit(env, "token-a"), true);
+  assert.equal(await checkActivationRefreshRateLimit(env, "token-a"), true);
+  assert.equal(await checkActivationRefreshRateLimit(env, "token-a"), true);
+  assert.equal(await checkActivationRefreshRateLimit(env, "token-a"), false);
+  assert.equal(await checkActivationRefreshRateLimit(env, "token-b"), true);
 });
