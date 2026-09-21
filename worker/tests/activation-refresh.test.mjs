@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   activationTokenExpiryFloor,
+  activationTokenReauthFloor,
   issueToken,
+  preservedReauthExpiryForUser,
   refreshActivationToken,
   TOKEN_REFRESH_MIN_VERSION,
   TOKEN_SCHEMA_VERSION
@@ -263,10 +265,32 @@ test("one-time v2 re-verification can preserve a longer active legacy expiry", a
     expiresAt: legacyExpiry
   });
 
+  const reauthFloor = await activationTokenReauthFloor(env, legacy, installId);
   const floor = await activationTokenExpiryFloor(env, legacy, installId);
   assert.ok(Math.abs(floor - legacyExpiry) < 2000);
+  assert.equal(reauthFloor.expiryMs, floor);
+  assert.ok(reauthFloor.memberRef);
 
-  const replacement = await issueToken(env, installId, 424242, floor);
+  const sameUserFloor = await preservedReauthExpiryForUser(
+    env,
+    {
+      minimum_expiry_ms: floor,
+      minimum_expiry_member_ref: reauthFloor.memberRef
+    },
+    424242
+  );
+  const differentUserFloor = await preservedReauthExpiryForUser(
+    env,
+    {
+      minimum_expiry_ms: floor,
+      minimum_expiry_member_ref: reauthFloor.memberRef
+    },
+    999999
+  );
+  assert.equal(sameUserFloor, floor);
+  assert.equal(differentUserFloor, 0);
+
+  const replacement = await issueToken(env, installId, 424242, sameUserFloor);
   const payload = decodePayload(replacement);
   assert.equal(payload.token_version, TOKEN_SCHEMA_VERSION);
   assert.equal(payload.sub, "tg:424242");
