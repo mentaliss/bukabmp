@@ -220,6 +220,19 @@ export async function activationTokenExpiryFloor(
   return (await activationTokenReauthFloor(env, token, installId)).expiryMs;
 }
 
+export async function preservedReauthExpiryForUser(
+  env,
+  record,
+  userId
+) {
+  const expectedMemberRef = await sha256Hex(
+    "tg:" + userId + ":" + (env.MEMBER_HASH_SALT || "")
+  );
+  return String(record?.minimum_expiry_member_ref || "") === expectedMemberRef
+    ? Math.max(0, Number(record?.minimum_expiry_ms || 0))
+    : 0;
+}
+
 async function verifyIssuedToken(env, token) {
   try {
     const parts = String(token || "").split(".");
@@ -465,14 +478,11 @@ export async function verifyPairForUser(env, pairId, userId, chatId) {
 
   let token;
   try {
-    const expectedMemberRef = await sha256Hex(
-      "tg:" + userId + ":" + (env.MEMBER_HASH_SALT || "")
+    const preservedExpiry = await preservedReauthExpiryForUser(
+      env,
+      record,
+      userId
     );
-    const preservedExpiry = (
-      String(record.minimum_expiry_member_ref || "") === expectedMemberRef
-    )
-      ? Number(record.minimum_expiry_ms || 0)
-      : 0;
 
     token = await issueToken(
       env,
