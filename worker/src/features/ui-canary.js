@@ -6,11 +6,16 @@ function envFlag(value) {
   );
 }
 
+export function v21UiGlobalEnabled(env) {
+  return envFlag(env?.BOT_V21_UI_ENABLED);
+}
+
 export function v21UiCanaryEnabled(env) {
   return envFlag(env?.BOT_V21_UI_CANARY_ENABLED);
 }
 
 export function v21UiCanaryUser(env, userId) {
+  if (v21UiGlobalEnabled(env)) return true;
   if (!v21UiCanaryEnabled(env)) return false;
   return supportPrivilegedUserIds(env).has(String(userId || ""));
 }
