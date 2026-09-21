@@ -107,10 +107,24 @@ Existing GitHub release behavior remains:
 
 Store candidate work must not change the Android signing key or require CWS/Edge Store IDs to match the existing Android CRX ID. The public repository does not contain the private Android signing pipeline/key, so CI proves source/package compatibility only; signed-CRX regression remains an external controlled step.
 
+## 1.1.0 release gates
+
+Sebelum 1.1.0 dinyatakan siap:
+- token lama dari versi sebelum 1.1.0 tetap dapat dipakai sampai kedaluwarsa;
+- token legacy dapat melakukan one-time re-verification tanpa menghapus token aktif sebelum token baru terverifikasi;
+- refresh token 1.1.0 tidak memperpanjang masa aktivasi tanpa entitlement server;
+- bonus Supporter yang sudah tercatat dapat diterapkan melalui refresh;
+- update in-place 1.0.5 → 1.1.0 mempertahankan token, IndexedDB PDF cache, draft, dan state;
+- Edge Stable Android menjalani regression activation → OCR → PDF → download → resume → refresh activation;
+- Edge Canary hanya fallback/testing;
+- store listing 1.1.0 harus sudah tersedia sebelum minimum-version policy memaksa user update.
+
 ## Manual smoke test
 
 Before distribution:
 - activation succeeds;
+- activation refresh succeeds without extending entitlement by itself;
+- legacy token one-time re-verification succeeds;
 - M1 produces searchable PDF;
 - OCR progress advances;
 - page-count termination works;
