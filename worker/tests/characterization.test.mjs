@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
+import {sha256Hex} from "../src/security/crypto.js";
 
 class MemoryKV {
   constructor(initial = {}) {
@@ -74,6 +75,7 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(body.bot_v2_d1_readable, false);
   assert.equal(body.bot_v2_d1_write_enabled, false);
   assert.equal(body.bot_v2_d1_replay_enabled, false);
+  assert.equal(body.bot_v2_d1_migration_enabled, false);
 });
 
 test("health reports candidate D1 binding without enabling write authorities", async () => {
@@ -97,6 +99,7 @@ test("health reports candidate D1 binding without enabling write authorities", a
   assert.equal(body.bot_v2_d1_readable, true);
   assert.equal(body.bot_v2_d1_write_enabled, false);
   assert.equal(body.bot_v2_d1_replay_enabled, false);
+  assert.equal(body.bot_v2_d1_migration_enabled, false);
 });
 
 test("telegram webhook rejects a bad secret before processing an update", async () => {
@@ -594,6 +597,7 @@ test("supporter migration dry-run rejects missing admin auth", async () => {
 });
 
 test("supporter migration dry-run summarizes authority without exposing records", async () => {
+  const chargeRef = await sha256Hex("support-payment:secret-charge-id");
   const kv = new Map([
     ["supporter:user:111", JSON.stringify({
       user_id: "111",
@@ -617,7 +621,7 @@ test("supporter migration dry-run summarizes authority without exposing records"
       last_payment_at: 0,
       wall_mode: "anonymous"
     })],
-    ["supporter-payment:abcdef", JSON.stringify({
+    ["supporter-payment:" + chargeRef, JSON.stringify({
       processed_at: 1700000000000,
       user_id: "111",
       package_id: "day",
@@ -690,6 +694,43 @@ test("supporter migration dry-run summarizes authority without exposing records"
   const serialized = JSON.stringify(body);
   assert.doesNotMatch(
     serialized,
-    /111|222|private-user|secret-charge-id|abcdef/
+    /111|222|private-user|secret-charge-id/
   );
+  assert.equal(serialized.includes(chargeRef), false);
+});
+
+test("supporter migration apply stays locked while migration gate is off", async () => {
+  const env = baseEnv({
+    ADMIN_SETUP_TOKEN: "fixture-admin",
+    BOT_DB: {
+      prepare() {
+        throw new Error("D1 must not be touched while migration gate is off");
+      }
+    },
+    PAIRINGS: {
+      async list() {
+        throw new Error("KV must not be read while migration gate is off");
+      }
+    }
+  });
+
+  const response = await worker.fetch(
+    new Request("https://worker.test/admin/supporter-migration-apply", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer fixture-admin",
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        confirm: "APPLY_SUPPORTER_KV_TO_D1_V1"
+      })
+    }),
+    env
+  );
+
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), {
+    ok: false,
+    reason: "migration_disabled"
+  });
 });
