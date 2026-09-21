@@ -13,12 +13,12 @@ export async function checkPairRateLimit(request, env) {
   return true;
 }
 
-export async function checkActivationRefreshRateLimit(env, token) {
-  if (!env?.PAIRINGS || !token) return true;
+export async function checkActivationRefreshRateLimit(env, installId) {
+  if (!env?.PAIRINGS || !installId) return true;
 
   const fingerprint = await sha256Hex(
     "activation-refresh:" +
-    String(token) +
+    String(installId) +
     ":" +
     String(env.MEMBER_HASH_SALT || "")
   );
