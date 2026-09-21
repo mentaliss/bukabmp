@@ -1,6 +1,6 @@
 import {isAnonymousAdminMessage} from "../telegram/router.js";
 
-const SUPPORT_AI_MODEL = "@cf/zai-org/glm-4.7-flash";
+export const SUPPORT_AI_MODEL = "@cf/zai-org/glm-4.7-flash";
 export const SUPPORT_AI_MAX_CALLS_PER_DAY = 6;
 
 export function supportActorId(message) {
