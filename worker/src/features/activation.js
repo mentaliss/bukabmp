@@ -2,7 +2,11 @@ import {tg} from "../telegram/api.js";
 import {b64url, b64urlJson, importSigningKey, sha256Hex} from "../security/crypto.js";
 import {auditErrorName, auditRef} from "../security/audit.js";
 import {getSupporterEntitlement, putSupporterEntitlement} from "../data/supporter.js";
-import {SUPPORTER_ACTIVATION_MAX_DAYS} from "./supporter-model.js";
+import {
+  SUPPORTER_ACTIVATION_MAX_DAYS,
+  SUPPORTER_MEMBER_TAG,
+  supporterIsActive
+} from "./supporter-model.js";
 import {qualifyReferralAfterActivation} from "./referral-service.js";
 import {recordSuccessfulActivation} from "../data/d1/activation-ledger.js";
 
@@ -12,6 +16,16 @@ export const TOKEN_TTL_DAYS = 14;
 export const PAIR_TTL_SECONDS = 15 * 60;
 export const TOKEN_SCHEMA_VERSION = 2;
 export const TOKEN_REFRESH_MIN_VERSION = "1.1.0";
+
+function supporterTokenSnapshot(record, now = Date.now()) {
+  const active = supporterIsActive(record, now);
+  const until = active ? Number(record?.supporter_until || 0) : 0;
+  return {
+    active,
+    until,
+    label: active ? SUPPORTER_MEMBER_TAG : ""
+  };
+}
 
 function versionParts(value) {
   return String(value || "")
@@ -78,7 +92,12 @@ async function activationExpiryForIssue(env, telegramUserId) {
   const maxExpiry = now + SUPPORTER_ACTIVATION_MAX_DAYS * 86400000;
   const record = await getSupporterEntitlement(env, telegramUserId);
 
-  if (!record) return baseExpiry;
+  if (!record) {
+    return {
+      expiryMs: baseExpiry,
+      supporter: supporterTokenSnapshot(null, now)
+    };
+  }
 
   const trackedExpiry = Number(record.activation_until || 0);
   const pendingDays = Math.max(0, Math.min(
@@ -94,14 +113,18 @@ async function activationExpiryForIssue(env, telegramUserId) {
   record.activation_bonus_pending_days = 0;
   record.last_activation_issued_at = now;
   await putSupporterEntitlement(env, telegramUserId, record);
-  return target;
+  return {
+    expiryMs: target,
+    supporter: supporterTokenSnapshot(record, now)
+  };
 }
 
 async function signCommunityToken(
   env,
   installId,
   telegramUserId,
-  expiryMs
+  expiryMs,
+  supporter = null
 ) {
   const now = Math.floor(Date.now() / 1000);
   const header = {alg: "RS256", typ: "JWT"};
@@ -114,6 +137,11 @@ async function signCommunityToken(
     iat: now,
     exp: Math.max(now + 60, Math.floor(Number(expiryMs) / 1000)),
     scope: ["community_access"],
+    supporter_active: supporter?.active === true,
+    supporter_until: supporter?.active
+      ? Math.max(0, Math.floor(Number(supporter.until || 0) / 1000))
+      : 0,
+    supporter_label: supporter?.active ? String(supporter.label || SUPPORTER_MEMBER_TAG) : "",
     member_ref: await sha256Hex(
       "tg:" + telegramUserId + ":" + (env.MEMBER_HASH_SALT || "")
     )
@@ -132,12 +160,13 @@ async function signCommunityToken(
 }
 
 export async function issueToken(env, installId, telegramUserId) {
-  const expiryMs = await activationExpiryForIssue(env, telegramUserId);
+  const issue = await activationExpiryForIssue(env, telegramUserId);
   return await signCommunityToken(
     env,
     installId,
     telegramUserId,
-    expiryMs
+    issue.expiryMs,
+    issue.supporter
   );
 }
 
@@ -192,7 +221,8 @@ async function activationExpiryForRefresh(
     return {
       expiryMs: current,
       changed: false,
-      supporterBonusApplied: false
+      supporterBonusApplied: false,
+      supporter: supporterTokenSnapshot(null, now)
     };
   }
 
@@ -230,7 +260,8 @@ async function activationExpiryForRefresh(
   return {
     expiryMs: target,
     changed,
-    supporterBonusApplied
+    supporterBonusApplied,
+    supporter: supporterTokenSnapshot(record, now)
   };
 }
 
@@ -290,7 +321,8 @@ export async function refreshActivationToken(
     env,
     installId,
     userId,
-    expiry.expiryMs
+    expiry.expiryMs,
+    expiry.supporter
   );
 
   return {
