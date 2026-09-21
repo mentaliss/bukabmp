@@ -18,6 +18,7 @@ import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
 import {claimTelegramUpdate} from "./security/idempotency.js";
 import {handlePrivacyGate} from "./security/privacy-gate.js";
 import {auditErrorName} from "./security/audit.js";
+import {normalizeSupportQuery, redactSensitiveSupportText} from "./security/redaction.js";
 import {
   SUPPORT_GROUP_JOIN_URL,
   androidHelpText,
@@ -77,7 +78,6 @@ const VERSION_CHECK_AFTER_SECONDS = 24 * 60 * 60;
 const REVIEWER_TOKEN_TTL_SECONDS = 24 * 60 * 60;
 const CLOUD_STATE_DEFAULT_TTL_SECONDS = 5 * 60;
 const DISTRIBUTION_CHANNELS = Object.freeze(["github", "android", "cws", "edge"]);
-const SUPPORT_AI_MAX_INPUT_CHARS = 1400;
 
 function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data, null, 2), {
@@ -257,20 +257,6 @@ async function supporterWallText(env) {
   return ["⭐ Supporter Wall", "", ...names].join("\n");
 }
 
-
-function normalizeSupportQuery(value) {
-  return String(value || "")
-    .replace(/\u0000/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, SUPPORT_AI_MAX_INPUT_CHARS);
-}
-
-function redactSensitiveSupportText(value) {
-  return normalizeSupportQuery(value)
-    .replace(/\b(password|passwd|kata\s*sandi)\s*[:=]\s*\S+/gi, "$1=[REDACTED]")
-    .replace(/\b(cookie|session|bearer|access[_ -]?token|refresh[_ -]?token)\s*[:=]\s*\S+/gi, "$1=[REDACTED]");
-}
 
 const SUPPORT_KB = [
   {
