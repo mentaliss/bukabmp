@@ -70,6 +70,33 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(body.realtime_extension_state, true);
   assert.equal(body.supporter_packages.day.stars, 2);
   assert.equal(body.supporter_packages.month.stars, 50);
+  assert.equal(body.bot_v2_d1_bound, false);
+  assert.equal(body.bot_v2_d1_readable, false);
+  assert.equal(body.bot_v2_d1_write_enabled, false);
+  assert.equal(body.bot_v2_d1_replay_enabled, false);
+});
+
+test("health reports candidate D1 binding without enabling write authorities", async () => {
+  const db = {
+    prepare(sql) {
+      assert.equal(sql, "SELECT 1 AS ok");
+      return {
+        async first() {
+          return {ok: 1};
+        }
+      };
+    }
+  };
+  const response = await worker.fetch(
+    new Request("https://worker.test/health"),
+    baseEnv({BOT_DB: db})
+  );
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.bot_v2_d1_bound, true);
+  assert.equal(body.bot_v2_d1_readable, true);
+  assert.equal(body.bot_v2_d1_write_enabled, false);
+  assert.equal(body.bot_v2_d1_replay_enabled, false);
 });
 
 test("telegram webhook rejects a bad secret before processing an update", async () => {
