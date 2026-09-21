@@ -14,6 +14,8 @@ let draftSaveTimer = null;
 let lastRunning = false;
 let activeFormKey = "";
 let lastCompletedKey = "";
+let adInterstitialTimer = null;
+let activeInterstitialAd = null;
 
 const DRAFT_KEY = "bmpDraftV105";
 
@@ -43,12 +45,160 @@ function formatBytes(bytes){
 }
 function setUtilityNotice(text){el("utilityNotice").textContent=text||""}
 
+function localHouseAd(){
+  return {
+    campaignId:"",
+    revision:0,
+    sponsorLabel:"Sponsor",
+    advertiser:"",
+    headline:"Space iklan tersedia",
+    body:"",
+    disclaimer:"",
+    cta:{label:"Pasang iklan? Hubungi",url:"https://t.me/bukabmp?direct"},
+    isHouse:true
+  };
+}
+
+function houseAdFromState(state){
+  const house=state?.ads?.house||null;
+  if(!house)return localHouseAd();
+  return {
+    ...localHouseAd(),
+    sponsorLabel:String(house.sponsorLabel||"Sponsor"),
+    headline:String(house.headline||"Space iklan tersedia"),
+    body:String(house.body||""),
+    cta:house.cta||localHouseAd().cta
+  };
+}
+
+function campaignAdFromState(state,placement){
+  const ads=state?.ads||null;
+  if(
+    !ads?.active||
+    !ads.placements?.[placement]||
+    (placement==="interstitial"&&!ads.interstitial?.enabled)
+  )return null;
+  return {
+    campaignId:String(ads.campaignId||""),
+    revision:Number(ads.revision||0),
+    sponsorLabel:String(ads.sponsorLabel||"Sponsor"),
+    advertiser:String(ads.advertiser||""),
+    headline:String(ads.headline||""),
+    body:String(ads.body||""),
+    disclaimer:String(ads.disclaimer||""),
+    cta:ads.cta||null,
+    isHouse:false
+  };
+}
+
+async function executeAdCta(ad){
+  const cta=ad?.cta;
+  if(!cta?.label||!cta?.url)return false;
+  const result=await send("EXECUTE_CLOUD_ACTION",{action:{
+    type:"OPEN_URL",
+    label:cta.label,
+    url:cta.url
+  }});
+  if(!result?.ok)throw new Error(result?.error||"Tautan sponsor tidak dapat dibuka.");
+  return true;
+}
+
+function reportAdEvent(eventType,ad,placement){
+  if(!ad?.campaignId)return;
+  send("REPORT_AD_EVENT",{
+    eventType,
+    placement,
+    campaignId:ad.campaignId,
+    revision:Number(ad.revision||0)
+  }).catch(()=>{});
+}
+
+function hideAdInterstitial({report=true}={}){
+  const root=el("adInterstitial");
+  root.classList.remove("visible");
+  root.setAttribute("aria-hidden","true");
+  if(report&&activeInterstitialAd)reportAdEvent("dismiss",activeInterstitialAd,"interstitial");
+  activeInterstitialAd=null;
+}
+
+function showAdInterstitial(ad){
+  const creative=ad||localHouseAd();
+  activeInterstitialAd=creative;
+  el("adInterstitialLabel").textContent=creative.sponsorLabel||"Sponsor";
+  el("adInterstitialAdvertiser").textContent=creative.advertiser
+    ? "Oleh "+creative.advertiser
+    : "";
+  el("adInterstitialAdvertiser").style.display=creative.advertiser?"block":"none";
+  el("adInterstitialHeadline").textContent=creative.headline||"Space iklan tersedia";
+  el("adInterstitialBody").textContent=creative.body||"";
+  el("adInterstitialBody").style.display=creative.body?"block":"none";
+  el("adInterstitialDisclaimer").textContent=creative.disclaimer||"";
+  el("adInterstitialDisclaimer").style.display=creative.disclaimer?"block":"none";
+  const cta=el("adInterstitialCta");
+  if(creative.cta?.label&&creative.cta?.url){
+    cta.textContent=creative.cta.label;
+    cta.style.display="block";
+  }else{
+    cta.textContent="";
+    cta.style.display="none";
+  }
+  const root=el("adInterstitial");
+  root.classList.add("visible");
+  root.setAttribute("aria-hidden","false");
+  if(!creative.isHouse)reportAdEvent("impression",creative,"interstitial");
+}
+
+function randomDelay(min,max){
+  const low=Math.max(0,Math.floor(Number(min)||2000));
+  const high=Math.max(low,Math.floor(Number(max)||5000));
+  return low+Math.floor(Math.random()*(high-low+1));
+}
+
+async function scheduleJobStartedInterstitial(){
+  const triggeredAt=Date.now();
+  clearTimeout(adInterstitialTimer);
+
+  let state=latestCloudState;
+  try{
+    const r=await send("GET_CLOUD_STATE",{force:true});
+    if(r?.ok){
+      state=r.state||null;
+      renderCloudSurface(state);
+    }
+  }catch(_){}
+
+  const cfg=state?.ads?.interstitial||{};
+  const delay=randomDelay(cfg.delayMinMs||2000,cfg.delayMaxMs||5000);
+  const creative=
+    campaignAdFromState(state,"interstitial")||
+    houseAdFromState(state);
+  const remaining=Math.max(0,triggeredAt+delay-Date.now());
+
+  adInterstitialTimer=setTimeout(()=>{
+    adInterstitialTimer=null;
+    showAdInterstitial(creative);
+  },remaining);
+}
+
 function renderCloudSurface(state){
   latestCloudState=state||null;
   const root=el("cloudSurface");
   const sponsorRoot=el("sponsorSlot");
+  const cloudBadge=el("cloudStatusBadge");
   root.textContent="";
   sponsorRoot.textContent="";
+
+  const badge=state?.statusBadge||null;
+  if(badge?.visible&&badge.text){
+    cloudBadge.textContent=badge.text;
+    cloudBadge.className=`statusChip cloudStatusBadge ${badge.kind||"info"}`;
+    cloudBadge.style.display="block";
+  }else{
+    cloudBadge.textContent="";
+    cloudBadge.className="statusChip cloudStatusBadge";
+    cloudBadge.style.display="none";
+  }
+
   const sections=Array.isArray(state?.sections)?state.sections:[];
   let sponsorRendered=false;
 
@@ -70,6 +220,90 @@ function renderCloudSurface(state){
       }
     });
     card.append(button);
+  }
+
+  function appendSponsorContact(card,cta=null){
+    const fallback=houseAdFromState(state).cta;
+    const action=cta?.label&&cta?.url?cta:fallback;
+    if(!action?.label||!action?.url)return;
+    const contact=document.createElement("button");
+    contact.type="button";
+    contact.className="sponsorContact";
+    contact.textContent=action.label;
+    contact.addEventListener("click",async()=>{
+      contact.disabled=true;
+      try{
+        const result=await send("EXECUTE_CLOUD_ACTION",{action:{
+          type:"OPEN_URL",
+          label:action.label,
+          url:action.url
+        }});
+        if(!result?.ok)throw new Error(result?.error||"Tautan tidak dapat dibuka.");
+      }catch(e){
+        contact.textContent=String(e?.message||e).slice(0,80);
+      }finally{
+        setTimeout(()=>{contact.disabled=false;contact.textContent=action.label},1400);
+      }
+    });
+    card.append(contact);
+  }
+
+  const cardAd=campaignAdFromState(state,"card");
+  if(cardAd){
+    sponsorRendered=true;
+    const card=document.createElement("aside");
+    card.className="sponsorBanner";
+    card.setAttribute("aria-label","Sponsor");
+
+    const meta=document.createElement("div");
+    meta.className="sponsorMeta";
+    meta.textContent=cardAd.sponsorLabel||"Sponsor";
+    card.append(meta);
+
+    if(cardAd.advertiser){
+      const advertiser=document.createElement("div");
+      advertiser.className="sponsorText";
+      advertiser.textContent="Oleh "+cardAd.advertiser;
+      card.append(advertiser);
+    }
+    if(cardAd.headline){
+      const title=document.createElement("div");
+      title.className="sponsorTitle";
+      title.textContent=cardAd.headline;
+      card.append(title);
+    }
+    if(cardAd.body){
+      const body=document.createElement("div");
+      body.className="sponsorText";
+      body.textContent=cardAd.body;
+      card.append(body);
+    }
+    if(cardAd.disclaimer){
+      const disclaimer=document.createElement("div");
+      disclaimer.className="sponsorText";
+      disclaimer.textContent=cardAd.disclaimer;
+      card.append(disclaimer);
+    }
+    if(cardAd.cta?.label&&cardAd.cta?.url){
+      const button=document.createElement("button");
+      button.type="button";
+      button.className="sponsorAction";
+      button.textContent=cardAd.cta.label;
+      button.addEventListener("click",async()=>{
+        button.disabled=true;
+        try{
+          await executeAdCta(cardAd);
+          reportAdEvent("click",cardAd,"card");
+        }catch(e){
+          button.textContent=String(e?.message||e).slice(0,80);
+        }finally{
+          setTimeout(()=>{button.disabled=false;button.textContent=cardAd.cta.label},1400);
+        }
+      });
+      card.append(button);
+    }
+    sponsorRoot.append(card);
+    reportAdEvent("impression",cardAd,"card");
   }
 
   for(const section of sections){
@@ -98,28 +332,7 @@ function renderCloudSurface(state){
         card.append(body);
       }
       appendAction(card,section,"sponsorAction");
-
-      const contact=document.createElement("button");
-      contact.type="button";
-      contact.className="sponsorContact";
-      contact.textContent="Pasang iklan? Hubungi";
-      contact.addEventListener("click",async()=>{
-        contact.disabled=true;
-        try{
-          const result=await send("EXECUTE_CLOUD_ACTION",{action:{
-            type:"OPEN_URL",
-            label:"Hubungi",
-            url:"https://t.me/bukabmp?direct"
-          }});
-          if(!result?.ok)throw new Error(result?.error||"DM channel tidak dapat dibuka.");
-        }catch(e){
-          contact.textContent=String(e?.message||e).slice(0,80);
-        }finally{
-          setTimeout(()=>{contact.disabled=false;contact.textContent="Pasang iklan? Hubungi"},1400);
-        }
-      });
-      card.append(contact);
-
+      appendSponsorContact(card);
       sponsorRoot.append(card);
       continue;
     }
@@ -141,6 +354,26 @@ function renderCloudSurface(state){
     }
     appendAction(card,section,"cloudAction");
     root.append(card);
+  }
+
+  if(!sponsorRendered){
+    const house=houseAdFromState(state);
+    const placeholder=document.createElement("aside");
+    placeholder.className="sponsorBanner sponsorPlaceholder";
+    placeholder.setAttribute("aria-label","Space sponsor tersedia");
+
+    const meta=document.createElement("div");
+    meta.className="sponsorMeta";
+    meta.textContent=house.sponsorLabel||"Sponsor";
+    placeholder.append(meta);
+
+    const title=document.createElement("div");
+    title.className="sponsorTitle";
+    title.textContent=house.headline||"Space iklan tersedia";
+    placeholder.append(title);
+
+    appendSponsorContact(placeholder,house.cta);
+    sponsorRoot.append(placeholder);
   }
 }
 
@@ -454,6 +687,49 @@ async function refreshAccess(){
   if(a.active&&a.expiresAt){
     el("accessBadge").textContent=`● Akses komunitas aktif hingga ${formatDate(a.expiresAt)}`;
   }
+
+  const supporterBadge=el("supporterBadge");
+  const supporter=a.supporter||null;
+  if(
+    a.active&&
+    supporter?.active&&
+    Number(supporter.until||0)>Date.now()
+  ){
+    const label=String(supporter.label||"BMP Supporter").trim()||"BMP Supporter";
+    supporterBadge.textContent=`⭐ ${label} aktif hingga ${formatDate(supporter.until)}`;
+    supporterBadge.style.display="inline-flex";
+  }else{
+    supporterBadge.textContent="";
+    supporterBadge.style.display="none";
+  }
+
+  if(a.active&&!a.reviewer){
+    const pendingRefresh=Boolean(a.pending);
+    el("activationManage").style.display="block";
+    el("refreshActivation").disabled=Boolean(latestVersionPolicy?.updateRequired);
+    if(pendingRefresh){
+      el("activationManageText").textContent=
+        "Menunggu verifikasi ulang untuk menyinkronkan akun BMP Terbuka kamu.";
+      el("activationManageCode").textContent=a.pending?.pairId
+        ? `Kode verifikasi: ${a.pending.pairId}`
+        : "";
+      el("refreshActivation").style.display="block";
+      el("refreshActivation").textContent="Buka Telegram lagi";
+    }else if(a.refreshEligible){
+      el("activationManageText").textContent=
+        `Aktif sampai ${formatDate(a.expiresAt)}. Akun dan aktivasi sudah tersinkron.`;
+      el("activationManageCode").textContent="";
+      el("refreshActivation").style.display="none";
+    }else{
+      el("activationManageText").textContent=
+        "Verifikasi ulang sekali untuk memperbarui aktivasi dan menyinkronkan akun BMP Terbuka kamu. Akses yang masih aktif tetap berlaku selama proses.";
+      el("activationManageCode").textContent="";
+      el("refreshActivation").style.display="block";
+      el("refreshActivation").textContent="Verifikasi ulang";
+    }
+  }else{
+    el("activationManage").style.display="none";
+  }
   return a;
 }
 async function refreshState(){
@@ -664,7 +940,7 @@ el("copyPairCode").addEventListener("click",async()=>{
 async function checkPendingActivation({quiet=false}={}){
   if(activationChecking)return await send("GET_ACCESS_STATUS");
   const a=await send("GET_ACCESS_STATUS");
-  if(a?.active||!a?.pending)return a;
+  if(!a?.pending)return a;
 
   activationChecking=true;
   el("checkActivation").disabled=true;
@@ -728,6 +1004,81 @@ el("retryActivation").addEventListener("click",async()=>{
 });
 el("checkActivation").addEventListener("click",()=>checkPendingActivation({quiet:false}));
 
+async function refreshActivationNow({quiet=false,force=true}={}){
+  const access=latestAccess||await send("GET_ACCESS_STATUS");
+  if(!access?.active||access?.reviewer)return access;
+
+  const button=el("refreshActivation");
+  button.disabled=true;
+  try{
+    if(access.pending){
+      await send("OPEN_PENDING_TELEGRAM");
+      if(!quiet){
+        el("activationManageText").textContent=
+          "Telegram dibuka lagi. Selesaikan verifikasi lalu kembali ke popup.";
+      }
+      return access;
+    }
+
+    if(!access.refreshEligible){
+      if(!quiet){
+        el("activationManageText").textContent=
+          "Menyiapkan verifikasi ulang untuk menyinkronkan akun dan aktivasi. Akses yang masih aktif tetap berlaku selama proses.";
+      }
+      const r=await send("START_PAIRING");
+      if(!r?.ok)throw new Error(r?.error||"Verifikasi ulang tidak dapat dimulai.");
+      await refreshAccess();
+      return latestAccess;
+    }
+
+    if(!quiet){
+      el("activationManageText").textContent="Memeriksa pembaruan aktivasi...";
+    }
+    const r=await send("REFRESH_ACTIVATION",{force});
+    if(!r?.ok)throw new Error(r?.error||"Aktivasi belum dapat diperbarui.");
+    const result=r.result||{};
+    await refreshAccess();
+    if(!quiet){
+      el("activationManageText").textContent=result.status==="throttled"
+        ? "Aktivasi sudah diperiksa baru-baru ini."
+        : result.changed
+          ? `Aktivasi diperbarui sampai ${formatDate(result.expiresAt)}.`
+          : "Aktivasi sudah menggunakan masa berlaku terbaru.";
+    }
+    return latestAccess;
+  }catch(e){
+    if(!quiet){
+      el("activationManageText").textContent=
+        "Pembaruan aktivasi belum berhasil: "+String(e?.message||e);
+    }
+    return latestAccess;
+  }finally{
+    button.disabled=Boolean(latestVersionPolicy?.updateRequired);
+  }
+}
+
+el("refreshActivation").addEventListener("click",()=>refreshActivationNow({
+  quiet:false,
+  force:true
+}));
+
+el("adInterstitialClose").addEventListener("click",()=>hideAdInterstitial());
+el("adInterstitialCta").addEventListener("click",async()=>{
+  const button=el("adInterstitialCta");
+  const ad=activeInterstitialAd;
+  if(!ad?.cta)return;
+  button.disabled=true;
+  try{
+    await executeAdCta(ad);
+    if(!ad.isHouse)reportAdEvent("click",ad,"interstitial");
+    hideAdInterstitial({report:false});
+  }catch(e){
+    button.textContent=String(e?.message||e).slice(0,80);
+  }finally{
+    button.disabled=false;
+  }
+});
+
 el("start").addEventListener("click",async()=>{
   if(latestVersionPolicy?.updateRequired){
     el("statusTitle").textContent="Update diperlukan";
@@ -790,6 +1141,8 @@ el("start").addEventListener("click",async()=>{
   if(!res?.ok){
     el("statusTitle").textContent="Gagal memulai";
     el("statusText").textContent=res?.error||"Terjadi kesalahan.";
+  }else{
+    scheduleJobStartedInterstitial().catch(()=>{});
   }
   await refreshState();
 });
@@ -858,12 +1211,15 @@ el("about").addEventListener("click",()=>chrome.tabs.create({url:chrome.runtime.
   await refreshCloudSurface();
   await refreshAccess();
   await refreshVersion();
+  if(latestAccess?.active&&latestAccess?.refreshEligible&&!latestAccess?.reviewer){
+    await refreshActivationNow({quiet:true,force:false});
+  }
   await refreshState();
   await refreshCachePreview();
   setInterval(async()=>{await refreshAccess();await refreshState()},1000);
   setInterval(()=>refreshCloudSurface().catch(()=>{}),30_000);
   setInterval(async()=>{
     const a=await send("GET_ACCESS_STATUS");
-    if(a?.pending&&!a?.active)await checkPendingActivation({quiet:true});
+    if(a?.pending)await checkPendingActivation({quiet:true});
   },2000);
 })();
