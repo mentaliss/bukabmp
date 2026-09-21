@@ -11,7 +11,7 @@ import {
   telegramBotUsername
 } from "./telegram/router.js";
 import {supportPrivilegedUserIds} from "./security/permissions.js";
-import {randomToken, sha256Hex} from "./security/crypto.js";
+import {b64url, b64urlJson, importSigningKey, randomToken, sha256Hex} from "./security/crypto.js";
 import {checkPairRateLimit} from "./security/rate-limit.js";
 import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
 import {handlePrivacyGate} from "./security/privacy-gate.js";
@@ -54,6 +54,8 @@ import {getSupporterEntitlement, putSupporterEntitlement} from "./data/supporter
 import {PAIR_TTL_SECONDS, verifyPairForUser} from "./features/activation.js";
 
 const APP_VERSION = "1.0.5-support-bot-v12-sponsor-surface";
+const TOKEN_ISSUER = "bmp-terbuka-community";
+const TOKEN_AUDIENCE = "bmp-terbuka-extension";
 const VERSION_CHECK_AFTER_SECONDS = 24 * 60 * 60;
 const REVIEWER_TOKEN_TTL_SECONDS = 24 * 60 * 60;
 const CLOUD_STATE_DEFAULT_TTL_SECONDS = 5 * 60;
