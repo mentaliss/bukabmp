@@ -18,6 +18,7 @@ import {checkPairRateLimit} from "./security/rate-limit.js";
 import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
 import {claimTelegramUpdate} from "./security/idempotency.js";
 import {d1ReadProbe, d1ReplayEnabled, d1WritesEnabled} from "./data/d1/mode.js";
+import {kvInventorySummary} from "./security/kv-inventory.js";
 import {handlePrivacyGate} from "./security/privacy-gate.js";
 import {auditErrorName} from "./security/audit.js";
 import {normalizeSupportQuery, redactSensitiveSupportText} from "./security/redaction.js";
@@ -1146,6 +1147,25 @@ function versionPolicy(request, env, url) {
 }
 
 
+async function adminKvInventory(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  if (!env.ADMIN_SETUP_TOKEN || auth !== `Bearer ${env.ADMIN_SETUP_TOKEN}`) {
+    return json({error: "unauthorized"}, 401, corsHeaders(request));
+  }
+
+  const inventory = await kvInventorySummary(env);
+  if (!inventory.available) {
+    return json({error: "PAIRINGS KV listing unavailable"}, 503, corsHeaders(request));
+  }
+
+  return json({
+    ok: true,
+    total_keys: inventory.total_keys,
+    families: inventory.families
+  }, 200, corsHeaders(request));
+}
+
+
 async function adminSetWebhook(request, env) {
   const auth = request.headers.get("Authorization") || "";
   if (!env.ADMIN_SETUP_TOKEN || auth !== `Bearer ${env.ADMIN_SETUP_TOKEN}`) {
@@ -1281,6 +1301,10 @@ export default {
 
       if (url.pathname === "/admin/extension-state" && ["GET", "POST"].includes(request.method)) {
         return await adminExtensionState(request, env, url);
+      }
+
+      if (url.pathname === "/admin/kv-inventory" && request.method === "GET") {
+        return await adminKvInventory(request, env);
       }
 
       if (url.pathname === "/admin/set-webhook" && request.method === "POST") {
