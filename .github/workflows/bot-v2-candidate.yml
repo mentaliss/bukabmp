@@ -23,6 +23,9 @@ jobs:
         run: node tools/validate.mjs
       - name: Existing Cloud Surface tests
         run: node tests/cloud-surface.test.mjs
+      - name: Knowledge index check
+        working-directory: worker
+        run: node scripts/build-knowledge.mjs --check
       - name: Worker characterization tests
         run: node --test worker/tests/*.test.mjs
       - name: Worker bundle dry-run
