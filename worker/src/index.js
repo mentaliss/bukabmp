@@ -113,7 +113,7 @@ import {
 import {parseReferralStartArg} from "./features/referral.js";
 import {attributeReferralFromCode} from "./features/referral-service.js";
 
-const APP_VERSION = "1.0.5-support-bot-v12-sponsor-surface";
+const APP_VERSION = "1.0.5-support-bot-v13-command-cleanup-badge-state";
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
 const VERSION_CHECK_AFTER_SECONDS = 24 * 60 * 60;
