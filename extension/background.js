@@ -6,6 +6,10 @@ const SOURCE_ROOT = "https://pustaka.ut.ac.id";
 const VERSION_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const CLOUD_FAILURE_BACKOFF_MS = 5 * 60 * 1000;
 const CLOUD_CACHE_KEY = "bmpCloudStateCacheV3";
+const ACTIVATION_REFRESH_META_KEY = "bmpActivationRefreshMetaV110";
+const ACTIVATION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const ACTIVATION_REFRESH_NO_SUPPORTER_INTERVAL_MS = 60 * 1000;
+const ACTIVATION_REFRESH_FAILURE_BACKOFF_MS = 60 * 1000;
 const DEFAULT_STATE = {
   running: false,
   tabId: null,
@@ -162,10 +166,35 @@ async function accessStatus() {
   const scopes = verified.ok && Array.isArray(verified.payload?.scope)
     ? verified.payload.scope.map(String)
     : [];
+  const refreshEligible = Boolean(
+    verified.ok &&
+    scopes.includes("community_access") &&
+    Number(verified.payload?.token_version || 0) >= 2 &&
+    /^tg:\d+$/.test(String(verified.payload?.sub || ""))
+  );
+  const supporterUntil = verified.ok
+    ? Number(verified.payload?.supporter_until || 0) * 1000
+    : 0;
+  const supporterActive = Boolean(
+    verified.ok &&
+    verified.payload?.supporter_active === true &&
+    supporterUntil > Date.now()
+  );
   return {
     active: Boolean(verified.ok),
     reviewer: Boolean(verified.ok && scopes.includes("store_review")),
     expiresAt: verified.ok ? Number(verified.payload.exp) * 1000 : null,
+    supporter: {
+      active: supporterActive,
+      until: supporterActive ? supporterUntil : null,
+      label: supporterActive
+        ? String(verified.payload?.supporter_label || "BMP Supporter")
+        : ""
+    },
+    refreshEligible,
+    tokenVersion: verified.ok
+      ? Number(verified.payload?.token_version || 1)
+      : null,
     pending: store.bmpPendingPair || null,
     configReady: configReady(),
     channelUrl: CFG.TELEGRAM_CHANNEL_URL,
@@ -258,6 +287,46 @@ async function cloudState({force = false} = {}) {
     };
     await chrome.storage.local.set({[CLOUD_CACHE_KEY]: cache});
     return {...state, cached: hasLastGood, unavailable: true};
+  }
+}
+
+async function reportAdEvent({
+  eventType,
+  placement,
+  campaignId,
+  revision
+} = {}) {
+  const type = String(eventType || "").toLowerCase();
+  const place = String(placement || "").toLowerCase();
+  const id = String(campaignId || "").trim();
+  if (!["impression", "click", "dismiss"].includes(type)) {
+    return {ok: false, error: "invalid_event_type"};
+  }
+  if (!["card", "interstitial"].includes(place)) {
+    return {ok: false, error: "invalid_placement"};
+  }
+  if (!/^[a-z0-9][a-z0-9_.:-]{0,63}$/i.test(id)) {
+    return {ok: false, error: "invalid_campaign"};
+  }
+
+  const currentVersion = chrome.runtime.getManifest().version;
+  try {
+    return await api("/v1/ad-event", {
+      method: "POST",
+      body: JSON.stringify({
+        event_type: type,
+        placement: place,
+        campaign_id: id,
+        revision: Math.max(0, Math.floor(Number(revision) || 0)),
+        distribution_channel: distributionChannel(),
+        extension_version: currentVersion
+      })
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      error: String(error?.message || error).slice(0, 160)
+    };
   }
 }
 
@@ -438,6 +507,127 @@ async function checkPairing() {
   return {status: data.status || "pending"};
 }
 
+async function refreshActivation({force = false} = {}) {
+  const store = await chrome.storage.local.get([
+    "bmpCommunityToken",
+    ACTIVATION_REFRESH_META_KEY
+  ]);
+  const currentToken = store.bmpCommunityToken;
+  const verified = await verifyCommunityToken(currentToken);
+
+  if (!verified.ok) {
+    return {status: "inactive"};
+  }
+
+  const scopes = Array.isArray(verified.payload?.scope)
+    ? verified.payload.scope.map(String)
+    : [];
+  const eligible = Boolean(
+    scopes.includes("community_access") &&
+    Number(verified.payload?.token_version || 0) >= 2 &&
+    /^tg:\d+$/.test(String(verified.payload?.sub || ""))
+  );
+  if (!eligible) {
+    return {
+      status: "reauth_required",
+      expiresAt: Number(verified.payload.exp) * 1000
+    };
+  }
+
+  const now = Date.now();
+  const meta = store[ACTIVATION_REFRESH_META_KEY] || {};
+  const lastAttemptAt = Number(meta.lastAttemptAt || 0);
+  const lastSuccessAt = Number(meta.lastSuccessAt || 0);
+  const lastError = String(meta.lastError || "");
+  const supporterStillActive = Boolean(
+    verified.payload?.supporter_active === true &&
+    Number(verified.payload?.supporter_until || 0) * 1000 > now
+  );
+  const successIntervalMs = supporterStillActive
+    ? ACTIVATION_REFRESH_INTERVAL_MS
+    : ACTIVATION_REFRESH_NO_SUPPORTER_INTERVAL_MS;
+  const retryAfterMs = lastError
+    ? ACTIVATION_REFRESH_FAILURE_BACKOFF_MS
+    : successIntervalMs;
+  const throttleAnchor = lastError
+    ? lastAttemptAt
+    : (lastSuccessAt || lastAttemptAt);
+  if (
+    !force &&
+    throttleAnchor > 0 &&
+    now - throttleAnchor < retryAfterMs
+  ) {
+    return {
+      status: "throttled",
+      expiresAt: Number(verified.payload.exp) * 1000,
+      nextAt: throttleAnchor + retryAfterMs
+    };
+  }
+
+  await chrome.storage.local.set({
+    [ACTIVATION_REFRESH_META_KEY]: {
+      ...meta,
+      lastAttemptAt: now,
+      lastError: ""
+    }
+  });
+
+  const installId = await getInstallId();
+  const currentVersion = chrome.runtime.getManifest().version;
+
+  try {
+    const data = await api("/v1/token/refresh", {
+      method: "POST",
+      headers: {Authorization: `Bearer ${currentToken}`},
+      body: JSON.stringify({
+        install_id: installId,
+        extension_version: currentVersion,
+        distribution_channel: distributionChannel()
+      })
+    });
+
+    if (!data?.token) {
+      throw new Error("Layanan aktivasi tidak mengembalikan token baru.");
+    }
+
+    const next = await verifyCommunityToken(data.token);
+    if (!next.ok) {
+      throw new Error("Token pembaruan dari server tidak valid.");
+    }
+
+    const previousExpiry = Number(verified.payload.exp) * 1000;
+    const nextExpiry = Number(next.payload.exp) * 1000;
+    if (nextExpiry + 1000 < previousExpiry) {
+      throw new Error("Token pembaruan tidak boleh memperpendek aktivasi.");
+    }
+
+    await chrome.storage.local.set({
+      bmpCommunityToken: data.token,
+      [ACTIVATION_REFRESH_META_KEY]: {
+        lastAttemptAt: now,
+        lastSuccessAt: Date.now(),
+        lastError: ""
+      }
+    });
+
+    return {
+      status: "refreshed",
+      changed: Boolean(data.changed || nextExpiry > previousExpiry + 1000),
+      supporterBonusApplied: Boolean(data.supporter_bonus_applied),
+      expiresAt: nextExpiry
+    };
+  } catch (error) {
+    await chrome.storage.local.set({
+      [ACTIVATION_REFRESH_META_KEY]: {
+        ...meta,
+        lastAttemptAt: now,
+        lastError: String(error?.message || error)
+      }
+    });
+    throw error;
+  }
+}
+
 function viewerUrl(code, mod) {
   return `${SOURCE_ROOT}/reader/index.php?subfolder=${encodeURIComponent(code)}/&doc=M${mod}.pdf`;
 }
@@ -550,7 +740,7 @@ async function navigateCurrentModule() {
     url: viewerUrl(state.code, state.currentModule)
   });
 
-  // Edge Canary Android does not always deliver tabs.onUpdated reliably
+  // Edge Android does not always deliver tabs.onUpdated reliably
   // for extension-driven navigation. Kick off the content-script handoff
   // directly as well; startModule() will retry until the page is ready.
   setTimeout(async () => {
@@ -806,12 +996,28 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({ok: true, result: await checkPairing()});
       return;
     }
+    if (msg.type === "REFRESH_ACTIVATION") {
+      sendResponse({
+        ok: true,
+        result: await refreshActivation({force: Boolean(msg.force)})
+      });
+      return;
+    }
     if (msg.type === "GET_VERSION_STATUS") {
       sendResponse({ok: true, policy: await versionStatus()});
       return;
     }
     if (msg.type === "GET_CLOUD_STATE") {
       sendResponse({ok: true, state: await cloudState({force: Boolean(msg.force)})});
+      return;
+    }
+    if (msg.type === "REPORT_AD_EVENT") {
+      sendResponse(await reportAdEvent({
+        eventType: msg.eventType,
+        placement: msg.placement,
+        campaignId: msg.campaignId,
+        revision: msg.revision
+      }));
       return;
     }
     if (msg.type === "EXECUTE_CLOUD_ACTION") {
