@@ -15,7 +15,7 @@ import {SUPPORT_KB} from "./knowledge.generated.js";
 import {supportPrivilegedUserIds} from "./security/permissions.js";
 import {v21UiCanaryCount, v21UiCanaryEnabled, v21UiCanaryUser, v21UiGlobalEnabled} from "./features/ui-canary.js";
 import {b64url, b64urlJson, importSigningKey, randomToken, sha256Hex} from "./security/crypto.js";
-import {checkPairRateLimit} from "./security/rate-limit.js";
+import {checkActivationRefreshRateLimit, checkPairRateLimit} from "./security/rate-limit.js";
 import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
 import {claimTelegramUpdate} from "./security/idempotency.js";
 import {d1ActivationLedgerEnabled, d1MigrationEnabled, d1PaymentEnabled, d1ReadProbe, d1ReferralEnabled, d1ReferralSelfTestEnabled, d1ReplayEnabled, d1SupporterEnabled, d1WritesEnabled} from "./data/d1/mode.js";
@@ -1542,6 +1542,17 @@ async function tokenRefresh(request, env) {
     return json(
       {error: "Token aktivasi diperlukan.", code: "missing_token"},
       401,
+      corsHeaders(request)
+    );
+  }
+
+  if (!(await checkActivationRefreshRateLimit(env, token))) {
+    return json(
+      {
+        error: "Terlalu banyak permintaan pembaruan aktivasi. Coba lagi sebentar.",
+        code: "rate_limited"
+      },
+      429,
       corsHeaders(request)
     );
   }
