@@ -28,7 +28,7 @@ export function supportHelpText(access = null) {
         ? "Akses AI: unlimited."
         : "Kuota AI reguler: maksimal 6 pertanyaan AI per hari.",
     "",
-    "Menu utama menyediakan tombol Tanya AI, Ekstensi, Supporter, Referral, dan Bantuan. Slash command lama tetap tersedia sebagai shortcut, tetapi tidak perlu dihafal."
+    "Gunakan menu utama untuk Tanya AI, Ekstensi, Supporter, Referral, dan Bantuan. Di Group Terbuka, gunakan /ask, mention bot, atau reply pesan bot."
   ].join("\n");
 }
 
