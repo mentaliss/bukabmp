@@ -1326,11 +1326,16 @@ export default {
 
           if (chatId) {
             const isGroupUpdate = ["group", "supergroup"].includes(update?.message?.chat?.type || "");
+            const isSuccessfulPayment = Boolean(
+              update?.message?.successful_payment
+            );
             await tg(env, "sendMessage", {
               chat_id: chatId,
               text: isGroupUpdate
                 ? "⚠️ BMP Terbuka Assistant lagi error sebentar. Coba lagi nanti atau kirim detail kendalanya supaya member lain bisa bantu."
-                : "⚠️ Aktivasi belum selesai karena terjadi kesalahan backend. Update sudah diterima dan tidak akan mengunci antrean bot."
+                : isSuccessfulPayment
+                  ? "⚠️ Pembayaran Telegram terdeteksi, tetapi status Supporter belum berhasil diperbarui. Jangan bayar ulang. Kirim /paysupport lewat DM bot agar transaksi ini diperiksa."
+                  : "⚠️ Aktivasi belum selesai karena terjadi kesalahan backend. Update sudah diterima dan tidak akan mengunci antrean bot."
             }).catch(() => {});
           }
         }
