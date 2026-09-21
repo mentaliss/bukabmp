@@ -13,5 +13,13 @@
       "binding": "PAIRINGS",
       "id": "873f03a3acf14ea18cc9b7b84eb8965f"
     }
+  ],
+  "d1_databases": [
+    {
+      "binding": "BOT_DB",
+      "database_name": "bmp-terbuka-bot-v2",
+      "database_id": "093f7e21-3eb9-4e08-bd50-3cb991067a07",
+      "migrations_dir": "migrations"
+    }
   ]
 }
