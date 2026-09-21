@@ -281,3 +281,41 @@ test("store version policy does not force an unpublished Edge minimum", async ()
   assert.equal(body.minimum_version, null);
   assert.equal(body.store_ready, false);
 });
+
+test("reviewer activation preserves the signed Store review flow", async () => {
+  const keyPair = await crypto.subtle.generateKey({
+    name: "RSASSA-PKCS1-v1_5",
+    modulusLength: 2048,
+    publicExponent: new Uint8Array([1, 0, 1]),
+    hash: "SHA-256"
+  }, true, ["sign", "verify"]);
+  const privateJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
+
+  const env = baseEnv({
+    STORE_REVIEWER_SECRET: "fixture-reviewer-secret",
+    MEMBER_HASH_SALT: "fixture-salt",
+    SIGNING_PRIVATE_JWK: JSON.stringify(privateJwk)
+  });
+  const pairId = "StorePair001";
+  await env.PAIRINGS.put("pair:" + pairId, JSON.stringify({
+    install_id: "01234567-89ab-cdef-01234567",
+    distribution_channel: "edge",
+    status: "pending",
+    created_at: Date.now()
+  }));
+
+  const response = await worker.fetch(new Request("https://worker.test/v1/reviewer/activate", {
+    method: "POST",
+    headers: {"content-type": "application/json"},
+    body: JSON.stringify({
+      pair_id: pairId,
+      reviewer_code: "fixture-reviewer-secret"
+    })
+  }), env);
+
+  assert.equal(response.status, 200);
+  const record = await env.PAIRINGS.get("pair:" + pairId, "json");
+  assert.equal(record.status, "verified");
+  assert.equal(record.verification_source, "store_reviewer");
+  assert.match(record.token, /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+});
