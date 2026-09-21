@@ -1246,7 +1246,9 @@ el("about").addEventListener("click",()=>chrome.tabs.create({url:chrome.runtime.
   await refreshState();
   await refreshCachePreview();
   setInterval(async()=>{await refreshAccess();await refreshState()},1000);
-  setInterval(()=>refreshCloudSurface().catch(()=>{}),30_000);
+  // While the popup is open, keep campaign/card control near-realtime.
+  // GET failures still fall back to the last good cached state.
+  setInterval(()=>refreshCloudSurface({force:true}).catch(()=>{}),30_000);
   setInterval(async()=>{
     const a=await send("GET_ACCESS_STATUS");
     if(a?.pending)await checkPendingActivation({quiet:true});
