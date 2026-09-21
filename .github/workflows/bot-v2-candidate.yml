@@ -23,6 +23,8 @@ jobs:
         run: node tools/validate.mjs
       - name: Existing Cloud Surface tests
         run: node tests/cloud-surface.test.mjs
+      - name: Extension 1.1.0 regression tests
+        run: node --test tests/*.test.mjs
       - name: Knowledge index check
         working-directory: worker
         run: node scripts/build-knowledge.mjs --check
