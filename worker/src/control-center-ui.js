@@ -193,6 +193,10 @@ function number(value){return new Intl.NumberFormat("id-ID").format(Number(value
 function pct(value){return value==null?"—":Number(value).toFixed(1)+"%"}
 function isoLocal(value){if(!value)return "";var d=new Date(value);if(!Number.isFinite(d.getTime()))return "";var p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes())}
 function toIso(value){if(!value)return null;var d=new Date(value);return Number.isFinite(d.getTime())?d.toISOString():null}
+function validHttps(value){
+  var raw=String(value||"").trim();if(!raw)return false;
+  try{return new URL(raw).protocol==="https:"}catch(e){return false}
+}
 async function api(path,options){
   options=options||{};
   options.headers=Object.assign({},options.headers||{},{Authorization:"Bearer "+authToken});
@@ -272,6 +276,10 @@ function buildAdsState(){
   }
   var ctaLabel=el("ctaLabel").value.trim(),ctaUrl=el("ctaUrl").value.trim();
   if((ctaLabel&&!ctaUrl)||(!ctaLabel&&ctaUrl))throw new Error("CTA label dan CTA URL harus diisi berpasangan.");
+  if(ctaUrl&&!validHttps(ctaUrl))throw new Error("CTA URL harus HTTPS.");
+  var houseCtaLabel=el("houseCtaLabel").value.trim()||"Pasang iklan? Hubungi";
+  var houseCtaUrl=el("houseCtaUrl").value.trim()||"https://t.me/bukabmp?direct";
+  if(!validHttps(houseCtaUrl))throw new Error("Fallback CTA URL harus HTTPS.");
   var starts=schedule==="scheduled"?toIso(el("startsAt").value):null;
   var ends=schedule==="scheduled"?toIso(el("endsAt").value):null;
   if(schedule==="scheduled"&&!starts&&!ends)throw new Error("Scheduled butuh Starts at atau Ends at.");
@@ -289,7 +297,7 @@ function buildAdsState(){
     cta:ctaLabel&&ctaUrl?{label:ctaLabel,url:ctaUrl}:null,
     card:{mode:cardMode,asset:cardMode==="banner"?cardAsset:null},
     network:{adsonbread:el("networkFallback").checked},
-    house:{sponsor_label:"Sponsor",headline:el("houseHeadline").value.trim()||"Space iklan tersedia",body:el("houseBody").value.trim(),cta:{label:el("houseCtaLabel").value.trim()||"Pasang iklan? Hubungi",url:el("houseCtaUrl").value.trim()}},
+    house:{sponsor_label:"Sponsor",headline:el("houseHeadline").value.trim()||"Space iklan tersedia",body:el("houseBody").value.trim(),cta:{label:houseCtaLabel,url:houseCtaUrl}},
     starts_at:starts,
     ends_at:ends,
     placements:{card:cardPlaced,interstitial:interstitialPlaced},
@@ -439,12 +447,16 @@ function fillExtension(state){
 }
 function buildExtensionState(){
   var state;
-  try{state=JSON.parse(el("rawStateEditor").value||"{}")}catch(e){state=baseState()}
+  try{state=JSON.parse(el("rawStateEditor").value||"{}")}catch(e){throw new Error("Advanced JSON tidak valid. Perbaiki JSON sebelum Preview/Publish.")}
+  if(!state||typeof state!=="object"||Array.isArray(state))throw new Error("Advanced JSON harus berupa object.");
   state.schema_version=1;
   state.status_badge={visible:el("badgeOn").checked,kind:el("badgeKind").value,text:el("badgeText").value.trim()};
   return state;
 }
-function renderExtensionPreview(){var s=buildExtensionState(),p=el("extensionPreview");p.textContent="";var b=document.createElement("div");b.className="adCard";b.innerHTML="<div class='label'>Status badge</div><div class='headline'></div>";b.querySelector(".headline").textContent=s.status_badge.visible?(s.status_badge.text||"—"):"OFF";var d=document.createElement("div");d.className="disclaimer";d.textContent="Type: "+s.status_badge.kind;p.appendChild(b)}
+function renderExtensionPreview(reportError){
+  var s;
+  try{s=buildExtensionState()}catch(e){el("extensionPreview").textContent="";if(reportError)status(el("extensionStatus"),e.message,false);return false}
+  var p=el("extensionPreview");p.textContent="";var b=document.createElement("div");b.className="adCard";b.innerHTML="<div class='label'>Status badge</div><div class='headline'></div>";b.querySelector(".headline").textContent=s.status_badge.visible?(s.status_badge.text||"—"):"OFF";var d=document.createElement("div");d.className="disclaimer";d.textContent="Type: "+s.status_badge.kind;p.appendChild(b);return true}
 async function publishState(target,state,reason){
   return await api("/control/api/state?distribution_channel="+encodeURIComponent(target),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({state:state,reason:reason})});
 }
@@ -512,6 +524,7 @@ function renderEffective(effective){var host=el("effectiveVersion");host.textCon
 async function saveVersion(){
   var body={latest_version:el("latestVersion").value.trim(),minimum_global:el("minimumGlobal").value.trim(),release_url:el("releaseUrl").value.trim(),message:el("versionMessage").value.trim(),readiness:{github:el("readyGithub").checked,android:el("readyAndroid").checked,edge:el("readyEdge").checked,cws:el("readyCws").checked}};
   if(!body.latest_version||!body.minimum_global)throw new Error("Latest dan minimum wajib diisi sebelum Save.");
+  if(body.release_url&&!validHttps(body.release_url))throw new Error("Release URL harus HTTPS.");
   var ready=Object.keys(body.readiness).filter(function(k){return body.readiness[k]});
   var summary="Simpan policy versi?\nLatest: "+body.latest_version+"\nMinimum: "+body.minimum_global+"\nReady: "+(ready.join(", ")||"tidak ada");
   if(!window.confirm(summary))throw new Error("Save dibatalkan.");
@@ -545,7 +558,7 @@ el("pauseAds").onclick=async function(){var target=targetValue("adsTarget");if(t
 
 ["badgeOn","badgeKind","badgeText"].forEach(function(id){el(id).addEventListener("input",renderExtensionPreview);el(id).addEventListener("change",renderExtensionPreview)});
 el("extensionTarget").onchange=function(){loadState(this.value).then(function(){status(el("extensionStatus"),"State loaded.",true)}).catch(function(e){status(el("extensionStatus"),e.message,false)})};
-el("previewExtension").onclick=renderExtensionPreview;
+el("previewExtension").onclick=function(){if(renderExtensionPreview(true))status(el("extensionStatus"),"Preview updated. Belum ada yang dipublish.",true)};
 el("publishExtension").onclick=async function(){try{var target=targetValue("extensionTarget"),data=await publishState(target,buildExtensionState(),"extension_surface_publish");if(target==="all"){loadedStates=data.states||{};currentState=loadedStates.github}else{currentState=data.state;loadedStates[target]=data.state}fillExtension(currentState);status(el("extensionStatus"),"Published to "+target+".",true)}catch(e){status(el("extensionStatus"),e.message,false)}};
 
 el("reloadVersion").onclick=function(){loadVersion().then(function(){status(el("versionStatus"),"Reloaded.",true)}).catch(function(e){status(el("versionStatus"),e.message,false)})};
