@@ -35,6 +35,11 @@ const REQUIRED_INDEXES = new Set([
   "idx_telemetry_daily_actor_actor"
 ]);
 
+const SAFE_INDEX_REPAIRS = new Map([
+  ["idx_users_first_activated",
+   "CREATE INDEX IF NOT EXISTS idx_users_first_activated ON users(first_activated_at);"]
+]);
+
 function rowsFromWranglerJson(parsed){
   const batches = Array.isArray(parsed) ? parsed : [parsed];
   const rows = [];
@@ -86,9 +91,17 @@ export function assess({objects=[],columns=[],ledger=[]}){
   const unknown = [...applied].filter(name => !EXPECTED_MIGRATIONS.includes(name));
   const missingLedger = EXPECTED_MIGRATIONS.filter(name => !applied.has(name));
 
+  const safeRepairProblems = problems.filter(problem =>
+    problem.startsWith("missing index ") &&
+    SAFE_INDEX_REPAIRS.has(problem.slice("missing index ".length))
+  );
+  const unsafeProblems = problems.filter(problem => !safeRepairProblems.includes(problem));
+
   return {
     ok: problems.length === 0,
     problems,
+    safeRepairProblems,
+    unsafeProblems,
     unknownLedgerEntries: unknown,
     missingLedger,
     canBaseline: problems.length === 0 && unknown.length === 0 && missingLedger.length > 0
@@ -116,6 +129,19 @@ function readState(){
   return {objects,columns,ledger};
 }
 
+function repairSafeSchemaProblems(result){
+  if(!result?.safeRepairProblems?.length) return;
+  if(result.unsafeProblems?.length){
+    throw new Error("unsafe schema problems remain; refusing repair");
+  }
+  for(const problem of result.safeRepairProblems){
+    const index = problem.slice("missing index ".length);
+    const sql = SAFE_INDEX_REPAIRS.get(index);
+    if(!sql) throw new Error("missing safe repair SQL for "+index);
+    runSql(sql);
+  }
+}
+
 function writeBaseline(){
   const values = EXPECTED_MIGRATIONS.map(name =>
     `INSERT INTO d1_migrations(name) SELECT '${name}' WHERE NOT EXISTS (SELECT 1 FROM d1_migrations WHERE name='${name}');`
@@ -129,9 +155,25 @@ if(process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.ar
   const result = assess(state);
 
   if(!result.ok){
-    console.error("REFUSE: live schema does not prove that 0001/0002/0003 effects are present.");
-    for(const problem of result.problems) console.error(" - "+problem);
-    process.exit(2);
+    if(write && result.unsafeProblems.length === 0 && result.safeRepairProblems.length > 0){
+      console.log("Repairing safe additive schema gaps before ledger baseline:");
+      for(const problem of result.safeRepairProblems) console.log(" - "+problem);
+      repairSafeSchemaProblems(result);
+      const repaired = assess(readState());
+      if(!repaired.ok){
+        console.error("REFUSE: safe schema repair did not converge.");
+        for(const problem of repaired.problems) console.error(" - "+problem);
+        process.exit(2);
+      }
+      Object.assign(result,repaired);
+    }else{
+      console.error("REFUSE: live schema does not prove that 0001/0002/0003 effects are present.");
+      for(const problem of result.problems) console.error(" - "+problem);
+      if(result.safeRepairProblems.length && result.unsafeProblems.length === 0){
+        console.error("This gap is safe and additive. Re-run with --write to create it, re-check schema, then baseline.");
+      }
+      process.exit(2);
+    }
   }
   if(result.unknownLedgerEntries.length){
     console.error("REFUSE: unexpected migration ledger entries: "+result.unknownLedgerEntries.join(", "));
