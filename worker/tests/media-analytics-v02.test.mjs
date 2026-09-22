@@ -208,3 +208,43 @@ test("community stats can serve a fresh cached aggregate without retrieving memb
   assert.equal(result.members, 45);
   assert.equal(result.overlap_unknown, true);
 });
+
+
+test("community stats preserves the successful Telegram count when the sibling lookup fails", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, options = {}) => {
+    const body = JSON.parse(String(options.body || "{}"));
+    if (body.chat_id === "channel-test") {
+      return new Response(JSON.stringify({ok: false, description: "channel denied"}), {
+        status: 403,
+        headers: {"content-type": "application/json"}
+      });
+    }
+    return new Response(JSON.stringify({ok: true, result: 55}), {
+      status: 200,
+      headers: {"content-type": "application/json"}
+    });
+  };
+  try {
+    const cached = {
+      subscribers: 120,
+      members: 40,
+      captured_at: 1,
+      cache_seconds: 600,
+      overlap_unknown: true
+    };
+    const env = {
+      PAIRINGS: new MemoryKV({"community-stats:v1": JSON.stringify(cached)}),
+      TELEGRAM_BOT_TOKEN: "test-token",
+      CHANNEL_ID: "channel-test",
+      SUPPORT_GROUP_ID: "group-test"
+    };
+    const result = await communityStats(env, {force: true}, 123456789);
+    assert.equal(result.subscribers, 120);
+    assert.equal(result.members, 55);
+    assert.equal(result.stale, true);
+    assert.deepEqual(result.stale_fields, ["subscribers"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
