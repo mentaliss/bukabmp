@@ -58,6 +58,7 @@ if(JSON.stringify(actualHosts)!==JSON.stringify([...expectedHosts].sort())){
 }
 
 if(fs.existsSync(path.join(packageDir,"config.template.js")))fail("config.template.js must not ship.");
+if(fs.existsSync(path.join(packageDir,"vendor","adsonbread-test-sdk.js")))fail("Development AdsOnBread mock must not ship.");
 const config=fs.readFileSync(mustFile("config.js"),"utf8");
 const channelPattern=new RegExp(`DISTRIBUTION_CHANNEL:\\s*["']${channel}["']`);
 if(!channelPattern.test(config))fail(`Config must set DISTRIBUTION_CHANNEL to "${channel}".`);
