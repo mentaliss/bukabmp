@@ -113,8 +113,14 @@ import {
 import {parseReferralStartArg} from "./features/referral.js";
 import {attributeReferralFromCode} from "./features/referral-service.js";
 import {recordAdEvent, sanitizeAdEvent, sanitizeAdsState} from "./features/ads.js";
+import {analyticsSummary, ingestTelemetry} from "./features/telemetry.js";
+import {MEDIA_LIMITS, revokeAdMedia, serveAdMedia, storeAdMedia} from "./features/ad-media.js";
+import {communityStats} from "./features/community-stats.js";
+import {readGlobalVersionPolicy, resolveVersionPolicy, writeGlobalVersionPolicy} from "./features/version-policy.js";
+import {publishAllChannels} from "./features/control-bulk.js";
+import {controlCenterPage} from "./control-center-ui.js";
 
-const APP_VERSION = "1.0.5-support-bot-v22-v110-refresh-floor";
+const APP_VERSION = "1.0.5-support-bot-v23-control-center-v02";
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
 const VERSION_CHECK_AFTER_SECONDS = 24 * 60 * 60;
@@ -128,6 +134,9 @@ const BMP_GROUP_COMMANDS = new Set([
   "terms", "paysupport"
 ]);
 const TELEGRAM_COMMAND_SCOPE_STATE_KEY = "telegram-command-scopes:minimal-v2";
+const CONTROL_HISTORY_LIMIT = 20;
+const CONTROL_HISTORY_TTL_SECONDS = 90 * 24 * 60 * 60;
+
 
 function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data, null, 2), {
@@ -145,7 +154,7 @@ function corsHeaders(request) {
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
     "Vary": "Origin"
   };
 }
@@ -1262,6 +1271,12 @@ function normalizeDistributionChannel(value) {
   return DISTRIBUTION_CHANNELS.includes(channel) ? channel : "github";
 }
 
+function strictControlChannel(value, {allowAll = false} = {}) {
+  const channel = String(value || "").trim().toLowerCase();
+  if (allowAll && channel === "all") return "all";
+  return DISTRIBUTION_CHANNELS.includes(channel) ? channel : "";
+}
+
 function envString(env, name, fallback = "") {
   const value = env?.[name];
   if (value == null) return fallback;
@@ -1485,7 +1500,11 @@ async function adminExtensionState(request, env, url) {
     return json({error: "unauthorized"}, 401, corsHeaders(request));
   }
   if (!env.PAIRINGS) return json({error: "PAIRINGS KV belum dikonfigurasi"}, 503, corsHeaders(request));
-  const channel = normalizeDistributionChannel(url.searchParams.get("distribution_channel"));
+  const rawChannel = String(url.searchParams.get("distribution_channel") || "").trim().toLowerCase();
+  const channel = rawChannel ? strictControlChannel(rawChannel) : "github";
+  if (!channel) {
+    return json({error: "invalid_distribution_channel"}, 400, corsHeaders(request));
+  }
   const key = extensionStateKey(channel);
 
   if (request.method === "GET") {
@@ -1498,6 +1517,362 @@ async function adminExtensionState(request, env, url) {
   const state = sanitizeExtensionState(body);
   await env.PAIRINGS.put(key, JSON.stringify(state));
   return json({ok: true, channel, state}, 200, corsHeaders(request));
+}
+
+function controlAuthorized(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  return Boolean(
+    env.ADMIN_SETUP_TOKEN &&
+    auth === `Bearer ${env.ADMIN_SETUP_TOKEN}`
+  );
+}
+
+function controlHistoryIndexKey(channel) {
+  return `control-history-index:${normalizeDistributionChannel(channel)}`;
+}
+
+function controlHistoryStateKey(channel, id) {
+  return `control-history:${normalizeDistributionChannel(channel)}:${id}`;
+}
+
+function safeControlReason(value, fallback = "control_center_publish") {
+  const clean = String(value || "")
+    .replace(/[^a-zA-Z0-9_.:-]+/g, "_")
+    .slice(0, 64);
+  return clean || fallback;
+}
+
+function controlStateSummary(state) {
+  const ads = state?.ads || {};
+  const campaign = String(ads.campaign_id || "");
+  if (campaign) {
+    return `${ads.enabled ? "ads:on" : "ads:off"} • ${campaign} • r${Number(ads.revision || 0)}`;
+  }
+  const badge = state?.status_badge || {};
+  if (badge.visible && badge.text) {
+    return `badge • ${String(badge.text).slice(0, 72)}`;
+  }
+  return "surface state";
+}
+
+async function controlHistory(env, channel) {
+  if (!env.PAIRINGS) return [];
+  const key = controlHistoryIndexKey(channel);
+  const raw = await env.PAIRINGS.get(key, "json");
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(item =>
+      item &&
+      typeof item === "object" &&
+      /^[a-z0-9-]{6,80}$/i.test(String(item.id || ""))
+    )
+    .slice(0, CONTROL_HISTORY_LIMIT);
+}
+
+async function snapshotControlState(env, channel, state, reason) {
+  if (!env.PAIRINGS) throw new Error("PAIRINGS KV belum dikonfigurasi");
+  const id = `${Date.now().toString(36)}-${randomToken(5).replace(/[^a-z0-9]/gi, "").toLowerCase()}`;
+  const createdAt = Date.now();
+  const snapshot = {
+    id,
+    channel: normalizeDistributionChannel(channel),
+    created_at: createdAt,
+    reason: safeControlReason(reason, "snapshot"),
+    summary: controlStateSummary(state),
+    state: sanitizeExtensionState(state)
+  };
+  await env.PAIRINGS.put(
+    controlHistoryStateKey(channel, id),
+    JSON.stringify(snapshot),
+    {expirationTtl: CONTROL_HISTORY_TTL_SECONDS}
+  );
+
+  const current = await controlHistory(env, channel);
+  const next = [
+    {
+      id,
+      created_at: createdAt,
+      reason: snapshot.reason,
+      summary: snapshot.summary
+    },
+    ...current.filter(item => item.id !== id)
+  ].slice(0, CONTROL_HISTORY_LIMIT);
+  await env.PAIRINGS.put(controlHistoryIndexKey(channel), JSON.stringify(next));
+  return snapshot;
+}
+
+async function controlVersionPolicy(env, channel) {
+  const normalized = normalizeDistributionChannel(channel);
+  const policy = await resolveVersionPolicy(env, normalized, channelPolicy(env, normalized));
+  return {
+    distribution_channel: policy.channel,
+    latest_version: policy.latestVersion,
+    minimum_version: policy.minimumVersion || null,
+    force_after: policy.forceAfter,
+    release_url: policy.releaseUrl,
+    message: policy.message,
+    store_ready: policy.storeReady,
+    source: policy.source || "env_fallback"
+  };
+}
+
+async function controlReadJson(request, maxBytes = 64 * 1024) {
+  const contentLength = Number(request.headers.get("Content-Length") || 0);
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    return {ok: false, error: "payload_too_large"};
+  }
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object") {
+    return {ok: false, error: "invalid_json"};
+  }
+  return {ok: true, body};
+}
+
+async function controlSession(request, env) {
+  if (!controlAuthorized(request, env)) {
+    return json({error: "unauthorized"}, 401);
+  }
+  return json({
+    ok: true,
+    worker_version: APP_VERSION,
+    channels: DISTRIBUTION_CHANNELS,
+    history_limit: CONTROL_HISTORY_LIMIT,
+    auth_mode: "admin_setup_token",
+    cloudflare_access_recommended: true
+  });
+}
+
+async function controlStateApi(request, env, url) {
+  if (!controlAuthorized(request, env)) {
+    return json({error: "unauthorized"}, 401);
+  }
+  if (!env.PAIRINGS) {
+    return json({error: "PAIRINGS KV belum dikonfigurasi"}, 503);
+  }
+  const rawTarget = String(url.searchParams.get("distribution_channel") || "github").trim().toLowerCase();
+  const strictTarget = strictControlChannel(rawTarget, {allowAll: true});
+  if (!strictTarget) return json({error: "invalid_distribution_channel"}, 400);
+  const channel = strictTarget === "all" ? "github" : strictTarget;
+
+  if (request.method === "GET") {
+    if (rawTarget === "all") {
+      const states = {};
+      const histories = {};
+      const version_policy = {};
+      for (const item of DISTRIBUTION_CHANNELS) {
+        states[item] = await readExtensionState(env, item);
+        histories[item] = await controlHistory(env, item);
+        version_policy[item] = await controlVersionPolicy(env, item);
+      }
+      return json({ok: true, channel: "all", worker_version: APP_VERSION, version_policy, states, histories});
+    }
+    const state = await readExtensionState(env, channel);
+    return json({
+      ok: true,
+      channel,
+      worker_version: APP_VERSION,
+      version_policy: await controlVersionPolicy(env, channel),
+      state,
+      history: await controlHistory(env, channel)
+    });
+  }
+
+  const parsed = await controlReadJson(request);
+  if (!parsed.ok) return json({error: parsed.error}, parsed.error === "payload_too_large" ? 413 : 400);
+  const incoming = parsed.body.state;
+  if (!incoming || typeof incoming !== "object") {
+    return json({error: "state_required"}, 400);
+  }
+
+  const reason = safeControlReason(parsed.body.reason);
+  if (rawTarget === "all") {
+    try {
+      await publishAllChannels({
+        channels: DISTRIBUTION_CHANNELS,
+        incoming,
+        reason,
+        sanitize: value => sanitizeExtensionState(value),
+        read: item => readExtensionState(env, item),
+        snapshot: (item, value, why) => snapshotControlState(env, item, value, why),
+        write: (item, value) => env.PAIRINGS.put(extensionStateKey(item), JSON.stringify(sanitizeExtensionState(value))),
+        verify: async (item, expected) => {
+          const actual = await readExtensionState(env, item);
+          const comparable = value => {
+            const clean = sanitizeExtensionState(value);
+            delete clean.generated_at;
+            return JSON.stringify(clean);
+          };
+          return comparable(actual) === comparable(expected);
+        }
+      });
+    } catch (error) {
+      return json({
+        error: "all_publish_failed",
+        detail: String(error?.message || error).slice(0, 160),
+        rollback_errors: Array.isArray(error?.rollback_errors) ? error.rollback_errors : []
+      }, 409);
+    }
+    const states = {};
+    const histories = {};
+    for (const item of DISTRIBUTION_CHANNELS) {
+      states[item] = await readExtensionState(env, item);
+      histories[item] = await controlHistory(env, item);
+    }
+    return json({ok: true, channel: "all", states, histories});
+  }
+
+  const current = await readExtensionState(env, channel);
+  const state = sanitizeExtensionState(incoming);
+  await snapshotControlState(env, channel, current, "before_" + reason);
+  await env.PAIRINGS.put(extensionStateKey(channel), JSON.stringify(state));
+
+  return json({
+    ok: true,
+    channel,
+    state: await readExtensionState(env, channel),
+    history: await controlHistory(env, channel)
+  });
+}
+
+async function controlValidateApi(request, env, url) {
+  if (!controlAuthorized(request, env)) {
+    return json({error: "unauthorized"}, 401);
+  }
+  const parsed = await controlReadJson(request);
+  if (!parsed.ok) return json({error: parsed.error}, parsed.error === "payload_too_large" ? 413 : 400);
+  const rawTarget = String(url.searchParams.get("distribution_channel") || "github").trim().toLowerCase();
+  const strictTarget = strictControlChannel(rawTarget, {allowAll: true});
+  if (!strictTarget) return json({error: "invalid_distribution_channel"}, 400);
+  const state = sanitizeExtensionState(parsed.body);
+  return json({
+    ok: true,
+    channel: strictTarget,
+    state,
+    ...(strictTarget === "all" ? {validated_channels: [...DISTRIBUTION_CHANNELS]} : {})
+  });
+}
+
+async function controlPauseAds(request, env) {
+  if (!controlAuthorized(request, env)) {
+    return json({error: "unauthorized"}, 401);
+  }
+  if (!env.PAIRINGS) {
+    return json({error: "PAIRINGS KV belum dikonfigurasi"}, 503);
+  }
+  const parsed = await controlReadJson(request, 8192);
+  if (!parsed.ok) return json({error: parsed.error}, parsed.error === "payload_too_large" ? 413 : 400);
+  const channel = strictControlChannel(parsed.body.distribution_channel);
+  if (!channel) return json({error: "invalid_distribution_channel"}, 400);
+  const current = await readExtensionState(env, channel);
+  await snapshotControlState(env, channel, current, "before_emergency_pause_ads");
+
+  const next = sanitizeExtensionState({
+    ...current,
+    ads: {
+      ...(current.ads || {}),
+      enabled: false
+    }
+  });
+  await env.PAIRINGS.put(extensionStateKey(channel), JSON.stringify(next));
+
+  return json({
+    ok: true,
+    channel,
+    state: await readExtensionState(env, channel),
+    history: await controlHistory(env, channel)
+  });
+}
+
+async function controlRollback(request, env) {
+  if (!controlAuthorized(request, env)) {
+    return json({error: "unauthorized"}, 401);
+  }
+  if (!env.PAIRINGS) {
+    return json({error: "PAIRINGS KV belum dikonfigurasi"}, 503);
+  }
+  const parsed = await controlReadJson(request, 8192);
+  if (!parsed.ok) return json({error: parsed.error}, parsed.error === "payload_too_large" ? 413 : 400);
+  const channel = strictControlChannel(parsed.body.distribution_channel);
+  if (!channel) return json({error: "invalid_distribution_channel"}, 400);
+  const id = String(parsed.body.history_id || "");
+  if (!/^[a-z0-9-]{6,80}$/i.test(id)) {
+    return json({error: "invalid_history_id"}, 400);
+  }
+
+  const snapshot = await env.PAIRINGS.get(controlHistoryStateKey(channel, id), "json");
+  if (!snapshot?.state) {
+    return json({error: "history_not_found"}, 404);
+  }
+
+  const current = await readExtensionState(env, channel);
+  await snapshotControlState(env, channel, current, "before_rollback");
+  const restored = sanitizeExtensionState(snapshot.state);
+  await env.PAIRINGS.put(extensionStateKey(channel), JSON.stringify(restored));
+
+  return json({
+    ok: true,
+    channel,
+    restored_from: id,
+    state: await readExtensionState(env, channel),
+    history: await controlHistory(env, channel)
+  });
+}
+
+async function telemetryApi(request, env) {
+  const contentLength = Number(request.headers.get("Content-Length") || 0);
+  if (Number.isFinite(contentLength) && contentLength > 16384) {
+    return json({error: "payload_too_large"}, 413, corsHeaders(request));
+  }
+  const body = await request.json().catch(() => null);
+  const result = await ingestTelemetry(env, body);
+  if (!result.ok) {
+    const status = result.reason === "rate_limited" ? 429 : result.reason === "telemetry_not_configured" ? 503 : 400;
+    return json({error: result.reason}, status, corsHeaders(request));
+  }
+  return json(result, 202, corsHeaders(request));
+}
+
+async function controlAnalyticsApi(request, env, url) {
+  if (!controlAuthorized(request, env)) return json({error: "unauthorized"}, 401);
+  const summary = await analyticsSummary(env, {
+    period: url.searchParams.get("period") || "7d",
+    channel: url.searchParams.get("channel") || ""
+  });
+  return json({ok: true, ...summary});
+}
+
+async function controlCommunityApi(request, env, url) {
+  if (!controlAuthorized(request, env)) return json({error: "unauthorized"}, 401);
+  const force = url.searchParams.get("force") === "1";
+  return json({ok: true, ...(await communityStats(env, {force}))});
+}
+
+async function controlMediaApi(request, env, url) {
+  if (!controlAuthorized(request, env)) return json({error: "unauthorized"}, 401);
+  if (request.method === "POST") {
+    const parsed = await controlReadJson(request, 15 * 1024 * 1024);
+    if (!parsed.ok) return json({error: parsed.error}, parsed.error === "payload_too_large" ? 413 : 400);
+    const result = await storeAdMedia(env, parsed.body);
+    return json(result.ok ? result : {error: result.reason}, result.ok ? 201 : 400);
+  }
+  const prefix = "/control/api/media/";
+  const id = decodeURIComponent(url.pathname.slice(prefix.length));
+  const result = await revokeAdMedia(env, id);
+  return json(result.ok ? result : {error: result.reason}, result.ok ? 200 : result.reason === "not_found" ? 404 : 400);
+}
+
+async function controlVersionPolicyApi(request, env) {
+  if (!controlAuthorized(request, env)) return json({error: "unauthorized"}, 401);
+  if (request.method === "POST") {
+    const parsed = await controlReadJson(request, 16384);
+    if (!parsed.ok) return json({error: parsed.error}, parsed.error === "payload_too_large" ? 413 : 400);
+    const result = await writeGlobalVersionPolicy(env, parsed.body);
+    if (!result.ok) return json({error: result.reason}, 400);
+  }
+  const override = await readGlobalVersionPolicy(env);
+  const effective = {};
+  for (const item of DISTRIBUTION_CHANNELS) effective[item] = await controlVersionPolicy(env, item);
+  return json({ok: true, policy: override, effective});
 }
 
 function secureHtml(body) {
@@ -1616,7 +1991,7 @@ async function pairStart(request, env) {
   const body = await request.json().catch(() => ({}));
   const extensionVersion = String(body.extension_version || "").trim();
   const distributionChannel = normalizeDistributionChannel(body.distribution_channel);
-  const policy = channelPolicy(env, distributionChannel);
+  const policy = await resolveVersionPolicy(env, distributionChannel, channelPolicy(env, distributionChannel));
   const minimumVersion = policy.minimumVersion;
   if (!extensionVersion || (minimumVersion && compareVersions(extensionVersion, minimumVersion) < 0)) {
     return json({
@@ -1771,10 +2146,10 @@ async function pairStatus(request, env, url) {
 }
 
 
-function versionPolicy(request, env, url) {
+async function versionPolicy(request, env, url) {
   const currentVersion = String(url.searchParams.get("extension_version") || "").trim();
   const channel = normalizeDistributionChannel(url.searchParams.get("distribution_channel"));
-  const policy = channelPolicy(env, channel);
+  const policy = await resolveVersionPolicy(env, channel, channelPolicy(env, channel));
 
   return json({
     current_version: currentVersion || null,
@@ -2020,6 +2395,15 @@ export default {
           ad_event_ingest: true,
           ad_event_rate_limited: true,
           ad_event_campaign_validated: true,
+          control_center: true,
+          control_center_history_limit: CONTROL_HISTORY_LIMIT,
+          control_center_auth_mode: "admin_setup_token",
+          control_center_v02: true,
+          telemetry_ingest: true,
+          telemetry_hmac_configured: Boolean(env.TELEMETRY_HASH_KEY),
+          ad_media_r2_bound: Boolean(env.AD_MEDIA),
+          community_stats: true,
+          global_version_policy: true,
           ads_analytics_bound: Boolean(env.ADS_ANALYTICS && typeof env.ADS_ANALYTICS.writeDataPoint === "function"),
           telegram_command_menu_mode: String(env.TELEGRAM_COMMAND_MENU_MODE || "legacy").toLowerCase(),
           reviewer_activation_configured: Boolean(env.STORE_REVIEWER_SECRET),
@@ -2039,12 +2423,67 @@ export default {
         }, 200, corsHeaders(request));
       }
 
+      if (url.pathname === "/control" && request.method === "GET") {
+        if (!env.ADMIN_SETUP_TOKEN) {
+          return json({error: "control_center_not_configured"}, 503);
+        }
+        return controlCenterPage();
+      }
+
+      if (url.pathname === "/control/api/session" && request.method === "GET") {
+        return await controlSession(request, env);
+      }
+
+      if (url.pathname === "/control/api/state" && ["GET", "POST"].includes(request.method)) {
+        return await controlStateApi(request, env, url);
+      }
+
+      if (url.pathname === "/control/api/analytics" && request.method === "GET") {
+        return await controlAnalyticsApi(request, env, url);
+      }
+
+      if (url.pathname === "/control/api/community" && request.method === "GET") {
+        return await controlCommunityApi(request, env, url);
+      }
+
+      if (url.pathname === "/control/api/media" && request.method === "POST") {
+        return await controlMediaApi(request, env, url);
+      }
+
+      if (url.pathname.startsWith("/control/api/media/") && request.method === "DELETE") {
+        return await controlMediaApi(request, env, url);
+      }
+
+      if (url.pathname === "/control/api/version-policy" && ["GET", "POST"].includes(request.method)) {
+        return await controlVersionPolicyApi(request, env);
+      }
+
+      if (url.pathname === "/control/api/validate" && request.method === "POST") {
+        return await controlValidateApi(request, env, url);
+      }
+
+      if (url.pathname === "/control/api/pause-ads" && request.method === "POST") {
+        return await controlPauseAds(request, env);
+      }
+
+      if (url.pathname === "/control/api/rollback" && request.method === "POST") {
+        return await controlRollback(request, env);
+      }
+
       if (url.pathname === "/v1/version" && request.method === "GET") {
-        return versionPolicy(request, env, url);
+        return await versionPolicy(request, env, url);
       }
 
       if (url.pathname === "/v1/extension-state" && request.method === "GET") {
         return await extensionState(request, env, url);
+      }
+
+      if (url.pathname.startsWith("/v1/media/") && request.method === "GET") {
+        return await serveAdMedia(request, env, decodeURIComponent(url.pathname.slice("/v1/media/".length)));
+      }
+
+      if (url.pathname === "/v1/telemetry" && request.method === "POST") {
+        return await telemetryApi(request, env);
       }
 
       if (url.pathname === "/v1/ad-event" && request.method === "POST") {

@@ -66,7 +66,7 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.status, "ok");
-  assert.equal(body.version, "1.0.5-support-bot-v22-v110-refresh-floor");
+  assert.equal(body.version, "1.0.5-support-bot-v23-control-center-v02");
   assert.equal(body.supporter_pass, true);
   assert.equal(body.privacy_gate_enabled, true);
   assert.equal(body.realtime_extension_state, true);
@@ -75,6 +75,9 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(body.ad_event_ingest, true);
   assert.equal(body.ad_event_rate_limited, true);
   assert.equal(body.ad_event_campaign_validated, true);
+  assert.equal(body.control_center, true);
+  assert.equal(body.control_center_history_limit, 20);
+  assert.equal(body.control_center_auth_mode, "admin_setup_token");
   assert.equal(body.ads_analytics_bound, false);
   assert.equal(body.telegram_command_menu_mode, "legacy");
   assert.equal(body.supporter_packages.day.stars, 2);

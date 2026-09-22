@@ -102,3 +102,62 @@ test("public ad metric ingest is capped per hashed IP window", async () => {
   }
   assert.equal(await checkAdEventRateLimit(request, env), false);
 });
+
+
+test("media-only v2 campaign derives a safe text fallback from advertiser", () => {
+  const state = sanitizeAdsState({
+    enabled: true,
+    campaign_id: "media-only",
+    creative_version: 2,
+    advertiser: "Contoh Sponsor",
+    headline: "",
+    body: "",
+    placements: {card: true, interstitial: false},
+    card: {
+      mode: "banner",
+      asset: {
+        id: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        mime: "image/webp",
+        bytes: 100,
+        width: 1200,
+        height: 675
+      }
+    }
+  }, Date.now());
+  assert.equal(state.active, true);
+  assert.equal(state.headline, "Contoh Sponsor");
+});
+
+test("media-only v2 campaign without advertiser stays inactive for old-client safety", () => {
+  const state = sanitizeAdsState({
+    enabled: true,
+    campaign_id: "media-only-no-fallback",
+    creative_version: 2,
+    headline: "",
+    body: "",
+    placements: {card: true, interstitial: false},
+    card: {
+      mode: "banner",
+      asset: {
+        id: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        mime: "image/webp",
+        bytes: 100,
+        width: 1200,
+        height: 675
+      }
+    }
+  }, Date.now());
+  assert.equal(state.active, false);
+});
+
+
+test("enabled campaign without a placement stays inactive", () => {
+  const state = sanitizeAdsState({
+    enabled: true,
+    campaign_id: "no-placement",
+    headline: "Invisible sponsor",
+    placements: {card: false, interstitial: false},
+    interstitial: {enabled: false}
+  });
+  assert.equal(state.active, false);
+});
