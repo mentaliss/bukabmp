@@ -14,16 +14,17 @@ Repository ini mempublikasikan **source Chrome extension BMP Terbuka**, build to
 
 Yang termasuk source terbuka di repo ini:
 - `extension/` — source extension Manifest V3;
+- `worker/` — source Cloudflare Worker untuk aktivasi, version policy, Telegram bot, Supporter, dan realtime extension state/ads;
 - `tools/` — validator dan release builder extension;
 - dokumentasi penggunaan, kontribusi, privasi, keamanan, dan responsible use.
 
-Yang **tidak** termasuk dalam scope repository ini:
-- source activation service;
-- deployment/infrastructure service;
-- website/landing page source;
-- secret management atau private operational configuration.
+Yang **tidak** dipublikasikan di repository:
+- secret produksi, private signing key, Telegram bot token, reviewer secret, atau credential operator;
+- nilai konfigurasi operasional yang bersifat rahasia;
+- private signing pipeline/key untuk jalur Android CRX;
+- dashboard/account provider dan konfigurasi deployment di luar source yang memang ada di repo.
 
-Service eksternal diperlakukan sebagai API yang digunakan extension. Public endpoint, protocol values, dan public verification key yang memang dibutuhkan client dapat terlihat di source extension; private service implementation tidak berada di repository ini.
+Public endpoint, protocol values, public verification key, dan source Worker yang diperlukan untuk audit dapat terlihat di repository. Secret dan authority produksi tetap berada di environment/provider, bukan di package extension.
 
 ## Karakteristik utama
 
@@ -33,7 +34,7 @@ Service eksternal diperlakukan sebagai API yang digunakan extension. Public endp
 - Watermark sumber **tidak dihapus atau dimodifikasi**.
 - Saat sumber menolak akses (`403`, `429`, login ulang, `Request Rejected`), proses berhenti tanpa blind retry.
 - Aktivasi komunitas menggunakan **Buka BMP** dan **Group Terbuka**.
-- Mendukung desktop Chromium dan jalur Android melalui **Microsoft Edge Canary**.
+- Mendukung desktop Chromium dan jalur Android utama melalui **Microsoft Edge Stable + Microsoft Edge Add-ons**. Edge Canary tetap menjadi fallback/testing.
 
 ## Instalasi
 
@@ -48,13 +49,17 @@ Gunakan paket dari **GitHub Releases**, bukan Source code ZIP.
 5. Klik **Load unpacked** dan pilih folder hasil extract yang berisi `manifest.json`.
 6. Buka popup BMP Terbuka dan selesaikan aktivasi Telegram.
 
-### Android — Microsoft Edge Canary
+### Android — Microsoft Edge Stable
 
-1. Install/update **Microsoft Edge Canary**.
-2. Aktifkan dukungan pemasangan extension/CRX pada pengaturan developer/eksperimental Edge Canary yang tersedia di perangkat.
-3. Download paket Android/CRX BMP Terbuka dari GitHub Releases dan pasang melalui fitur install extension Edge Canary.
+1. Install/update **Microsoft Edge** dari Google Play.
+2. Buka listing BMP Terbuka di **Microsoft Edge Add-ons** melalui Edge.
+3. Tekan **Dapatkan** dan konfirmasi pemasangan.
 4. Buka popup BMP Terbuka dan selesaikan aktivasi Telegram.
 5. Login ke portal reader dengan akun Anda sendiri, isi kode BMP + modul, lalu tekan **Mulai**.
+
+Pada sebagian listing Google Play, Edge Stable dapat tampil sebagai **Microsoft Edge: Ekstensi / Microsoft Edge: Extensions**. Edge Canary dipertahankan sebagai fallback/testing, bukan jalur utama user umum.
+
+Desktop Chromium non-Edge sementara menggunakan paket GitHub/manual. Chrome Android bukan target instalasi resmi.
 
 Panduan Android yang lebih detail, screenshot, dan troubleshooting dipusatkan di komunitas **Buka BMP** di Telegram.
 
