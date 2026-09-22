@@ -169,8 +169,8 @@ function showAdInterstitial(ad){
 }
 
 function randomDelay(min,max){
-  const low=Math.max(0,Math.floor(Number(min)||2000));
-  const high=Math.max(low,Math.floor(Number(max)||5000));
+  const low=Math.max(2000,Math.min(5000,Math.floor(Number(min)||2000)));
+  const high=Math.max(low,Math.min(5000,Math.floor(Number(max)||5000)));
   return low+Math.floor(Math.random()*(high-low+1));
 }
 
@@ -804,6 +804,7 @@ async function refreshState(){
   }
   el("stop").disabled=!s.running;
   el("stop").style.display=s.running?"block":"none";
+  el("runReviewSample").disabled=Boolean(s.running);
   setFormLocked(Boolean(s.running));
 
   if(lastRunning&&!s.running)await refreshCachePreview();
@@ -1096,6 +1097,7 @@ el("adInterstitialCta").addEventListener("click",async()=>{
   const button=el("adInterstitialCta");
   const ad=activeInterstitialAd;
   if(!ad?.cta)return;
+  const originalLabel=String(ad.cta.label||"Hubungi");
   button.disabled=true;
   try{
     await executeAdCta(ad);
@@ -1103,6 +1105,9 @@ el("adInterstitialCta").addEventListener("click",async()=>{
     hideAdInterstitial({report:false});
   }catch(e){
     button.textContent=String(e?.message||e).slice(0,80);
+    setTimeout(()=>{
+      if(activeInterstitialAd===ad)button.textContent=originalLabel;
+    },1400);
   }finally{
     button.disabled=false;
   }
@@ -1158,22 +1163,29 @@ el("start").addEventListener("click",async()=>{
   }
 
   el("code").value=code;
-  await saveDraft();
-  const res=await send("START_JOB",{
-    tabId,
-    code,
-    startModule:range.first,
-    maxModule:range.last,
-    redownload:el("redownload").checked,
-    mergeRequested:el("mergePdf").checked
-  });
-  if(!res?.ok){
+  el("start").disabled=true;
+  try{
+    await saveDraft();
+    const res=await send("START_JOB",{
+      tabId,
+      code,
+      startModule:range.first,
+      maxModule:range.last,
+      redownload:el("redownload").checked,
+      mergeRequested:el("mergePdf").checked
+    });
+    if(!res?.ok){
+      el("statusTitle").textContent="Gagal memulai";
+      el("statusText").textContent=res?.error||"Terjadi kesalahan.";
+    }else{
+      scheduleJobStartedInterstitial().catch(()=>{});
+    }
+  }catch(e){
     el("statusTitle").textContent="Gagal memulai";
-    el("statusText").textContent=res?.error||"Terjadi kesalahan.";
-  }else{
-    scheduleJobStartedInterstitial().catch(()=>{});
+    el("statusText").textContent=String(e?.message||e);
+  }finally{
+    await refreshState();
   }
-  await refreshState();
 });
 
 el("selectAllExport").addEventListener("click",()=>{
