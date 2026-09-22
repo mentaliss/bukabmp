@@ -38,6 +38,7 @@ const DEFAULT_STATE = {
 
 let creatingOffscreen = null;
 let startJobClaimRunId = "";
+let offscreenMaintenanceClaim = "";
 const cancelledRunIds = new Set();
 const cacheInfoMemo = new Map();
 
@@ -119,6 +120,23 @@ async function setDetectedLastModule(code, lastModule) {
   };
   await chrome.storage.local.set({bmpCacheMeta: map});
   return map[normalized];
+}
+
+async function setDetectedLastModuleForRun(runId, code, lastModule) {
+  const normalized = String(code || "").toUpperCase();
+  if (!normalized || !Number.isInteger(lastModule) || lastModule < 1 || lastModule > 99) {
+    return null;
+  }
+  const map = await getCacheMetaMap();
+  if (!(await activeRunState(runId))) return null;
+  map[normalized] = {
+    ...(map[normalized] || {}),
+    detectedLastModule: lastModule,
+    detectedAt: Date.now()
+  };
+  if (cancelledRunIds.has(String(runId || ""))) return null;
+  await chrome.storage.local.set({bmpCacheMeta: map});
+  return cancelledRunIds.has(String(runId || "")) ? null : map[normalized];
 }
 
 function recentDetectedLastModule(meta, now = Date.now()) {
@@ -1118,6 +1136,7 @@ chrome.runtime.onInstalled.addListener(async details => {
   } else if (details?.reason === "update" && x.bmpState?.running) {
     await setState({
       running: false,
+      runId: "",
       tabId: null,
       status: "INTERRUPTED",
       progress: "Update extension menghentikan proses sebelumnya. Modul yang sudah selesai tetap tersimpan lokal.",
@@ -1235,13 +1254,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
     if (msg.type === "RUN_REVIEW_SAMPLE") {
-      const state = await getState();
-      if (state.running) {
-        sendResponse({ok: false, error: "Selesaikan atau hentikan proses BMP sebelum menjalankan sampel reviewer."});
+      if (startJobClaimRunId || offscreenMaintenanceClaim) {
+        sendResponse({ok: false, error: "Operasi OCR lain sedang disiapkan."});
         return;
       }
-      sendResponse(await runReviewerSample());
-      return;
+      const maintenanceId = "review:" + crypto.randomUUID();
+      offscreenMaintenanceClaim = maintenanceId;
+      try {
+        const state = await getState();
+        if (state.running) {
+          sendResponse({ok: false, error: "Selesaikan atau hentikan proses BMP sebelum menjalankan sampel reviewer."});
+          return;
+        }
+        sendResponse(await runReviewerSample());
+        return;
+      } finally {
+        if (offscreenMaintenanceClaim === maintenanceId) offscreenMaintenanceClaim = "";
+      }
     }
     if (msg.type === "GET_CACHE_INFO") {
       const code = String(msg.code || "").trim().toUpperCase();
@@ -1265,29 +1294,39 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
     if (msg.type === "CLEAR_CACHE_CODE") {
-      await requireAccess();
-      const code = String(msg.code || "").trim().toUpperCase();
-      if (!/^[A-Z0-9_-]{3,32}$/.test(code)) throw new Error("Kode BMP tidak valid.");
-      const current = await getState();
-      if (current.running) {
-        throw new Error("Penyimpanan lokal tidak bisa dibersihkan saat proses BMP masih berjalan.");
+      if (startJobClaimRunId || offscreenMaintenanceClaim) {
+        sendResponse({ok: false, error: "Operasi penyimpanan lain sedang berjalan."});
+        return;
       }
-      const out = await askOffscreen({type: "OCR_CLEAR_CODE", code});
-      if (!out?.ok) throw new Error(out?.error || "Penyimpanan lokal tidak dapat dibersihkan.");
-      await clearCodeMeta(code);
-      invalidateCacheInfo(code);
-      if (current.code === code) {
-        await setState({completedModules: [], detectedLastModule: null});
+      const maintenanceId = "clear:" + crypto.randomUUID();
+      offscreenMaintenanceClaim = maintenanceId;
+      try {
+        await requireAccess();
+        const code = String(msg.code || "").trim().toUpperCase();
+        if (!/^[A-Z0-9_-]{3,32}$/.test(code)) throw new Error("Kode BMP tidak valid.");
+        const current = await getState();
+        if (current.running || startJobClaimRunId) {
+          throw new Error("Penyimpanan lokal tidak bisa dibersihkan saat proses BMP masih berjalan.");
+        }
+        const out = await askOffscreen({type: "OCR_CLEAR_CODE", code});
+        if (!out?.ok) throw new Error(out?.error || "Penyimpanan lokal tidak dapat dibersihkan.");
+        await clearCodeMeta(code);
+        invalidateCacheInfo(code);
+        if (current.code === code) {
+          await setState({completedModules: [], detectedLastModule: null});
+        }
+        sendResponse({ok: true});
+        return;
+      } finally {
+        if (offscreenMaintenanceClaim === maintenanceId) offscreenMaintenanceClaim = "";
       }
-      sendResponse({ok: true});
-      return;
     }
     if (msg.type === "GET_STATE") {
       sendResponse({ok: true, state: await recoverStaleRunningState()});
       return;
     }
     if (msg.type === "START_JOB") {
-      if (startJobClaimRunId) {
+      if (startJobClaimRunId || offscreenMaintenanceClaim) {
         sendResponse({ok: false, error: "Proses lain sedang disiapkan."});
         return;
       }
@@ -1708,7 +1747,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
 
         const lastMod = mod - 1;
-        if (lastMod >= 1) await setDetectedLastModule(state.code, lastMod);
+        if (lastMod >= 1) {
+          const savedLast = await setDetectedLastModuleForRun(state.runId, state.code, lastMod);
+          if (!savedLast) {
+            sendResponse({ok: true, stale: true});
+            return;
+          }
+        }
         await requireActiveRun(state.runId);
         const detectedLastModule = lastMod >= 1 ? lastMod : null;
         const readyState = {
