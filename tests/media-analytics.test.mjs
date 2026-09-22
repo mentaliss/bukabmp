@@ -237,9 +237,12 @@ test("interstitial CTA and content order match preview creative",()=>{
 });
 
 
-test("media renderer fetches first-party bytes into blob URLs",()=>{
+test("media renderer prefers immutable first-party URLs with blob fallback",()=>{
+  assert.match(adsMedia,/img\.src=src/);
+  assert.match(adsMedia,/video\.src=src/);
   assert.match(adsMedia,/fetch\(url,\{method:"GET",credentials:"omit",cache:"no-store"\}\)/);
   assert.match(adsMedia,/URL\.createObjectURL\(blob\)/);
+  assert.match(adsMedia,/fallbackAttempted/);
   assert.match(adsMedia,/media_http_/);
   assert.match(adsMedia,/media_mime_mismatch/);
   assert.match(adsMedia,/URL\.revokeObjectURL/);
