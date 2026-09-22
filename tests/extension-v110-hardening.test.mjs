@@ -52,6 +52,22 @@ test("known page count cannot finalize a truncated module", () => {
   assert.match(contentScript, /resp\.status >= 500/);
 });
 
+test("page count must stabilize and generic fractions are ignored", () => {
+  assert.match(contentScript, /stableReads/);
+  assert.match(contentScript, /No stable count|transient toolbar value/);
+  assert.match(contentScript, /if \(!\/page\|halaman\|viewer\|toolbar\|pager\/i\.test\(context\)\) continue/);
+});
+
+test("OCR generation IDs isolate stop/restart races across all layers", () => {
+  assert.match(background, /runId: state\.runId/);
+  assert.match(background, /String\(msg\.runId \|\| ""\) !== String\(state\.runId \|\| ""\)/);
+  assert.match(contentScript, /activeRunId/);
+  assert.match(contentScript, /type: "STOP_MODULE"/);
+  assert.match(contentScript, /const stillActive = \(\) => Boolean\(runId\) && activeRunId === runId/);
+  assert.match(offscreen, /activeJobRunId/);
+  assert.match(offscreen, /runId !== activeJobRunId/);
+});
+
 test("cache and reviewer operations are isolated from active OCR", () => {
   assert.match(background, /Penyimpanan lokal tidak bisa dibersihkan saat proses BMP masih berjalan/);
   assert.match(background, /Selesaikan atau hentikan proses BMP sebelum menjalankan sampel reviewer/);
