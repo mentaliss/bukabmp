@@ -255,24 +255,41 @@ function fillAds(state){
 function buildAdsState(){
   var state=baseState();
   var schedule=el("scheduleMode").value;
+  var enabled=el("adsEnabled").checked;
+  var advertiser=el("advertiser").value.trim();
+  var headline=el("headline").value.trim();
+  var body=el("adBody").value.trim();
+  var cardMode=el("cardMode").value;
+  var interstitialMode=el("interstitialMode").value;
+  var cardPlaced=el("placeCard").checked;
+  var interstitialPlaced=el("placeInterstitial").checked;
+  if(enabled&&cardPlaced&&cardMode==="banner"&&!cardAsset)throw new Error("Upload banner sebelum publish.");
+  if(enabled&&interstitialPlaced&&interstitialMode!=="text"&&!interstitialAsset)throw new Error("Upload media interstitial sebelum publish.");
+  if(enabled&&!headline&&!body){
+    var hasMedia=(cardPlaced&&cardMode==="banner"&&cardAsset)||(interstitialPlaced&&interstitialMode!=="text"&&interstitialAsset);
+    if(hasMedia&&advertiser)headline=advertiser;
+    else throw new Error("Isi Headline/Body. Untuk media-only, isi Advertiser agar client lama tetap punya fallback teks.");
+  }
+  var ctaLabel=el("ctaLabel").value.trim(),ctaUrl=el("ctaUrl").value.trim();
+  if((ctaLabel&&!ctaUrl)||(!ctaLabel&&ctaUrl))throw new Error("CTA label dan CTA URL harus diisi berpasangan.");
   state.ads={
-    enabled:el("adsEnabled").checked,
+    enabled:enabled,
     campaign_id:el("campaignId").value||nextCampaignId(currentState),
     revision:Number(el("revision").value||1),
     creative_version:2,
     sponsor_label:"Sponsor",
-    advertiser:el("advertiser").value.trim(),
-    headline:el("headline").value.trim(),
-    body:el("adBody").value.trim(),
+    advertiser:advertiser,
+    headline:headline,
+    body:body,
     disclaimer:el("disclaimer").value.trim(),
-    cta:el("ctaLabel").value.trim()&&el("ctaUrl").value.trim()?{label:el("ctaLabel").value.trim(),url:el("ctaUrl").value.trim()}:null,
-    card:{mode:el("cardMode").value,asset:el("cardMode").value==="banner"?cardAsset:null},
+    cta:ctaLabel&&ctaUrl?{label:ctaLabel,url:ctaUrl}:null,
+    card:{mode:cardMode,asset:cardMode==="banner"?cardAsset:null},
     network:{adsonbread:el("networkFallback").checked},
     house:{sponsor_label:"Sponsor",headline:el("houseHeadline").value.trim()||"Space iklan tersedia",body:el("houseBody").value.trim(),cta:{label:el("houseCtaLabel").value.trim()||"Pasang iklan? Hubungi",url:el("houseCtaUrl").value.trim()}},
     starts_at:schedule==="scheduled"?toIso(el("startsAt").value):null,
     ends_at:schedule==="scheduled"?toIso(el("endsAt").value):null,
-    placements:{card:el("placeCard").checked,interstitial:el("placeInterstitial").checked},
-    interstitial:{enabled:el("placeInterstitial").checked,trigger:"job_started",mode:el("interstitialMode").value,asset:el("interstitialMode").value==="text"?null:interstitialAsset,poster_asset:el("interstitialMode").value==="video"?posterAsset:null,delay_min_ms:2000,delay_max_ms:5000}
+    placements:{card:cardPlaced,interstitial:interstitialPlaced},
+    interstitial:{enabled:interstitialPlaced,trigger:"job_started",mode:interstitialMode,asset:interstitialMode==="text"?null:interstitialAsset,poster_asset:interstitialMode==="video"?posterAsset:null,delay_min_ms:2000,delay_max_ms:5000}
   };
   return state;
 }
