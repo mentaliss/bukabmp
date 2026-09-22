@@ -326,7 +326,9 @@ function reviewerSampleDataUrl() {
 }
 
 async function runReviewerSample() {
-  const code = "REVIEW";
+  // Use an internal cache namespace that can never collide with a user BMP code
+  // (public BMP codes reject "@").
+  const code = "@BMP-REVIEW-FIXTURE";
   const moduleNo = 1;
   const runId = "review:" + crypto.randomUUID();
   activeJobRunId = runId;
