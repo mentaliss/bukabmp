@@ -65,6 +65,9 @@ rm(out);
 mkdir(out);
 copyDir(EXT_SRC,out);
 
+// Development-only network mock stays in source/tests and must never ship.
+fs.rmSync(path.join(out,"vendor","adsonbread-test-sdk.js"),{force:true});
+
 // CWS gets a minimum-permission manifest without changing the shared source manifest.
 // The GitHub/manual and Android packages keep their existing permission profile.
 if(storeChannels.has(channel)){
