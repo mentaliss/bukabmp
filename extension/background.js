@@ -37,6 +37,7 @@ const DEFAULT_STATE = {
 };
 
 let creatingOffscreen = null;
+let startJobClaimRunId = "";
 const cacheInfoMemo = new Map();
 
 function configReady() {
@@ -516,7 +517,7 @@ async function startPairing() {
     lastCheckedAt: 0
   };
   await chrome.storage.local.set({bmpPendingPair: pending});
-  if (data.deep_link) await chrome.tabs.create({url: data.deep_link});
+  await chrome.tabs.create({url: deepLink});
   return pending;
 }
 
@@ -854,8 +855,7 @@ async function navigateCurrentModule() {
   }, 1200);
 }
 
-async function finishModule(mod, pages) {
-  const state = await getState();
+async function finishModule(state, mod, pages) {
   const out = await askOffscreen({
     type: "OCR_FINISH_MODULE",
     runId: state.runId,
@@ -871,8 +871,7 @@ async function finishModule(mod, pages) {
   invalidateCacheInfo(state.code);
 }
 
-async function buildMergedPdf(firstModule, lastModule, {full = false} = {}) {
-  const state = await getState();
+async function buildMergedPdf(state, firstModule, lastModule, {full = false} = {}) {
   const out = await askOffscreen({
     type: firstModule === 1 ? "OCR_BUILD_FULL" : "OCR_BUILD_RANGE",
     code: state.code,
@@ -1009,7 +1008,7 @@ async function maybeBuildRequestedMerge(state, detectedLastModule = null) {
       : `Menggabungkan Modul ${target.first}–${target.last}...`,
     ocrProgress: ""
   });
-  const filename = await buildMergedPdf(target.first, target.last, {full: target.full});
+  const filename = await buildMergedPdf(state, target.first, target.last, {full: target.full});
   return {
     made: true,
     full: target.full,
@@ -1022,32 +1021,32 @@ async function maybeBuildRequestedMerge(state, detectedLastModule = null) {
   };
 }
 
-async function recoverStaleRunningState() {
+async function recoverStaleRunningState({forceInterrupt = false} = {}) {
   const state = await getState();
   if (!state.running) return state;
 
+  const interrupt = async () => await setState({
+    running: false,
+    runId: "",
+    tabId: null,
+    status: "INTERRUPTED",
+    progress: "Proses sebelumnya terputus. Modul yang sudah selesai tetap tersimpan lokal.",
+    ocrProgress: ""
+  });
+
+  // A browser/service-worker startup cannot prove that the old content/offscreen
+  // generation is still alive. Never resurrect a persisted running flag merely
+  // because the reader tab itself survived the restart.
+  if (forceInterrupt) return await interrupt();
+
   const tabId = Number(state.tabId);
-  if (!Number.isInteger(tabId) || tabId <= 0) {
-    return await setState({
-      running: false,
-      tabId: null,
-      status: "INTERRUPTED",
-      progress: "Proses sebelumnya terputus. Modul yang sudah selesai tetap tersimpan lokal.",
-      ocrProgress: ""
-    });
-  }
+  if (!Number.isInteger(tabId) || tabId <= 0) return await interrupt();
 
   try {
     await chrome.tabs.get(tabId);
     return state;
   } catch {
-    return await setState({
-      running: false,
-      tabId: null,
-      status: "INTERRUPTED",
-      progress: "Proses sebelumnya terputus. Modul yang sudah selesai tetap tersimpan lokal.",
-      ocrProgress: ""
-    });
+    return await interrupt();
   }
 }
 
@@ -1077,7 +1076,7 @@ chrome.runtime.onInstalled.addListener(async details => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  recoverStaleRunningState().catch(() => {});
+  recoverStaleRunningState({forceInterrupt: true}).catch(() => {});
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
@@ -1105,6 +1104,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.target === "offscreen") return;
 
+  let requestRunId = "";
   (async () => {
     if (msg.type === "GET_ACCESS_STATUS") {
       sendResponse({ok: true, ...(await accessStatus())});
@@ -1235,8 +1235,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
     if (msg.type === "START_JOB") {
+      if (startJobClaimRunId) {
+        sendResponse({ok: false, error: "Proses lain sedang disiapkan."});
+        return;
+      }
+
+      const runId = crypto.randomUUID();
+      requestRunId = runId;
+      startJobClaimRunId = runId;
+
       const existingJob = await getState();
       if (existingJob.running) {
+        if (startJobClaimRunId === runId) startJobClaimRunId = "";
         sendResponse({ok: false, error: "Proses lain masih berjalan."});
         return;
       }
@@ -1260,10 +1270,41 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const redownload = Boolean(msg.redownload);
       const mergeRequested = Boolean(msg.mergeRequested);
 
+      // Claim persistent job authority before any expensive OCR/cache work.
+      // STOP_JOB can now invalidate this generation while preparation is pending.
+      await setState({
+        running: true,
+        runId,
+        tabId: Number.isInteger(Number(tabId)) ? Number(tabId) : null,
+        code,
+        startModule,
+        currentModule: startModule,
+        maxModule,
+        effectiveMaxModule: maxModule,
+        delayMs: 2500,
+        maxPages: 500,
+        mergeRequested,
+        redownload,
+        status: "PREPARING",
+        progress: "Menyiapkan proses...",
+        ocrProgress: "",
+        processedModules: [],
+        skippedModules: [],
+        mergeMessage: ""
+      });
+
+      const assertCurrentRun = async () => {
+        const current = await getState();
+        if (!current.running || String(current.runId || "") !== runId) {
+          throw new Error("Proses dibatalkan sebelum persiapan selesai.");
+        }
+        return current;
+      };
+
       const probe = await askOffscreen({type: "OCR_ENGINE_PROBE"});
       if (!probe?.ok) throw new Error(probe?.error || "OCR lokal tidak siap.");
+      await assertCurrentRun();
 
-      const runId = crypto.randomUUID();
       const prepared = await askOffscreen({
         type: "OCR_PREPARE_JOB",
         runId,
@@ -1272,6 +1313,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (!prepared?.ok) {
         throw new Error(prepared?.error || "Penyimpanan lokal tidak dapat dibaca.");
       }
+      await assertCurrentRun();
 
       const meta = await getCodeMeta(code);
       const knownLast = recentDetectedLastModule(meta);
@@ -1286,6 +1328,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const currentModule = effectiveMaxModule >= startModule
         ? firstMissingModule(startModule, effectiveMaxModule, completedModules)
         : null;
+
+      if (currentModule != null) {
+        const numericTabId = Number(tabId);
+        if (!Number.isInteger(numericTabId) || numericTabId <= 0) {
+          throw new Error("Buka halaman reader BMP pada tab aktif sebelum memulai proses.");
+        }
+        let readerTab = null;
+        try {
+          readerTab = await chrome.tabs.get(numericTabId);
+        } catch {
+          readerTab = null;
+        }
+        if (!readerTab?.url || !readerTab.url.startsWith(`${SOURCE_ROOT}/reader/`)) {
+          throw new Error("Tab proses bukan halaman reader BMP yang didukung.");
+        }
+        await assertCurrentRun();
+      }
 
       const nextState = await setState({
         running: true,
@@ -1316,6 +1375,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         detectedLastModule: knownLast,
         mergeMessage: ""
       });
+      if (startJobClaimRunId === runId) startJobClaimRunId = "";
 
       if (effectiveMaxModule < startModule) {
         const message = knownLast
@@ -1363,8 +1423,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           runId: state.runId
         }).catch(() => {});
       }
+      if (state.runId) {
+        chrome.runtime.sendMessage({
+          target: "offscreen",
+          type: "OCR_CANCEL_JOB",
+          runId: state.runId
+        }).catch(() => {});
+      }
+      if (startJobClaimRunId === String(state.runId || "")) startJobClaimRunId = "";
       await setState({
         running: false,
+        runId: "",
         status: "STOPPED_BY_USER",
         progress: "Proses dihentikan.",
         ocrProgress: ""
@@ -1467,7 +1536,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           status: `OCR_FINALIZING_M${mod}`,
           progress: `Modul ${mod} selesai. Menyusun PDF...`
         });
-        await finishModule(mod, msg.pages);
+        await finishModule(state, mod, msg.pages);
 
         const completed = normalizeModules(
           [...(state.completedModules || []), mod],
@@ -1622,17 +1691,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
     sendResponse({ok: false, error: "Pesan tidak dikenal."});
   })().catch(async e => {
+    if (requestRunId && startJobClaimRunId === requestRunId) {
+      startJobClaimRunId = "";
+    }
     if (JOB_ERROR_MESSAGE_TYPES.has(String(msg?.type || ""))) {
       try {
         const state = await getState();
+        const messageRunId = msg?.type === "START_JOB"
+          ? requestRunId
+          : String(msg?.runId || "");
         const sameRun = Boolean(
-          msg?.runId &&
+          messageRunId &&
           state.running &&
-          String(msg.runId) === String(state.runId || "")
+          String(messageRunId) === String(state.runId || "")
         );
-        if (msg?.type === "START_JOB" || sameRun) {
+        if (sameRun) {
           await setState({
             running: false,
+            runId: "",
             status: "ERROR",
             progress: String(e?.message || e),
             ocrProgress: ""
