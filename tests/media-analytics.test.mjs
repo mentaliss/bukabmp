@@ -214,8 +214,8 @@ test("popup sponsor UI mirrors Control Center styling and collapses broken media
   assert.match(html,/\.sponsorBanner\{padding:12px;border:1px solid #deded8;border-radius:12px/);
   assert.match(html,/\.sponsorTitle\{font-size:14px;font-weight:700/);
   assert.match(html,/\.sponsorAction\{display:inline-block;width:auto[^}]*text-decoration:underline/);
-  assert.match(html,/\.sponsorMedia\{margin:0;background:transparent/);
-  assert.match(html,/\.adInterstitialMedia\{margin:0;max-height:300px;background:transparent/);
+  assert.match(html,/\.sponsorMedia\{margin:8px 0;border-radius:9px;background:transparent/);
+  assert.match(html,/\.adInterstitialMedia\{margin:8px 0;max-height:300px;border-radius:9px;background:transparent/);
   assert.match(html,/\.sponsorMediaAsset\{display:block;width:100%;height:auto;max-height:300px;object-fit:contain;background:transparent/);
   assert.match(popup,/media\.remove\(\);reportTelemetry\("media_render_failed"/);
   assert.match(popup,/mediaHost\.style\.display="none"/);
