@@ -14,6 +14,10 @@ Short description candidate:
 
 > Ubah materi BMP yang sudah dapat Anda akses menjadi searchable PDF dengan OCR lokal, resume, dan penyimpanan lokal.
 
+Full-description disclosure yang **wajib ada sebelum submission 1.1.0**:
+
+> BMP Terbuka dapat menampilkan sponsor card dan sponsor interstitial non-personalized di dalam popup extension. Sponsor tidak memblokir proses OCR/PDF dan tidak menggunakan isi dokumen, histori BMP, atau identitas pengguna untuk targeting.
+
 Category candidate: **Productivity** — confirm against the current CWS dashboard categories at submission time.
 
 Homepage/source URL:
