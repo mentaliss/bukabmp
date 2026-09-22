@@ -1500,7 +1500,11 @@ async function adminExtensionState(request, env, url) {
     return json({error: "unauthorized"}, 401, corsHeaders(request));
   }
   if (!env.PAIRINGS) return json({error: "PAIRINGS KV belum dikonfigurasi"}, 503, corsHeaders(request));
-  const channel = normalizeDistributionChannel(url.searchParams.get("distribution_channel"));
+  const rawChannel = String(url.searchParams.get("distribution_channel") || "").trim().toLowerCase();
+  const channel = rawChannel ? strictControlChannel(rawChannel) : "github";
+  if (!channel) {
+    return json({error: "invalid_distribution_channel"}, 400, corsHeaders(request));
+  }
   const key = extensionStateKey(channel);
 
   if (request.method === "GET") {
