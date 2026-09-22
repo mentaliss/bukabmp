@@ -224,6 +224,18 @@ export async function analyticsSummary(env, {period = "7d", channel = ""} = {}, 
     "SELECT date, metric, SUM(count) AS value FROM telemetry_daily WHERE date BETWEEN ? AND ?" +
     whereChannel + " GROUP BY date, metric ORDER BY date ASC"
   )).all();
+  const actorSeriesRows = await bindRange(env.BOT_DB.prepare(
+    "SELECT date, COUNT(DISTINCT actor_hash) AS active_users, " +
+    "COUNT(DISTINCT CASE WHEN ad_seen = 1 THEN actor_hash END) AS ad_reach " +
+    "FROM telemetry_daily_actor WHERE date BETWEEN ? AND ?" +
+    whereChannel + " GROUP BY date ORDER BY date ASC"
+  )).all();
+  const series = [...(seriesRows?.results || [])];
+  for (const row of actorSeriesRows?.results || []) {
+    series.push({date: row.date, metric: "active_users", value: safeCount(row, "active_users")});
+    series.push({date: row.date, metric: "ad_reach", value: safeCount(row, "ad_reach")});
+  }
+  series.sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.metric).localeCompare(String(b.metric)));
 
   const activeUsers = safeCount(activeRow);
   const returningUsers = safeCount(returningRow);
@@ -244,15 +256,15 @@ export async function analyticsSummary(env, {period = "7d", channel = ""} = {}, 
     active_users: activeUsers,
     opens,
     jobs,
-    returning_percent: activeUsers ? Math.round((returningUsers / activeUsers) * 1000) / 10 : 0,
-    health_percent: completed + failed ? Math.round((completed / (completed + failed)) * 1000) / 10 : 100,
+    returning_percent: activeUsers ? Math.round((returningUsers / activeUsers) * 1000) / 10 : null,
+    health_percent: completed + failed ? Math.round((completed / (completed + failed)) * 1000) / 10 : null,
     job_completed: completed,
     job_failed: failed,
     media_render_failed: safeCount(metrics, "media_render_failed"),
     ad_reach: safeCount(reachRow),
     impressions,
     clicks,
-    ctr_percent: impressions ? Math.round((clicks / impressions) * 10000) / 100 : 0,
-    series: seriesRows?.results || []
+    ctr_percent: impressions ? Math.round((clicks / impressions) * 10000) / 100 : null,
+    series
   };
 }
