@@ -1520,12 +1520,9 @@ async function readExtensionState(env, channel) {
     if (raw) state = parseExtensionStateJson(raw);
   }
 
-  // First read after migration 0004 self-baselines the current state into D1.
-  // This removes KV's cross-PoP propagation delay without requiring an owner
-  // to republish every channel during the migration window.
-  if (state && d1.available) {
-    await writeExtensionStateToD1(env, normalized, state);
-  }
+  // Do not promote a KV fallback read into D1 here: a different PoP may
+  // still hold an older KV value. The next explicit owner Publish writes the
+  // authoritative state to D1 and KV together.
   return sanitizeExtensionState(state);
 }
 
