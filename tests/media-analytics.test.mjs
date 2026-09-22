@@ -166,3 +166,45 @@ test("media IDs must be exact immutable SHA-256 hex hashes",()=>{
   assert.equal(C.sanitizeMediaAsset({id:"short-but-plausible-id",mime:"image/webp"},"image"),null);
   assert.match(adsMedia,/\^\[0-9a-f\]\{64\}\$\/i/);
 });
+
+
+test("card priority is direct then one network attempt then house fallback",()=>{
+  const direct=popup.indexOf("const cardAd=campaignAdFromState(state,\"card\")");
+  const network=popup.indexOf("state?.ads?.network?.adsonbread===true",direct);
+  const house=popup.indexOf("if(!sponsorRendered)appendHouse()",network);
+  assert.ok(direct>=0&&network>direct&&house>network);
+  assert.match(popup,/if\(result\?\.rendered===true\)return;[\s\S]{0,180}appendHouse\(\)/);
+  assert.match(popup,/renderGeneration!==cloudRenderGeneration/);
+});
+
+test("ads and media cannot block BMP execution authority",()=>{
+  assert.doesNotMatch(background,/importScripts\([^)]*(?:ad-network|ads-media)/i);
+  const start=popup.indexOf('send("START_JOB"');
+  const schedule=popup.indexOf("scheduleJobStartedInterstitial().catch",start);
+  assert.ok(start>=0&&schedule>start);
+  assert.doesNotMatch(popup.slice(start,schedule+80),/await\s+scheduleJobStartedInterstitial/);
+  assert.match(background,/msg\.type === "STOP_JOB"/);
+  assert.match(background,/OCR_CANCEL_JOB/);
+  assert.match(background,/setStateForRun/);
+});
+
+test("interstitial is always closable and successful CTA close does not double-count dismiss",()=>{
+  assert.match(html,/id="adInterstitialClose"/);
+  assert.match(popup,/adInterstitialClose"\)\.addEventListener\("click",\(\)=>hideAdInterstitial\(\)\)/);
+  assert.match(popup,/hideAdInterstitial\(\{report:false\}\)/);
+});
+
+test("media metadata accepts allowed formats, preserves wrong ratios, and rejects unsupported media",()=>{
+  const C=cloud();
+  const hash="a".repeat(64);
+  const wide=C.sanitizeMediaAsset({id:hash,mime:"image/jpeg",bytes:100,width:4000,height:300},"image");
+  assert.equal(wide.width,4000);
+  assert.equal(wide.height,300);
+  assert.ok(C.sanitizeMediaAsset({id:hash,mime:"image/png",bytes:100},"image"));
+  assert.ok(C.sanitizeMediaAsset({id:hash,mime:"image/webp",bytes:100},"image"));
+  assert.ok(C.sanitizeMediaAsset({id:hash,mime:"video/mp4",bytes:100,duration_ms:15000},"video"));
+  assert.ok(C.sanitizeMediaAsset({id:hash,mime:"video/webm",bytes:100,duration_ms:15000},"video"));
+  assert.equal(C.sanitizeMediaAsset({id:hash,mime:"image/gif",bytes:100},"image"),null);
+  assert.equal(C.sanitizeMediaAsset({id:hash,mime:"image/svg+xml",bytes:100},"image"),null);
+  assert.match(html,/object-fit:contain/);
+});
