@@ -109,14 +109,14 @@ Avoid exposing personal account data or source credentials in screenshots.
 
 ## v1.1.0 upgrade gate
 
-Before replacing the live 1.0.5 listing, use the **same Store listing/identity** to prove an in-place 1.0.5 → 1.1.0 update preserves:
+If a live 1.0.5 CWS listing/identity already exists, use that **same Store listing/identity** to prove an in-place 1.0.5 → 1.1.0 update preserves:
 - signed activation token;
 - random install ID;
 - draft/range state;
 - IndexedDB `bmp-terbuka-pdf-cache` / `pdfs`;
 - completed module PDFs and resume behavior.
 
-A clean install or unpacked candidate is not proof of this gate.
+A clean install or unpacked candidate is not proof of this gate. If no 1.0.5 CWS listing exists, the first CWS install is a new identity and cannot prove preservation of storage from a manual/other-channel install.
 
 ## Update-policy rule
 
