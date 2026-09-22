@@ -244,15 +244,15 @@ export async function analyticsSummary(env, {period = "7d", channel = ""} = {}, 
     active_users: activeUsers,
     opens,
     jobs,
-    returning_percent: activeUsers ? Math.round((returningUsers / activeUsers) * 1000) / 10 : 0,
-    health_percent: completed + failed ? Math.round((completed / (completed + failed)) * 1000) / 10 : 100,
+    returning_percent: activeUsers ? Math.round((returningUsers / activeUsers) * 1000) / 10 : null,
+    health_percent: completed + failed ? Math.round((completed / (completed + failed)) * 1000) / 10 : null,
     job_completed: completed,
     job_failed: failed,
     media_render_failed: safeCount(metrics, "media_render_failed"),
     ad_reach: safeCount(reachRow),
     impressions,
     clicks,
-    ctr_percent: impressions ? Math.round((clicks / impressions) * 10000) / 100 : 0,
+    ctr_percent: impressions ? Math.round((clicks / impressions) * 10000) / 100 : null,
     series: seriesRows?.results || []
   };
 }
