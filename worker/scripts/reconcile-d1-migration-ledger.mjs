@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import {execFileSync} from "node:child_process";
+import path from "node:path";
+import {fileURLToPath} from "node:url";
 
 const DATABASE = "bmp-terbuka-bot-v2";
 const EXPECTED_MIGRATIONS = [
@@ -110,7 +112,7 @@ function writeBaseline(){
   runSql("BEGIN;\n"+values+"\nCOMMIT;");
 }
 
-if(import.meta.url === `file://${process.argv[1].replaceAll("\\","/")}`){
+if(process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])){
   const write = process.argv.includes("--write");
   const state = readState();
   const result = assess(state);
