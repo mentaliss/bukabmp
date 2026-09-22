@@ -1271,6 +1271,12 @@ function normalizeDistributionChannel(value) {
   return DISTRIBUTION_CHANNELS.includes(channel) ? channel : "github";
 }
 
+function strictControlChannel(value, {allowAll = false} = {}) {
+  const channel = String(value || "").trim().toLowerCase();
+  if (allowAll && channel === "all") return "all";
+  return DISTRIBUTION_CHANNELS.includes(channel) ? channel : "";
+}
+
 function envString(env, name, fallback = "") {
   const value = env?.[name];
   if (value == null) return fallback;
@@ -1640,7 +1646,9 @@ async function controlStateApi(request, env, url) {
     return json({error: "PAIRINGS KV belum dikonfigurasi"}, 503);
   }
   const rawTarget = String(url.searchParams.get("distribution_channel") || "github").trim().toLowerCase();
-  const channel = normalizeDistributionChannel(rawTarget);
+  const strictTarget = strictControlChannel(rawTarget, {allowAll: true});
+  if (!strictTarget) return json({error: "invalid_distribution_channel"}, 400);
+  const channel = strictTarget === "all" ? "github" : strictTarget;
 
   if (request.method === "GET") {
     if (rawTarget === "all") {
@@ -1729,12 +1737,14 @@ async function controlValidateApi(request, env, url) {
   const parsed = await controlReadJson(request);
   if (!parsed.ok) return json({error: parsed.error}, parsed.error === "payload_too_large" ? 413 : 400);
   const rawTarget = String(url.searchParams.get("distribution_channel") || "github").trim().toLowerCase();
+  const strictTarget = strictControlChannel(rawTarget, {allowAll: true});
+  if (!strictTarget) return json({error: "invalid_distribution_channel"}, 400);
   const state = sanitizeExtensionState(parsed.body);
   return json({
     ok: true,
-    channel: rawTarget === "all" ? "all" : normalizeDistributionChannel(rawTarget),
+    channel: strictTarget,
     state,
-    ...(rawTarget === "all" ? {validated_channels: [...DISTRIBUTION_CHANNELS]} : {})
+    ...(strictTarget === "all" ? {validated_channels: [...DISTRIBUTION_CHANNELS]} : {})
   });
 }
 
@@ -1747,7 +1757,8 @@ async function controlPauseAds(request, env) {
   }
   const parsed = await controlReadJson(request, 8192);
   if (!parsed.ok) return json({error: parsed.error}, parsed.error === "payload_too_large" ? 413 : 400);
-  const channel = normalizeDistributionChannel(parsed.body.distribution_channel);
+  const channel = strictControlChannel(parsed.body.distribution_channel);
+  if (!channel) return json({error: "invalid_distribution_channel"}, 400);
   const current = await readExtensionState(env, channel);
   await snapshotControlState(env, channel, current, "before_emergency_pause_ads");
 
@@ -1777,7 +1788,8 @@ async function controlRollback(request, env) {
   }
   const parsed = await controlReadJson(request, 8192);
   if (!parsed.ok) return json({error: parsed.error}, parsed.error === "payload_too_large" ? 413 : 400);
-  const channel = normalizeDistributionChannel(parsed.body.distribution_channel);
+  const channel = strictControlChannel(parsed.body.distribution_channel);
+  if (!channel) return json({error: "invalid_distribution_channel"}, 400);
   const id = String(parsed.body.history_id || "");
   if (!/^[a-z0-9-]{6,80}$/i.test(id)) {
     return json({error: "invalid_history_id"}, 400);
