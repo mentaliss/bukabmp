@@ -225,3 +225,13 @@ test("popup bypasses cached cloud state on open and refocus",()=>{
   assert.match(popup,/window\.addEventListener\("focus"/);
   assert.match(popup,/visibilitychange/);
 });
+
+
+test("interstitial CTA and content order match preview creative",()=>{
+  assert.match(html,/\.adInterstitialCta\{display:inline-block;width:auto[^}]*text-decoration:underline/);
+  const headline=html.indexOf('id="adInterstitialHeadline"');
+  const body=html.indexOf('id="adInterstitialBody"');
+  const cta=html.indexOf('id="adInterstitialCta"');
+  const disclaimer=html.indexOf('id="adInterstitialDisclaimer"');
+  assert.ok(headline>=0&&body>headline&&cta>body&&disclaimer>cta);
+});
