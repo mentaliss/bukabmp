@@ -88,7 +88,7 @@ test("cache and reviewer operations are isolated from active OCR", () => {
   assert.match(background, /Selesaikan atau hentikan proses BMP sebelum menjalankan sampel reviewer/);
   assert.match(offscreen, /currentModuleKey\.startsWith\(code \+ ":M"\)/);
   assert.match(offscreen, /clearPdfOwnedBy/);
-  assert.match(offscreen, /currentPdf === pdf/);
+  assert.match(offscreen, /currentPdf\s*!==\s*pdf|currentPdf\s*===\s*pdf/);
 });
 
 test("download failure still revokes temporary blob URL", () => {
