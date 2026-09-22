@@ -71,3 +71,22 @@ test("column probes avoid compound SELECT limits on D1",()=>{
     assert.equal(probe.sql.includes("UNION ALL"),false);
   }
 });
+
+
+test("missing safe activation index is classified as repairable",()=>{
+  const f=fixture();
+  f.objects=f.objects.filter(row=>row.name!=="idx_users_first_activated");
+  const result=assess(f);
+  assert.equal(result.ok,false);
+  assert.deepEqual(result.safeRepairProblems,["missing index idx_users_first_activated"]);
+  assert.deepEqual(result.unsafeProblems,[]);
+});
+
+test("missing required table is never auto-repairable",()=>{
+  const f=fixture();
+  f.objects=f.objects.filter(row=>row.name!=="users");
+  const result=assess(f);
+  assert.equal(result.ok,false);
+  assert.equal(result.safeRepairProblems.includes("missing table users"),false);
+  assert.ok(result.unsafeProblems.includes("missing table users"));
+});
