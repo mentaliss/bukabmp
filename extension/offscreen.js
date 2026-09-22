@@ -312,11 +312,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({ok: true, ...info});
       return;
     }
-    if (msg.type === "OCR_RESET_JOB" || msg.type === "OCR_CLEAR_CODE") {
+    if (msg.type === "OCR_RESET_JOB") {
       assertLibraries();
       await dbClearCode(String(msg.code || "").toUpperCase());
       currentModuleKey = null;
       currentPdf = null;
+      sendResponse({ok: true});
+      return;
+    }
+    if (msg.type === "OCR_CLEAR_CODE") {
+      assertLibraries();
+      const code = String(msg.code || "").toUpperCase();
+      await dbClearCode(code);
+      if (currentModuleKey && currentModuleKey.startsWith(code + ":M")) {
+        currentModuleKey = null;
+        currentPdf = null;
+      }
       sendResponse({ok: true});
       return;
     }
