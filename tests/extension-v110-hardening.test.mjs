@@ -145,3 +145,49 @@ test("START_JOB error cleanup cannot kill a later generation", () => {
   assert.match(block, /sameRun/);
   assert.doesNotMatch(block, /msg\?\.type === "START_JOB" \|\| sameRun/);
 });
+
+
+test("all long-lived job mutations are generation-scoped", () => {
+  assert.match(background, /const cancelledRunIds = new Set\(\)/);
+  assert.match(background, /async function setStateForRun/);
+  assert.match(background, /async function requireActiveRun/);
+  assert.match(background, /setDetectedLastModuleForRun/);
+  assert.match(background, /offscreenMaintenanceClaim/);
+  assert.match(background, /status: "BUILDING_MERGE"/);
+});
+
+test("blob URLs live until download settles, with a long fallback", () => {
+  const start = background.indexOf("async function saveBlobUrl");
+  const end = background.indexOf("async function runReviewerSample", start);
+  const block = background.slice(start, end);
+  assert.match(block, /chrome\.downloads\.onChanged\.addListener/);
+  assert.match(block, /chrome\.downloads\.onChanged\.removeListener/);
+  assert.match(block, /chrome\.downloads\.search\(\{id\}\)/);
+  assert.match(block, /5 \* 60 \* 1000/);
+  assert.doesNotMatch(block, /15000/);
+});
+
+test("reviewer and cache maintenance cannot race a job preparation", () => {
+  assert.match(background, /let offscreenMaintenanceClaim = ""/);
+  const startJob = background.slice(
+    background.indexOf('if (msg.type === "START_JOB")'),
+    background.indexOf('if (msg.type === "STOP_JOB")')
+  );
+  assert.match(startJob, /startJobClaimRunId \|\| offscreenMaintenanceClaim/);
+  const reviewer = background.slice(
+    background.indexOf('if (msg.type === "RUN_REVIEW_SAMPLE")'),
+    background.indexOf('if (msg.type === "GET_CACHE_INFO")')
+  );
+  assert.match(reviewer, /offscreenMaintenanceClaim/);
+  const clear = background.slice(
+    background.indexOf('if (msg.type === "CLEAR_CACHE_CODE")'),
+    background.indexOf('if (msg.type === "GET_STATE")')
+  );
+  assert.match(clear, /startJobClaimRunId \|\| offscreenMaintenanceClaim/);
+});
+
+test("detected-last metadata is committed only by the active generation", () => {
+  assert.match(background, /async function setDetectedLastModuleForRun/);
+  assert.match(background, /await activeRunState\(runId\)/);
+  assert.match(background, /cancelledRunIds\.has\(String\(runId \|\| ""\)\)/);
+});
