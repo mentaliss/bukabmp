@@ -39,8 +39,15 @@ const DEFAULT_STATE = {
 let creatingOffscreen = null;
 let startJobClaimRunId = "";
 let offscreenMaintenanceClaim = "";
+let stateMutationQueue = Promise.resolve();
 const cancelledRunIds = new Set();
 const cacheInfoMemo = new Map();
+
+function serializeStateMutation(fn) {
+  const run = stateMutationQueue.then(fn, fn);
+  stateMutationQueue = run.catch(() => {});
+  return run;
+}
 
 function configReady() {
   return Boolean(
@@ -58,10 +65,12 @@ async function getState() {
 }
 
 async function setState(patch) {
-  const current = await getState();
-  const next = {...current, ...patch};
-  await chrome.storage.local.set({bmpState: next});
-  return next;
+  return await serializeStateMutation(async () => {
+    const current = await getState();
+    const next = {...current, ...patch};
+    await chrome.storage.local.set({bmpState: next});
+    return next;
+  });
 }
 
 async function activeRunState(runId) {
@@ -78,15 +87,19 @@ async function activeRunState(runId) {
 
 async function setStateForRun(runId, patch) {
   const id = String(runId || "");
-  const current = await activeRunState(id);
-  if (!current || cancelledRunIds.has(id)) return null;
-  const next = {...current, ...patch};
-  // There is intentionally no await between the last cancellation check and
-  // issuing storage.set. STOP_JOB marks the generation cancelled synchronously;
-  // any later STOP/new-run write is therefore ordered after this invocation.
-  if (cancelledRunIds.has(id)) return null;
-  await chrome.storage.local.set({bmpState: next});
-  return cancelledRunIds.has(id) ? null : next;
+  return await serializeStateMutation(async () => {
+    if (!id || cancelledRunIds.has(id)) return null;
+    const current = await getState();
+    if (
+      cancelledRunIds.has(id) ||
+      !current.running ||
+      String(current.runId || "") !== id
+    ) return null;
+    const next = {...current, ...patch};
+    if (cancelledRunIds.has(id)) return null;
+    await chrome.storage.local.set({bmpState: next});
+    return cancelledRunIds.has(id) ? null : next;
+  });
 }
 
 async function requireActiveRun(runId) {
