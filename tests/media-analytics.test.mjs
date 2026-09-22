@@ -208,3 +208,20 @@ test("media metadata accepts allowed formats, preserves wrong ratios, and reject
   assert.equal(C.sanitizeMediaAsset({id:hash,mime:"image/svg+xml",bytes:100},"image"),null);
   assert.match(html,/object-fit:contain/);
 });
+
+
+test("popup sponsor UI mirrors Control Center styling and collapses broken media",()=>{
+  assert.match(html,/\.sponsorBanner\{padding:12px;border:1px solid #deded8;border-radius:12px/);
+  assert.match(html,/\.sponsorTitle\{font-size:14px;font-weight:700/);
+  assert.match(html,/\.sponsorAction\{display:inline-block;width:auto[^}]*text-decoration:underline/);
+  assert.match(html,/\.sponsorMediaAsset\{display:block;width:100%;height:auto;max-height:300px;object-fit:contain/);
+  assert.match(popup,/media\.remove\(\);reportTelemetry\("media_render_failed"/);
+  assert.match(popup,/mediaHost\.style\.display="none"/);
+});
+
+test("popup bypasses cached cloud state on open and refocus",()=>{
+  assert.match(popup,/await refreshCloudSurface\(\{force:true\}\)/);
+  assert.match(popup,/setInterval\(\(\)=>refreshCloudSurface\(\{force:true\}\)[\s\S]{0,80}10_000/);
+  assert.match(popup,/window\.addEventListener\("focus"/);
+  assert.match(popup,/visibilitychange/);
+});
