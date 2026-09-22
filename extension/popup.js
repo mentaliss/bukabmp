@@ -17,6 +17,8 @@ let lastCompletedKey = "";
 let adInterstitialTimer = null;
 let activeInterstitialAd = null;
 let reportedCardImpressionKey = "";
+const ADS_MEDIA = self.BMP_ADS_MEDIA;
+const AD_NETWORK = self.BMP_AD_NETWORK;
 
 const DRAFT_KEY = "bmpDraftV105";
 
@@ -88,6 +90,9 @@ function campaignAdFromState(state,placement){
     body:String(ads.body||""),
     disclaimer:String(ads.disclaimer||""),
     cta:ads.cta||null,
+    mode:placement==="card"?String(ads.card?.mode||"text"):String(ads.interstitial?.mode||"text"),
+    asset:placement==="card"?(ads.card?.asset||null):(ads.interstitial?.asset||null),
+    posterAsset:placement==="interstitial"?(ads.interstitial?.posterAsset||null):null,
     isHouse:false
   };
 }
@@ -104,6 +109,10 @@ async function executeAdCta(ad){
   return true;
 }
 
+function reportTelemetry(event,dimensions={}){
+  send("REPORT_TELEMETRY",{event,dimensions}).catch(()=>{});
+}
+
 function reportAdEvent(eventType,ad,placement){
   if(!ad?.campaignId)return;
   send("REPORT_AD_EVENT",{
@@ -112,6 +121,7 @@ function reportAdEvent(eventType,ad,placement){
     campaignId:ad.campaignId,
     revision:Number(ad.revision||0)
   }).catch(()=>{});
+  reportTelemetry("ad_"+eventType,{campaign_id:ad.campaignId,placement,revision:Number(ad.revision||0),paid_direct:true});
 }
 
 function reportVisibleCardImpression(){
@@ -134,6 +144,7 @@ function reportVisibleCardImpression(){
 }
 
 function hideAdInterstitial({report=true}={}){
+  ADS_MEDIA?.clear?.(el("adInterstitialMedia"));
   const root=el("adInterstitial");
   root.classList.remove("visible");
   root.setAttribute("aria-hidden","true");
@@ -152,6 +163,11 @@ function showAdInterstitial(ad){
   el("adInterstitialHeadline").textContent=creative.headline||"Space iklan tersedia";
   el("adInterstitialBody").textContent=creative.body||"";
   el("adInterstitialBody").style.display=creative.body?"block":"none";
+  const mediaHost=el("adInterstitialMedia");
+  ADS_MEDIA?.clear?.(mediaHost);
+  if(!creative.isHouse&&creative.mode!=="text"){
+    ADS_MEDIA?.render?.(mediaHost,{apiBase:self.BMP_CONFIG?.API_BASE_URL,mode:creative.mode,asset:creative.asset,posterAsset:creative.posterAsset,onError:reason=>reportTelemetry("media_render_failed",{campaign_id:creative.campaignId,placement:"interstitial",revision:Number(creative.revision||0),paid_direct:true,reason})});
+  }
   el("adInterstitialDisclaimer").textContent=creative.disclaimer||"";
   el("adInterstitialDisclaimer").style.display=creative.disclaimer?"block":"none";
   const cta=el("adInterstitialCta");
@@ -291,6 +307,12 @@ function renderCloudSurface(state){
       advertiser.textContent="Oleh "+cardAd.advertiser;
       card.append(advertiser);
     }
+    if(cardAd.mode==="banner"&&cardAd.asset){
+      const media=document.createElement("div");
+      media.className="sponsorMedia sponsorMediaBanner";
+      card.append(media);
+      ADS_MEDIA?.render?.(media,{apiBase:self.BMP_CONFIG?.API_BASE_URL,mode:"banner",asset:cardAd.asset,onError:reason=>reportTelemetry("media_render_failed",{campaign_id:cardAd.campaignId,placement:"card",revision:Number(cardAd.revision||0),paid_direct:true,reason})});
+    }
     if(cardAd.headline){
       const title=document.createElement("div");
       title.className="sponsorTitle";
@@ -380,25 +402,39 @@ function renderCloudSurface(state){
     root.append(card);
   }
 
-  if(!sponsorRendered){
+  function appendHouse(){
     const house=houseAdFromState(state);
     const placeholder=document.createElement("aside");
     placeholder.className="sponsorBanner sponsorPlaceholder";
     placeholder.setAttribute("aria-label","Space sponsor tersedia");
-
     const meta=document.createElement("div");
     meta.className="sponsorMeta";
     meta.textContent=house.sponsorLabel||"Sponsor";
     placeholder.append(meta);
-
     const title=document.createElement("div");
     title.className="sponsorTitle";
     title.textContent=house.headline||"Space iklan tersedia";
     placeholder.append(title);
-
     appendSponsorContact(placeholder,house.cta);
     sponsorRoot.append(placeholder);
   }
+
+  if(!sponsorRendered&&state?.ads?.network?.adsonbread===true&&AD_NETWORK?.renderCard){
+    sponsorRendered=true;
+    const networkHost=document.createElement("aside");
+    networkHost.className="sponsorBanner sponsorNetwork";
+    networkHost.setAttribute("aria-label","Sponsor");
+    sponsorRoot.append(networkHost);
+    AD_NETWORK.renderCard(networkHost).then(result=>{
+      if(result?.rendered===true)return;
+      networkHost.remove();
+      appendHouse();
+    }).catch(()=>{
+      networkHost.remove();
+      appendHouse();
+    });
+  }
+  if(!sponsorRendered)appendHouse();
 
   reportVisibleCardImpression();
 }
@@ -807,7 +843,13 @@ async function refreshState(){
   el("runReviewSample").disabled=Boolean(s.running);
   setFormLocked(Boolean(s.running));
 
-  if(lastRunning&&!s.running)await refreshCachePreview();
+  if(lastRunning&&!s.running){
+    await refreshCachePreview();
+    const done=["DONE","MAX_MODULE_REACHED","END_CANDIDATE"].includes(String(s.status||""));
+    const failed=["ERROR","BLOCKED","LOGIN_REQUIRED","MISSING_GAP"].includes(String(s.status||""));
+    if(done)reportTelemetry("job_completed");
+    else if(failed)reportTelemetry("job_failed");
+  }
   lastRunning=Boolean(s.running);
 }
 
@@ -1177,12 +1219,15 @@ el("start").addEventListener("click",async()=>{
     if(!res?.ok){
       el("statusTitle").textContent="Gagal memulai";
       el("statusText").textContent=res?.error||"Terjadi kesalahan.";
+      reportTelemetry("job_failed");
     }else{
+      reportTelemetry("job_started");
       scheduleJobStartedInterstitial().catch(()=>{});
     }
   }catch(e){
     el("statusTitle").textContent="Gagal memulai";
     el("statusText").textContent=String(e?.message||e);
+    reportTelemetry("job_failed");
   }finally{
     await refreshState();
   }
@@ -1248,6 +1293,7 @@ el("stop").addEventListener("click",async()=>{await send("STOP_JOB");await refre
 el("about").addEventListener("click",()=>chrome.tabs.create({url:chrome.runtime.getURL("about.html")}));
 
 (async()=>{
+  reportTelemetry("extension_open");
   await loadDraft();
   await refreshCloudSurface();
   await refreshAccess();
