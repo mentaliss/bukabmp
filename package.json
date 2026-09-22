@@ -14,7 +14,7 @@
     "validate:github": "node tools/validate-cws.mjs --channel=github",
     "validate:edge": "node tools/validate-cws.mjs --channel=edge",
     "validate:android": "node tools/validate-cws.mjs --channel=android",
-    "test:cloud": "node tests/cloud-surface.test.mjs"
+    "test:cloud": "node --test tests/*.test.mjs"
   },
   "engines": {
     "node": ">=20"
