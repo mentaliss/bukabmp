@@ -37,9 +37,9 @@ v1.1.0 tidak merender:
 - JavaScript/WASM;
 - iframe;
 - tracking pixel;
-- remote image creative.
+- media dari URL arbitrary milik advertiser.
 
-Field `image_url` boleh ada di contract untuk forward compatibility, tetapi image-only campaign tidak dianggap active pada v1.1.0.
+Image/video sponsor hanya dirender dari media ID berbasis content hash yang diunggah melalui Control Center, divalidasi Worker, disimpan di BMP-owned R2, lalu dilayani dari endpoint first-party `/v1/media/:id`. Field legacy `image_url` tetap disanitasi untuk kompatibilitas schema tetapi tidak dipakai sebagai sumber media v1.1.0.
 
 Semua dynamic text masuk melalui `textContent`. CTA harus HTTPS dan melewati sanitizer client.
 
