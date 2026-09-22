@@ -57,6 +57,13 @@ jobs:
         run: |
           npm run build:edge
           npm run validate:edge
+      - name: Upload final audited Edge 1.1.0 candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: BMP-Terbuka-v1.1.0-EDGE-FINAL-AUDIT
+          path: dist/edge/BMP-Terbuka-v1.1.0
+          if-no-files-found: error
+          compression-level: 9
       - name: Knowledge index check
         working-directory: worker
         run: node scripts/build-knowledge.mjs --check
