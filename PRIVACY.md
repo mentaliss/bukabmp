@@ -70,6 +70,7 @@ Entitlement, payment/idempotency, referral, dan activation ledger dapat bersifat
 Beberapa endpoint memakai fingerprint satu arah dari alamat IP dengan salt server:
 - pair start: counter TTL **60 detik**;
 - ad-event ingest: counter TTL **60 detik**;
+- anonymous telemetry ingest: counter TTL **60 detik** menggunakan fingerprint IP satu arah yang terpisah dan tidak masuk tabel analytics;
 - reviewer activation: counter TTL **10 menit**.
 
 Source aplikasi tidak menyimpan IP mentah di record counter tersebut. Infrastruktur Cloudflare dapat memiliki log platform tersendiri sesuai konfigurasi/provider.
