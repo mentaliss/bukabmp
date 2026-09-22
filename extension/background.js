@@ -1,7 +1,8 @@
-importScripts("config.js", "cloud-surface.js");
+importScripts("config.js", "cloud-surface.js", "telemetry.js");
 
 const CFG = self.BMP_CONFIG;
 const CLOUD = self.BMP_CLOUD_SURFACE;
+const TELEMETRY = self.BMP_TELEMETRY;
 const SOURCE_ROOT = "https://pustaka.ut.ac.id";
 const VERSION_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const CLOUD_FAILURE_BACKOFF_MS = 5 * 60 * 1000;
@@ -441,6 +442,11 @@ async function reportAdEvent({
       error: String(error?.message || error).slice(0, 160)
     };
   }
+}
+
+async function reportTelemetryEvent(event, dimensions = {}) {
+  if (!TELEMETRY?.emit) return {ok: false, error: "telemetry_unavailable"};
+  return await TELEMETRY.emit(CFG, event, dimensions);
 }
 
 async function executeCloudAction(rawAction) {
@@ -1217,6 +1223,7 @@ chrome.runtime.onInstalled.addListener(async details => {
     });
   }
   await getInstallId();
+  await TELEMETRY?.ensureAnalyticsId?.();
 });
 
 chrome.runtime.onStartup.addListener(() => {
@@ -1324,6 +1331,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         campaignId: msg.campaignId,
         revision: msg.revision
       }));
+      return;
+    }
+    if (msg.type === "REPORT_TELEMETRY") {
+      sendResponse(await reportTelemetryEvent(msg.event, msg.dimensions || {}));
       return;
     }
     if (msg.type === "EXECUTE_CLOUD_ACTION") {
