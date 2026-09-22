@@ -10,6 +10,7 @@ const ACTIVATION_REFRESH_META_KEY = "bmpActivationRefreshMetaV110";
 const ACTIVATION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const ACTIVATION_REFRESH_NO_SUPPORTER_INTERVAL_MS = 60 * 1000;
 const ACTIVATION_REFRESH_FAILURE_BACKOFF_MS = 60 * 1000;
+const DETECTED_LAST_MODULE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const JOB_ERROR_MESSAGE_TYPES = new Set(["START_JOB", "OCR_PAGE", "MODULE_RESULT"]);
 const DEFAULT_STATE = {
   running: false,
@@ -85,6 +86,14 @@ async function setDetectedLastModule(code, lastModule) {
   };
   await chrome.storage.local.set({bmpCacheMeta: map});
   return map[normalized];
+}
+
+function recentDetectedLastModule(meta, now = Date.now()) {
+  const last = Number(meta?.detectedLastModule);
+  const detectedAt = Number(meta?.detectedAt || 0);
+  if (!Number.isInteger(last) || last < 1 || last > 99) return null;
+  if (!detectedAt || now - detectedAt > DETECTED_LAST_MODULE_TTL_MS) return null;
+  return last;
 }
 
 async function clearCodeMeta(code) {
@@ -900,10 +909,9 @@ async function cacheInfo(code) {
     cacheInfoMemo.set(normalized, raw);
   }
   const meta = await getCodeMeta(normalized);
-  const detected = Number(meta.detectedLastModule);
   return {
     ...raw,
-    detectedLastModule: Number.isInteger(detected) && detected >= 1 ? detected : null
+    detectedLastModule: recentDetectedLastModule(meta)
   };
 }
 
@@ -1266,10 +1274,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
 
       const meta = await getCodeMeta(code);
-      const detectedLastModule = Number(meta.detectedLastModule);
-      const knownLast = Number.isInteger(detectedLastModule) && detectedLastModule >= 1
-        ? detectedLastModule
-        : null;
+      const knownLast = recentDetectedLastModule(meta);
       const effectiveMaxModule = effectiveLastModule(maxModule, knownLast);
       const allCachedModules = normalizeModules(prepared.cachedModules || [], 99);
       const selectedCached = effectiveMaxModule >= startModule
