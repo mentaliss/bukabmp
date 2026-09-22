@@ -286,6 +286,9 @@ test("Control Center v0.2 shell exposes human-facing sections and locks intersti
   assert.match(html, /fallbackPolicyFromEffective/);
   assert.match(html, /Preview updated\. Belum ada yang dipublish\./);
   assert.match(html, /window\.confirm\(summary\)/);
+  assert.match(html, /Scheduled butuh Starts at atau Ends at\./);
+  assert.match(html, /Ends at harus setelah Starts at\./);
+  assert.match(html, /value==null/);
 });
 
 test("Control Center ALL target writes the same intended state to every channel", async () => {
