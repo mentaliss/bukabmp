@@ -25,8 +25,10 @@ Chrome / Chromium
   │     └── exported searchable PDF
   │
   └── Cloudflare Worker
-        ├── activation/version data
-        └── approved cloud state/content only
+        ├── activation/version data + token-v2 refresh
+        ├── Telegram bot / Supporter / referral state
+        ├── approved realtime cloud state
+        └── validated coarse sponsor metrics
 ```
 
 ## Shared source, separate distribution profiles
@@ -49,7 +51,7 @@ Halaman, OCR, dan PDF diproses lokal oleh extension/offscreen document. Activati
 ### Community activation
 Extension membuat pairing melalui API eksternal, menerima signed activation token, lalu memverifikasi signature token secara lokal menggunakan public key yang terdapat di client.
 
-Implementation, hosting, deployment, secret management, dan retention activation service berada di luar repository client publik.
+Source Cloudflare Worker untuk activation/version/bot/Supporter/realtime state berada di `worker/` pada repository ini agar dapat diaudit bersama client. Secret produksi, private signing key, reviewer secret, provider account, dan nilai konfigurasi rahasia tetap berada di environment/deployment provider.
 
 ### Executable code
 Semua JavaScript/WASM/model OCR yang diperlukan runtime harus berada di package extension. Dependency boleh diambil saat build, tetapi package end-user tidak boleh bergantung pada JavaScript/WASM executable yang di-host remote.
@@ -66,6 +68,8 @@ STORE PACKAGE CONTROLS EXECUTABLE CODE.
 Cloud Surface hanya boleh mengontrol value yang lolos schema allowlist, misalnya boolean, teks, label, tanggal, HTTPS URL, dan feature flags untuk code path yang sudah dikirim di package. Remote JavaScript, arbitrary HTML execution, remote WASM, command strings yang diinterpretasikan sebagai code, dan downloaded functionality dilarang.
 
 Schema kandidat didokumentasikan di `docs/CLOUD_SURFACE.md`.
+
+Sponsor v1.1.0 memakai renderer yang sudah dibundel di popup. Backend hanya memilih plain creative/state yang lolos sanitizer. Event sponsor yang dikirim client bersifat coarse dan tidak membawa Telegram ID, installation ID, token aktivasi, kode BMP, atau isi dokumen.
 
 ## Update model
 
