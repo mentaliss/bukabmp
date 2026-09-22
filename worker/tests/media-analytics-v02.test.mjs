@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  analyticsSummary,
   sanitizeTelemetryEvent,
   telemetryActorHash
 } from "../src/features/telemetry.js";
@@ -295,4 +296,42 @@ test("global version policy rejects contradictory versions and unsafe release UR
     force_after: "not-a-date",
     readiness: {}
   })).ok, false);
+});
+
+
+class AnalyticsDbFixture {
+  prepare(sql) {
+    const query = String(sql);
+    const statement = {
+      bind() { return statement; },
+      async all() {
+        if (query.includes("COUNT(DISTINCT CASE WHEN ad_seen")) {
+          return {results: [{date: "2026-09-22", active_users: 2, ad_reach: 1}]};
+        }
+        if (query.includes("SELECT date, metric")) {
+          return {results: [
+            {date: "2026-09-22", metric: "extension_open", value: 3},
+            {date: "2026-09-22", metric: "job_started", value: 2},
+            {date: "2026-09-22", metric: "ad_impression", value: 2},
+            {date: "2026-09-22", metric: "ad_click", value: 1}
+          ]};
+        }
+        if (query.includes("SELECT metric, SUM(count)")) return {results: []};
+        return {results: []};
+      },
+      async first() { return {value: 0}; }
+    };
+    return statement;
+  }
+}
+
+test("analytics has no fake 100% health with zero jobs and includes blueprint chart series", async () => {
+  const result = await analyticsSummary({BOT_DB: new AnalyticsDbFixture()}, {period: "7d"}, Date.parse("2026-09-22T12:00:00Z"));
+  assert.equal(result.health_percent, null);
+  assert.equal(result.returning_percent, null);
+  assert.equal(result.ctr_percent, null);
+  assert.ok(result.series.some(row => row.metric === "active_users" && row.value === 2));
+  assert.ok(result.series.some(row => row.metric === "ad_reach" && row.value === 1));
+  assert.ok(result.series.some(row => row.metric === "extension_open"));
+  assert.ok(result.series.some(row => row.metric === "job_started"));
 });
