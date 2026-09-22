@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {assess} from "../scripts/reconcile-d1-migration-ledger.mjs";
+import {assess,columnProbeQueries} from "../scripts/reconcile-d1-migration-ledger.mjs";
 
 function fixture(){
   const tables = {
@@ -59,4 +59,15 @@ test("unknown ledger entry refuses automatic baseline",()=>{
   assert.equal(result.ok,true);
   assert.equal(result.canBaseline,false);
   assert.deepEqual(result.unknownLedgerEntries,["9999_unknown.sql"]);
+});
+
+
+test("column probes avoid compound SELECT limits on D1",()=>{
+  const probes=columnProbeQueries();
+  assert.equal(probes.length,11);
+  assert.equal(new Set(probes.map(x=>x.table)).size,11);
+  for(const probe of probes){
+    assert.ok(probe.sql.includes("pragma_table_info"));
+    assert.equal(probe.sql.includes("UNION ALL"),false);
+  }
 });
