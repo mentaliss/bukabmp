@@ -116,3 +116,5 @@ Reviewer token memiliki masa berlaku maksimum **24 jam** dan scope `store_review
 Fungsi aplikasi berinteraksi dengan layanan yang memang diperlukan, termasuk Cloudflare untuk backend, Telegram untuk komunitas/bot, browser/store untuk extension distribution, dan portal sumber yang dibuka pengguna. Masing-masing penyedia dapat memiliki log/kebijakan platform sendiri.
 
 BMP Terbuka tidak menjual isi materi, OCR text, atau PDF pengguna kepada advertiser.
+
+Penggunaan data oleh BMP Terbuka mengikuti pembatasan penggunaan yang dijelaskan di kebijakan ini; data pengguna extension tidak ditransfer, digunakan, atau dijual untuk personalized advertising atau retargeting.
