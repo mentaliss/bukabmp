@@ -114,6 +114,25 @@ for(const rel of ["vendor/tesseract.min.js","vendor/worker.min.js"]){
   if(/cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com/i.test(code)) fail(`Remote CDN reference found in compiled vendor file: ${rel}`);
   if(/\bnew\s+Function\s*\(|\bFunction\s*\(\s*[\"']/.test(code)) fail(`Dynamic code constructor found in compiled vendor file: ${rel}`);
 }
+// Defense in depth: inspect every JavaScript file that will actually ship, not
+// only first-party entry points. This catches future dependency regressions.
+const shippedJs=[];
+function collectShippedJs(dir,rel=""){
+  for(const ent of fs.readdirSync(dir,{withFileTypes:true})){
+    const abs=path.join(dir,ent.name);
+    const r=path.join(rel,ent.name).replaceAll("\\","/");
+    if(ent.isDirectory())collectShippedJs(abs,r);
+    else if(ent.isFile()&&ent.name.endsWith(".js"))shippedJs.push(r);
+  }
+}
+collectShippedJs(packageDir);
+for(const rel of shippedJs){
+  const code=fs.readFileSync(mustFile(rel),"utf8");
+  if(/\beval\s*\(/.test(code))fail(`eval() found in shipped code: ${rel}`);
+  if(/\bnew\s+Function\s*\(|\bFunction\s*\(\s*[\"\']/.test(code))fail(`Dynamic code constructor found in shipped code: ${rel}`);
+  if(/(?:importScripts|new\s+Worker)\s*\([^)]*https?:\/\//i.test(code))fail(`Remote executable URL found in shipped code: ${rel}`);
+  if(/cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com/i.test(code))fail(`Remote CDN reference found in shipped code: ${rel}`);
+}
 for(const rel of ["popup.html","offscreen.html","about.html"]){
   const html=fs.readFileSync(mustFile(rel),"utf8");
   if(/<script[^>]+src\s*=\s*["']https?:\/\//i.test(html))fail(`Remote script tag found in ${rel}`);
