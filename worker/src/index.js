@@ -1434,18 +1434,97 @@ function extensionStateKey(channel) {
   return `extension-state:${normalizeDistributionChannel(channel)}`;
 }
 
+function parseExtensionStateJson(value) {
+  if (!value) return null;
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readExtensionStateFromD1(env, channel) {
+  if (!env?.BOT_DB || typeof env.BOT_DB.prepare !== "function") {
+    return {available: false, state: null};
+  }
+  try {
+    const row = await env.BOT_DB.prepare(
+      "SELECT state_json FROM extension_control_state WHERE channel = ? LIMIT 1"
+    ).bind(normalizeDistributionChannel(channel)).first();
+    return {available: true, state: parseExtensionStateJson(row?.state_json)};
+  } catch (error) {
+    // Rolling deploy safety: before migration 0004 lands, continue serving the
+    // existing KV/env state instead of breaking extension-state reads.
+    console.warn("extension_control_state_d1_read_failed", {
+      error_name: auditErrorName(error)
+    });
+    return {available: false, state: null};
+  }
+}
+
+async function writeExtensionStateToD1(env, channel, state) {
+  if (!env?.BOT_DB || typeof env.BOT_DB.prepare !== "function") return false;
+  const normalized = normalizeDistributionChannel(channel);
+  const clean = sanitizeExtensionState(state);
+  try {
+    await env.BOT_DB.prepare(
+      "INSERT INTO extension_control_state(channel, state_json, updated_at) VALUES(?, ?, ?) " +
+      "ON CONFLICT(channel) DO UPDATE SET state_json = excluded.state_json, updated_at = excluded.updated_at"
+    ).bind(normalized, JSON.stringify(clean), Date.now()).run();
+    return true;
+  } catch (error) {
+    console.warn("extension_control_state_d1_write_failed", {
+      error_name: auditErrorName(error)
+    });
+    return false;
+  }
+}
+
+async function writeExtensionState(env, channel, state) {
+  const normalized = normalizeDistributionChannel(channel);
+  const clean = sanitizeExtensionState(state);
+  const d1Stored = await writeExtensionStateToD1(env, normalized, clean);
+
+  let kvStored = false;
+  if (env.PAIRINGS) {
+    try {
+      await env.PAIRINGS.put(extensionStateKey(normalized), JSON.stringify(clean));
+      kvStored = true;
+    } catch (error) {
+      console.warn("extension_control_state_kv_write_failed", {
+        error_name: auditErrorName(error)
+      });
+    }
+  }
+
+  if (!d1Stored && !kvStored) {
+    throw new Error("extension_state_storage_unavailable");
+  }
+  return clean;
+}
+
 async function readExtensionState(env, channel) {
+  const normalized = normalizeDistributionChannel(channel);
+  const d1 = await readExtensionStateFromD1(env, normalized);
+  if (d1.state) return sanitizeExtensionState(d1.state);
+
   let state = null;
-  if (env.PAIRINGS) state = await env.PAIRINGS.get(extensionStateKey(channel), "json");
+  if (env.PAIRINGS) state = await env.PAIRINGS.get(extensionStateKey(normalized), "json");
   if (!state) {
     const raw = envString(
       env,
-      channelEnvName(channel, "STATE_JSON"),
+      channelEnvName(normalized, "STATE_JSON"),
       envString(env, "EXTENSION_STATE_JSON", "")
     );
-    if (raw) {
-      try { state = JSON.parse(raw); } catch { state = null; }
-    }
+    if (raw) state = parseExtensionStateJson(raw);
+  }
+
+  // First read after migration 0004 self-baselines the current state into D1.
+  // This removes KV's cross-PoP propagation delay without requiring an owner
+  // to republish every channel during the migration window.
+  if (state && d1.available) {
+    await writeExtensionStateToD1(env, normalized, state);
   }
   return sanitizeExtensionState(state);
 }
@@ -1515,7 +1594,7 @@ async function adminExtensionState(request, env, url) {
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") return json({error: "JSON body tidak valid"}, 400, corsHeaders(request));
   const state = sanitizeExtensionState(body);
-  await env.PAIRINGS.put(key, JSON.stringify(state));
+  await writeExtensionState(env, channel, state);
   return json({ok: true, channel, state}, 200, corsHeaders(request));
 }
 
@@ -1694,7 +1773,7 @@ async function controlStateApi(request, env, url) {
         sanitize: value => sanitizeExtensionState(value),
         read: item => readExtensionState(env, item),
         snapshot: (item, value, why) => snapshotControlState(env, item, value, why),
-        write: (item, value) => env.PAIRINGS.put(extensionStateKey(item), JSON.stringify(sanitizeExtensionState(value))),
+        write: (item, value) => writeExtensionState(env, item, value),
         verify: async (item, expected) => {
           const actual = await readExtensionState(env, item);
           const comparable = value => {
@@ -1724,7 +1803,7 @@ async function controlStateApi(request, env, url) {
   const current = await readExtensionState(env, channel);
   const state = sanitizeExtensionState(incoming);
   await snapshotControlState(env, channel, current, "before_" + reason);
-  await env.PAIRINGS.put(extensionStateKey(channel), JSON.stringify(state));
+  await writeExtensionState(env, channel, state);
 
   return json({
     ok: true,
@@ -1773,7 +1852,7 @@ async function controlPauseAds(request, env) {
       enabled: false
     }
   });
-  await env.PAIRINGS.put(extensionStateKey(channel), JSON.stringify(next));
+  await writeExtensionState(env, channel, next);
 
   return json({
     ok: true,
@@ -1807,7 +1886,7 @@ async function controlRollback(request, env) {
   const current = await readExtensionState(env, channel);
   await snapshotControlState(env, channel, current, "before_rollback");
   const restored = sanitizeExtensionState(snapshot.state);
-  await env.PAIRINGS.put(extensionStateKey(channel), JSON.stringify(restored));
+  await writeExtensionState(env, channel, restored);
 
   return json({
     ok: true,
