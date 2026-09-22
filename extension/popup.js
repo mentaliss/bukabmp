@@ -156,18 +156,19 @@ function hideAdInterstitial({report=true}={}){
 function showAdInterstitial(ad){
   const creative=ad||localHouseAd();
   activeInterstitialAd=creative;
-  el("adInterstitialLabel").textContent=creative.sponsorLabel||"Sponsor";
-  el("adInterstitialAdvertiser").textContent=creative.advertiser
-    ? "Oleh "+creative.advertiser
-    : "";
-  el("adInterstitialAdvertiser").style.display=creative.advertiser?"block":"none";
+  el("adInterstitialLabel").textContent=(creative.sponsorLabel||"Sponsor")+(creative.advertiser?" · "+creative.advertiser:"");
+  el("adInterstitialAdvertiser").textContent="";
+  el("adInterstitialAdvertiser").style.display="none";
   el("adInterstitialHeadline").textContent=creative.headline||"Space iklan tersedia";
   el("adInterstitialBody").textContent=creative.body||"";
   el("adInterstitialBody").style.display=creative.body?"block":"none";
   const mediaHost=el("adInterstitialMedia");
   ADS_MEDIA?.clear?.(mediaHost);
+  mediaHost.style.display="none";
   if(!creative.isHouse&&creative.mode!=="text"){
-    ADS_MEDIA?.render?.(mediaHost,{apiBase:self.BMP_CONFIG?.API_BASE_URL,mode:creative.mode,asset:creative.asset,posterAsset:creative.posterAsset,onError:reason=>reportTelemetry("media_render_failed",{campaign_id:creative.campaignId,placement:"interstitial",revision:Number(creative.revision||0),paid_direct:true,reason})});
+    const rendered=ADS_MEDIA?.render?.(mediaHost,{apiBase:self.BMP_CONFIG?.API_BASE_URL,mode:creative.mode,asset:creative.asset,posterAsset:creative.posterAsset,onError:reason=>{ADS_MEDIA?.clear?.(mediaHost);mediaHost.style.display="none";reportTelemetry("media_render_failed",{campaign_id:creative.campaignId,placement:"interstitial",revision:Number(creative.revision||0),paid_direct:true,reason})}});
+    if(rendered)mediaHost.style.display="flex";
+    else reportTelemetry("media_render_failed",{campaign_id:creative.campaignId,placement:"interstitial",revision:Number(creative.revision||0),paid_direct:true,reason:creative.mode==="video"?"video_load_failed":"image_load_failed"});
   }
   el("adInterstitialDisclaimer").textContent=creative.disclaimer||"";
   el("adInterstitialDisclaimer").style.display=creative.disclaimer?"block":"none";
@@ -300,20 +301,17 @@ function renderCloudSurface(state){
 
     const meta=document.createElement("div");
     meta.className="sponsorMeta";
-    meta.textContent=cardAd.sponsorLabel||"Sponsor";
+    meta.textContent=(cardAd.sponsorLabel||"Sponsor")+(cardAd.advertiser?" · "+cardAd.advertiser:"");
     card.append(meta);
-
-    if(cardAd.advertiser){
-      const advertiser=document.createElement("div");
-      advertiser.className="sponsorText";
-      advertiser.textContent="Oleh "+cardAd.advertiser;
-      card.append(advertiser);
-    }
     if(cardAd.mode==="banner"&&cardAd.asset){
       const media=document.createElement("div");
       media.className="sponsorMedia sponsorMediaBanner";
       card.append(media);
-      ADS_MEDIA?.render?.(media,{apiBase:self.BMP_CONFIG?.API_BASE_URL,mode:"banner",asset:cardAd.asset,onError:reason=>reportTelemetry("media_render_failed",{campaign_id:cardAd.campaignId,placement:"card",revision:Number(cardAd.revision||0),paid_direct:true,reason})});
+      const rendered=ADS_MEDIA?.render?.(media,{apiBase:self.BMP_CONFIG?.API_BASE_URL,mode:"banner",asset:cardAd.asset,onError:reason=>{media.remove();reportTelemetry("media_render_failed",{campaign_id:cardAd.campaignId,placement:"card",revision:Number(cardAd.revision||0),paid_direct:true,reason})}});
+      if(!rendered){
+        media.remove();
+        reportTelemetry("media_render_failed",{campaign_id:cardAd.campaignId,placement:"card",revision:Number(cardAd.revision||0),paid_direct:true,reason:"image_load_failed"});
+      }
     }
     if(cardAd.headline){
       const title=document.createElement("div");
@@ -1292,7 +1290,7 @@ el("about").addEventListener("click",()=>chrome.tabs.create({url:chrome.runtime.
 (async()=>{
   reportTelemetry("extension_open");
   await loadDraft();
-  await refreshCloudSurface();
+  await refreshCloudSurface({force:true});
   await refreshAccess();
   await refreshVersion();
   if(latestAccess?.active&&latestAccess?.refreshEligible&&!latestAccess?.reviewer){
@@ -1302,8 +1300,12 @@ el("about").addEventListener("click",()=>chrome.tabs.create({url:chrome.runtime.
   await refreshCachePreview();
   setInterval(async()=>{await refreshAccess();await refreshState()},1000);
   // While the popup is open, keep campaign/card control near-realtime.
-  // GET failures still fall back to the last good cached state.
-  setInterval(()=>refreshCloudSurface({force:true}).catch(()=>{}),30_000);
+  // Popup open/focus always bypasses cache; periodic refresh is a light safety net.
+  setInterval(()=>refreshCloudSurface({force:true}).catch(()=>{}),10_000);
+  window.addEventListener("focus",()=>refreshCloudSurface({force:true}).catch(()=>{}));
+  document.addEventListener("visibilitychange",()=>{
+    if(document.visibilityState==="visible")refreshCloudSurface({force:true}).catch(()=>{});
+  });
   setInterval(async()=>{
     const a=await send("GET_ACCESS_STATUS");
     if(a?.pending)await checkPendingActivation({quiet:true});
