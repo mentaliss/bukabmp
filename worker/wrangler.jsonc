@@ -34,5 +34,11 @@
     "BOT_V21_UI_CANARY_ENABLED": "false",
     "BOT_V21_UI_ENABLED": "true",
     "TELEGRAM_COMMAND_MENU_MODE": "minimal"
-  }
+  },
+  "r2_buckets": [
+    {
+      "binding": "AD_MEDIA",
+      "bucket_name": "bmp-terbuka-ad-media"
+    }
+  ]
 }
