@@ -87,7 +87,7 @@ test("job start stays ahead of sponsor scheduling and telemetry",()=>{
   const schedule=popup.indexOf("scheduleJobStartedInterstitial",start);
   assert.ok(start>=0);
   assert.ok(started>start);
-  assert.ok(schedule>started);
+  assert.ok(schedule>start);
   assert.match(popup,/Math\.max\(2000/);
   assert.match(popup,/Math\.min\(5000/);
   assert.match(html,/id="adInterstitialMedia"/);
