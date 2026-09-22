@@ -8,6 +8,7 @@ const telemetry=await readFile(new URL("../extension/telemetry.js",import.meta.u
 const adsMedia=await readFile(new URL("../extension/ads-media.js",import.meta.url),"utf8");
 const adNetwork=await readFile(new URL("../extension/ad-network.js",import.meta.url),"utf8");
 const popup=await readFile(new URL("../extension/popup.js",import.meta.url),"utf8");
+const background=await readFile(new URL("../extension/background.js",import.meta.url),"utf8");
 const html=await readFile(new URL("../extension/popup.html",import.meta.url),"utf8");
 
 function cloud(){
@@ -82,15 +83,19 @@ test("telemetry uses a separate anonymous identity and hard event allowlist",()=
   assert.match(telemetry,/keepalive:true/);
 });
 
-test("job start stays ahead of sponsor scheduling and telemetry",()=>{
+test("job start stays ahead of sponsor scheduling and lifecycle telemetry is background-owned",()=>{
   const start=popup.indexOf('send("START_JOB"');
-  const started=popup.indexOf('reportTelemetry("job_started")',start);
   const schedule=popup.indexOf("scheduleJobStartedInterstitial",start);
   assert.ok(start>=0);
-  assert.ok(started>start);
   assert.ok(schedule>start);
-  assert.match(popup,/Math\.max\(2000/);
-  assert.match(popup,/Math\.min\(5000/);
+  assert.doesNotMatch(popup,/reportTelemetry\("job_(?:started|completed|failed)"\)/);
+  assert.match(background,/function reportJobStateTransition/);
+  assert.match(background,/reportTelemetryEvent\("job_started"\)/);
+  assert.match(background,/reportTelemetryEvent\("job_completed"\)/);
+  assert.match(background,/reportTelemetryEvent\("job_failed"\)/);
+  const persisted=background.indexOf("await chrome.storage.local.set({bmpState: next})");
+  const lifecycle=background.indexOf("reportJobStateTransition(current,next)",persisted);
+  assert.ok(persisted>=0&&lifecycle>persisted);
   assert.match(html,/id="adInterstitialMedia"/);
 });
 
@@ -101,4 +106,63 @@ test("AdsOnBread is never selected for interstitial",()=>{
   assert.doesNotMatch(block,/AD_NETWORK|adsonbread/i);
   assert.match(block,/campaignAdFromState\(state,"interstitial"\)/);
   assert.match(block,/houseAdFromState\(state\)/);
+});
+
+
+test("interstitial random delay never escapes the frozen 2-5 second window",()=>{
+  const match=popup.match(/function randomDelay\(min,max\)\{[^}]+\}/);
+  assert.ok(match,"randomDelay implementation not found");
+  const context={Math};
+  vm.runInNewContext(match[0]+";this.randomDelay=randomDelay;",context);
+  for(let i=0;i<10000;i++){
+    const value=context.randomDelay(i%2?1:999999,i%3?999999:-1);
+    assert.ok(value>=2000&&value<=5000,"delay outside frozen range: "+value);
+  }
+});
+
+test("AdsOnBread adapter makes at most one provider request per popup surface",async()=>{
+  let calls=0;
+  const context={Promise,setTimeout,clearTimeout};
+  context.self=context;
+  context.globalThis=context;
+  context.BMP_ADSONBREAD_SDK={async renderCard(){calls++;return {rendered:true}}};
+  vm.runInNewContext(adNetwork,context);
+  const first=await context.BMP_AD_NETWORK.renderCard({});
+  const second=await context.BMP_AD_NETWORK.renderCard({});
+  assert.equal(first.rendered,true);
+  assert.equal(second.rendered,false);
+  assert.equal(second.reason,"surface_already_requested");
+  assert.equal(calls,1);
+});
+
+test("analytics identity replaces malformed legacy-looking IDs and serializes concurrent creation",async()=>{
+  let stored="x".repeat(36),sets=0;
+  const generated="9a2e4f26-5ef8-4cff-95c3-55ad55478f52";
+  const context={
+    Set,Promise,URL,
+    crypto:{randomUUID:()=>generated},
+    chrome:{
+      storage:{local:{
+        async get(){await Promise.resolve();return {bmpAnalyticsIdV1:stored}},
+        async set(value){sets++;stored=value.bmpAnalyticsIdV1}
+      }},
+      runtime:{getManifest:()=>({version:"1.1.0"})}
+    },
+    fetch:async()=>({ok:true,status:202})
+  };
+  context.self=context;context.globalThis=context;
+  vm.runInNewContext(telemetry,context);
+  const [a,b,cId]=await Promise.all([
+    context.BMP_TELEMETRY.ensureAnalyticsId(),
+    context.BMP_TELEMETRY.ensureAnalyticsId(),
+    context.BMP_TELEMETRY.ensureAnalyticsId()
+  ]);
+  assert.equal(a,generated);assert.equal(b,generated);assert.equal(cId,generated);
+  assert.equal(sets,1);
+});
+
+test("media IDs must be exact immutable SHA-256 hex hashes",()=>{
+  const C=cloud();
+  assert.equal(C.sanitizeMediaAsset({id:"short-but-plausible-id",mime:"image/webp"},"image"),null);
+  assert.match(adsMedia,/\^\[0-9a-f\]\{64\}\$\/i/);
 });
