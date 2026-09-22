@@ -206,3 +206,10 @@ test("raw state writes are restricted to lifecycle authority boundaries", () => 
   assert.ok(background.includes('status: "STOPPED_BY_USER"'));
   assert.ok(background.includes("cancelledRunIds.add(String(messageRunId))"));
 });
+
+
+test("reviewer fixture cannot collide with a valid user BMP cache key", () => {
+  assert.match(offscreen, /const code = "@BMP-REVIEW-FIXTURE"/);
+  assert.doesNotMatch(offscreen, /const code = "REVIEW"/);
+  assert.ok(!/^[A-Z0-9_-]{3,32}$/.test("@BMP-REVIEW-FIXTURE"));
+});
