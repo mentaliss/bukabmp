@@ -1,9 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {sha256Hex} from "../src/security/crypto.js";
 
 import {
   activationTokenExpiryFloor,
+  activationTokenReauthFloor,
   issueToken,
+  preservedReauthExpiryForUser,
   refreshActivationToken,
   TOKEN_REFRESH_MIN_VERSION,
   TOKEN_SCHEMA_VERSION
@@ -48,7 +51,8 @@ function decodePayload(token) {
 async function signLegacyToken(privateKey, {
   installId,
   userId,
-  expiresAt
+  expiresAt,
+  memberRef = "legacy-fixture-" + userId
 }) {
   const header = {alg: "RS256", typ: "JWT"};
   const payload = {
@@ -58,7 +62,7 @@ async function signLegacyToken(privateKey, {
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(expiresAt / 1000),
     scope: ["community_access"],
-    member_ref: "legacy-fixture-" + userId
+    member_ref: memberRef
   };
   const h = b64urlJson(header);
   const p = b64urlJson(payload);
@@ -257,16 +261,42 @@ test("one-time v2 re-verification can preserve a longer active legacy expiry", a
   const {env, keyPair} = await fixture();
   const installId = "01234567-89ab-cdef-01234567";
   const legacyExpiry = Date.now() + 31 * 86400000;
+  const legacyMemberRef = await sha256Hex(
+    "tg:424242:fixture-salt"
+  );
   const legacy = await signLegacyToken(keyPair.privateKey, {
     installId,
     userId: 424242,
-    expiresAt: legacyExpiry
+    expiresAt: legacyExpiry,
+    memberRef: legacyMemberRef
   });
 
+  const reauthFloor = await activationTokenReauthFloor(env, legacy, installId);
   const floor = await activationTokenExpiryFloor(env, legacy, installId);
   assert.ok(Math.abs(floor - legacyExpiry) < 2000);
+  assert.equal(reauthFloor.expiryMs, floor);
+  assert.ok(reauthFloor.memberRef);
 
-  const replacement = await issueToken(env, installId, 424242, floor);
+  const sameUserFloor = await preservedReauthExpiryForUser(
+    env,
+    {
+      minimum_expiry_ms: floor,
+      minimum_expiry_member_ref: reauthFloor.memberRef
+    },
+    424242
+  );
+  const differentUserFloor = await preservedReauthExpiryForUser(
+    env,
+    {
+      minimum_expiry_ms: floor,
+      minimum_expiry_member_ref: reauthFloor.memberRef
+    },
+    999999
+  );
+  assert.equal(sameUserFloor, floor);
+  assert.equal(differentUserFloor, 0);
+
+  const replacement = await issueToken(env, installId, 424242, sameUserFloor);
   const payload = decodePayload(replacement);
   assert.equal(payload.token_version, TOKEN_SCHEMA_VERSION);
   assert.equal(payload.sub, "tg:424242");

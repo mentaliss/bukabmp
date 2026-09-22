@@ -66,7 +66,7 @@ test("health keeps the current production-facing supporter/security surface", as
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.status, "ok");
-  assert.equal(body.version, "1.0.5-support-bot-v20-v110-final-audit");
+  assert.equal(body.version, "1.0.5-support-bot-v21-v110-final-audit");
   assert.equal(body.supporter_pass, true);
   assert.equal(body.privacy_gate_enabled, true);
   assert.equal(body.realtime_extension_state, true);
@@ -324,6 +324,7 @@ test("pair start records a verified expiry floor from the active device token", 
     Number(record.minimum_expiry_ms || 0) + 1000 >=
       Number(activePayload.exp) * 1000
   );
+  assert.match(String(record.minimum_expiry_member_ref || ""), /^[0-9a-f]{64}$/);
 });
 
 test("ad metric ingest ignores stale or fabricated campaign IDs", async () => {

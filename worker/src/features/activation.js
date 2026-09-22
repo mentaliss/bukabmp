@@ -193,17 +193,44 @@ export async function issueToken(
   );
 }
 
+export async function activationTokenReauthFloor(
+  env,
+  token,
+  installId
+) {
+  if (!token || !installId) return {expiryMs: 0, memberRef: ""};
+  const verified = await verifyIssuedToken(env, token);
+  if (!verified.ok) return {expiryMs: 0, memberRef: ""};
+  if (String(verified.payload?.install_id || "") !== String(installId)) {
+    return {expiryMs: 0, memberRef: ""};
+  }
+  const expiryMs = Number(verified.payload?.exp || 0) * 1000;
+  const memberRef = String(verified.payload?.member_ref || "");
+  if (expiryMs <= Date.now() || !memberRef) {
+    return {expiryMs: 0, memberRef: ""};
+  }
+  return {expiryMs, memberRef};
+}
+
 export async function activationTokenExpiryFloor(
   env,
   token,
   installId
 ) {
-  if (!token || !installId) return 0;
-  const verified = await verifyIssuedToken(env, token);
-  if (!verified.ok) return 0;
-  if (String(verified.payload?.install_id || "") !== String(installId)) return 0;
-  const expiryMs = Number(verified.payload?.exp || 0) * 1000;
-  return expiryMs > Date.now() ? expiryMs : 0;
+  return (await activationTokenReauthFloor(env, token, installId)).expiryMs;
+}
+
+export async function preservedReauthExpiryForUser(
+  env,
+  record,
+  userId
+) {
+  const expectedMemberRef = await sha256Hex(
+    "tg:" + userId + ":" + (env.MEMBER_HASH_SALT || "")
+  );
+  return String(record?.minimum_expiry_member_ref || "") === expectedMemberRef
+    ? Math.max(0, Number(record?.minimum_expiry_ms || 0))
+    : 0;
 }
 
 async function verifyIssuedToken(env, token) {
@@ -451,11 +478,17 @@ export async function verifyPairForUser(env, pairId, userId, chatId) {
 
   let token;
   try {
+    const preservedExpiry = await preservedReauthExpiryForUser(
+      env,
+      record,
+      userId
+    );
+
     token = await issueToken(
       env,
       record.install_id,
       userId,
-      Number(record.minimum_expiry_ms || 0)
+      preservedExpiry
     );
   } catch (error) {
     console.error("token_issue_failed", {
