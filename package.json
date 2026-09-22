@@ -1,12 +1,19 @@
 {
   "name": "bukabmp-extension",
   "private": true,
-  "version": "1.0.5",
-  "description": "Open-source Chrome extension and release tooling for BMP Terbuka.",
+  "version": "1.1.0",
+  "description": "Open-source browser extension and release tooling for BMP Terbuka.",
   "scripts": {
     "validate": "node tools/validate.mjs",
     "build": "node tools/build-release.mjs",
-    "build:release": "node tools/build-release.mjs --strict"
+    "build:release": "node tools/build-release.mjs --strict",
+    "build:cws": "node tools/build-release.mjs --strict --channel=cws",
+    "validate:cws": "node tools/validate-cws.mjs --channel=cws",
+    "build:android": "node tools/build-release.mjs --strict --channel=android",
+    "build:edge": "node tools/build-release.mjs --strict --channel=edge",
+    "validate:github": "node tools/validate-cws.mjs --channel=github",
+    "validate:edge": "node tools/validate-cws.mjs --channel=edge",
+    "validate:android": "node tools/validate-cws.mjs --channel=android"
   },
   "engines": {
     "node": ">=20"

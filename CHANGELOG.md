@@ -2,6 +2,46 @@
 
 Semua perubahan penting pada source extension publik dicatat di sini.
 
+## [1.1.0] - Unreleased
+
+### Added
+- Activation token schema v2 dengan subject Telegram tervalidasi, refresh endpoint, dan signed Supporter snapshot.
+- One-time legacy → v2 re-verification yang mempertahankan token aktif sampai replacement terverifikasi dan tidak boleh memperpendek sisa masa aktif untuk user/install yang sama.
+- Badge BMP Supporter personal dari signed token.
+- Realtime Cloud Surface status + sponsor state.
+- Sponsor card dan delayed sponsor interstitial setelah job berhasil dimulai; fallback house inventory tetap tersedia.
+- Coarse sponsor metrics (impression/click/dismiss) tanpa Telegram ID, install ID, activation token, kode BMP, OCR text, atau PDF.
+- Distribution-aware build/validation untuk GitHub/manual, Android, Chrome Web Store, dan Edge Add-ons.
+
+### Changed
+- Jalur Android utama diarahkan ke Microsoft Edge Stable + Edge Add-ons; Canary tetap fallback/testing.
+- Token-v2 yang sudah tersinkron tidak lagi menampilkan card manajemen Aktivasi komunitas; badge status akses hijau tetap tampil.
+- Realtime sponsor state di-refresh ketika popup terbuka dan saat job dimulai.
+- Interstitial delay dikunci pada jendela 2–5 detik dan tidak boleh menahan OCR/job.
+- Activation/Supporter refresh memakai short retry/backoff agar entitlement baru tidak menunggu token lama kedaluwarsa.
+
+### Fixed
+- Mencegah replacement token saat re-verification memperpendek entitlement yang masih aktif.
+- Mencegah transfer expiry floor ke Telegram account berbeda pada installation yang sama.
+- Mencegah concurrent START_JOB, stale module/progress message, dan auxiliary popup error mengganggu job OCR aktif.
+- Mencegah module dengan known page count disimpan sebagai PDF terpotong ketika halaman yang seharusnya ada gagal dimuat.
+- Cache clear dan reviewer OCR fixture tidak lagi dapat merusak state OCR job lain.
+- Offscreen detection tetap kompatibel dengan minimum Chrome 109 melalui feature detection/fallback.
+- Temporary blob URL direvoke juga ketika browser download gagal.
+- Remote Telegram/update URLs divalidasi sebelum dibuka.
+- Ads metrics hanya dihitung untuk campaign/revision/placement yang sedang aktif; endpoint juga rate-limited.
+- Image-only campaign tidak dianggap aktif sampai renderer image first-party/proxy benar-benar tersedia.
+
+### Validation
+- Source/static regression + Cloud Surface sanitizer.
+- GitHub/manual package build + validation.
+- Chrome Web Store package build + validation.
+- Android compatibility package build + validation.
+- Edge Add-ons package build + validation.
+- Worker characterization/security/activation/Supporter/referral/payment tests.
+- Worker bundle dry-run.
+- Same-listing 1.0.5 → 1.1.0 Store upgrade dan authenticated real-device RBV smoke test tetap menjadi release gate eksternal sebelum publikasi.
+
 ## [1.0.5] - 2026-09-18
 
 ### Added

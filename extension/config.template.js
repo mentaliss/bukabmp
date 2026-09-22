@@ -2,6 +2,7 @@
 // Public values only. Never put bot tokens or private signing keys here.
 self.BMP_CONFIG = Object.freeze({
   API_BASE_URL: "__BMP_API_BASE_URL__",
+  DISTRIBUTION_CHANNEL: "__BMP_DISTRIBUTION_CHANNEL__",
   TELEGRAM_CHANNEL_URL: "__BMP_TELEGRAM_CHANNEL_URL__",
   TELEGRAM_GROUP_URL: "__BMP_TELEGRAM_GROUP_URL__",
   TOKEN_ISSUER: "bmp-terbuka-community",

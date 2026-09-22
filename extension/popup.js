@@ -5,6 +5,7 @@ const ACTIVATION_LONG_WAIT_MS = 90_000;
 let activationChecking = false;
 let latestAccess = null;
 let latestVersionPolicy = null;
+let latestCloudState = null;
 let latestState = null;
 let latestCacheInfo = {modules:[],bytes:0,totalBytes:0,detectedLastModule:null};
 let latestCacheCode = "";
@@ -13,6 +14,12 @@ let draftSaveTimer = null;
 let lastRunning = false;
 let activeFormKey = "";
 let lastCompletedKey = "";
+let adInterstitialTimer = null;
+let activeInterstitialAd = null;
+let reportedCardImpressionKey = "";
+let cloudRenderGeneration = 0;
+const ADS_MEDIA = self.BMP_ADS_MEDIA;
+const AD_NETWORK = self.BMP_AD_NETWORK;
 
 const DRAFT_KEY = "bmpDraftV105";
 
@@ -41,6 +48,408 @@ function formatBytes(bytes){
   return `${(n/1024/1024/1024).toFixed(1)} GB`;
 }
 function setUtilityNotice(text){el("utilityNotice").textContent=text||""}
+
+function localHouseAd(){
+  return {
+    campaignId:"",
+    revision:0,
+    sponsorLabel:"Sponsor",
+    advertiser:"",
+    headline:"Space iklan tersedia",
+    body:"",
+    disclaimer:"",
+    cta:{label:"Pasang iklan? Hubungi",url:"https://t.me/bukabmp?direct"},
+    isHouse:true
+  };
+}
+
+function houseAdFromState(state){
+  const house=state?.ads?.house||null;
+  if(!house)return localHouseAd();
+  return {
+    ...localHouseAd(),
+    sponsorLabel:String(house.sponsorLabel||"Sponsor"),
+    headline:String(house.headline||"Space iklan tersedia"),
+    body:String(house.body||""),
+    cta:house.cta||localHouseAd().cta
+  };
+}
+
+function campaignAdFromState(state,placement){
+  const ads=state?.ads||null;
+  if(
+    !ads?.active||
+    !ads.placements?.[placement]||
+    (placement==="interstitial"&&!ads.interstitial?.enabled)
+  )return null;
+  return {
+    campaignId:String(ads.campaignId||""),
+    revision:Number(ads.revision||0),
+    sponsorLabel:String(ads.sponsorLabel||"Sponsor"),
+    advertiser:String(ads.advertiser||""),
+    headline:String(ads.headline||""),
+    body:String(ads.body||""),
+    disclaimer:String(ads.disclaimer||""),
+    cta:ads.cta||null,
+    mode:placement==="card"?String(ads.card?.mode||"text"):String(ads.interstitial?.mode||"text"),
+    asset:placement==="card"?(ads.card?.asset||null):(ads.interstitial?.asset||null),
+    posterAsset:placement==="interstitial"?(ads.interstitial?.posterAsset||null):null,
+    isHouse:false
+  };
+}
+
+async function executeAdCta(ad){
+  const cta=ad?.cta;
+  if(!cta?.label||!cta?.url)return false;
+  const result=await send("EXECUTE_CLOUD_ACTION",{action:{
+    type:"OPEN_URL",
+    label:cta.label,
+    url:cta.url
+  }});
+  if(!result?.ok)throw new Error(result?.error||"Tautan sponsor tidak dapat dibuka.");
+  return true;
+}
+
+function reportTelemetry(event,dimensions={}){
+  send("REPORT_TELEMETRY",{event,dimensions}).catch(()=>{});
+}
+
+function reportAdEvent(eventType,ad,placement){
+  if(!ad?.campaignId)return;
+  send("REPORT_AD_EVENT",{
+    eventType,
+    placement,
+    campaignId:ad.campaignId,
+    revision:Number(ad.revision||0)
+  }).catch(()=>{});
+  reportTelemetry("ad_"+eventType,{campaign_id:ad.campaignId,placement,revision:Number(ad.revision||0),paid_direct:true});
+}
+
+function reportVisibleCardImpression(){
+  if(
+    !latestAccess?.active||
+    !el("mainScreen").classList.contains("active")
+  ){
+    reportedCardImpressionKey="";
+    return;
+  }
+  const ad=campaignAdFromState(latestCloudState,"card");
+  if(!ad){
+    reportedCardImpressionKey="";
+    return;
+  }
+  const key=ad.campaignId+":"+ad.revision;
+  if(reportedCardImpressionKey===key)return;
+  reportedCardImpressionKey=key;
+  reportAdEvent("impression",ad,"card");
+}
+
+function hideAdInterstitial({report=true}={}){
+  ADS_MEDIA?.clear?.(el("adInterstitialMedia"));
+  const root=el("adInterstitial");
+  root.classList.remove("visible");
+  root.setAttribute("aria-hidden","true");
+  if(report&&activeInterstitialAd)reportAdEvent("dismiss",activeInterstitialAd,"interstitial");
+  activeInterstitialAd=null;
+}
+
+function showAdInterstitial(ad){
+  const creative=ad||localHouseAd();
+  activeInterstitialAd=creative;
+  el("adInterstitialLabel").textContent=(creative.sponsorLabel||"Sponsor")+(creative.advertiser?" · "+creative.advertiser:"");
+  el("adInterstitialAdvertiser").textContent="";
+  el("adInterstitialAdvertiser").style.display="none";
+  el("adInterstitialHeadline").textContent=creative.headline||"Space iklan tersedia";
+  el("adInterstitialBody").textContent=creative.body||"";
+  el("adInterstitialBody").style.display=creative.body?"block":"none";
+  const mediaHost=el("adInterstitialMedia");
+  ADS_MEDIA?.clear?.(mediaHost);
+  mediaHost.style.display="none";
+  if(!creative.isHouse&&creative.mode!=="text"){
+    const rendered=ADS_MEDIA?.render?.(mediaHost,{apiBase:self.BMP_CONFIG?.API_BASE_URL,mode:creative.mode,asset:creative.asset,posterAsset:creative.posterAsset,onError:reason=>{ADS_MEDIA?.clear?.(mediaHost);mediaHost.style.display="none";reportTelemetry("media_render_failed",{campaign_id:creative.campaignId,placement:"interstitial",revision:Number(creative.revision||0),paid_direct:true,reason})}});
+    if(rendered)mediaHost.style.display="flex";
+    else reportTelemetry("media_render_failed",{campaign_id:creative.campaignId,placement:"interstitial",revision:Number(creative.revision||0),paid_direct:true,reason:creative.mode==="video"?"video_load_failed":"image_load_failed"});
+  }
+  el("adInterstitialDisclaimer").textContent=creative.disclaimer||"";
+  el("adInterstitialDisclaimer").style.display=creative.disclaimer?"block":"none";
+  const cta=el("adInterstitialCta");
+  if(creative.cta?.label&&creative.cta?.url){
+    cta.textContent=creative.cta.label;
+    cta.style.display="block";
+  }else{
+    cta.textContent="";
+    cta.style.display="none";
+  }
+  const root=el("adInterstitial");
+  root.classList.add("visible");
+  root.setAttribute("aria-hidden","false");
+  if(!creative.isHouse)reportAdEvent("impression",creative,"interstitial");
+}
+
+function randomDelay(min,max){
+  const low=Math.max(2000,Math.min(5000,Math.floor(Number(min)||2000)));
+  const high=Math.max(low,Math.min(5000,Math.floor(Number(max)||5000)));
+  return low+Math.floor(Math.random()*(high-low+1));
+}
+
+async function scheduleJobStartedInterstitial(){
+  clearTimeout(adInterstitialTimer);
+
+  let state=latestCloudState;
+  let creative=
+    campaignAdFromState(state,"interstitial")||
+    houseAdFromState(state);
+  const cfg=state?.ads?.interstitial||{};
+  const delay=randomDelay(cfg.delayMinMs||2000,cfg.delayMaxMs||5000);
+
+  // Start the 2–5 second clock immediately after START_JOB succeeds.
+  // A slow/unavailable backend can change the creative to the house ad,
+  // but can never delay or block the running BMP job.
+  adInterstitialTimer=setTimeout(()=>{
+    adInterstitialTimer=null;
+    showAdInterstitial(creative);
+  },delay);
+
+  try{
+    const r=await send("GET_CLOUD_STATE",{force:true});
+    if(r?.ok){
+      state=r.state||null;
+      renderCloudSurface(state);
+      creative=
+        campaignAdFromState(state,"interstitial")||
+        houseAdFromState(state);
+    }
+  }catch(_){}
+}
+
+function renderCloudSurface(state){
+  const renderGeneration=++cloudRenderGeneration;
+  latestCloudState=state||null;
+  const root=el("cloudSurface");
+  const sponsorRoot=el("sponsorSlot");
+  const cloudBadge=el("cloudStatusBadge");
+  root.textContent="";
+  sponsorRoot.textContent="";
+
+  const badge=state?.statusBadge||null;
+  if(badge?.visible&&badge.text){
+    cloudBadge.textContent=badge.text;
+    cloudBadge.className=`statusChip cloudStatusBadge ${badge.kind||"info"}`;
+    cloudBadge.style.display="block";
+  }else{
+    cloudBadge.textContent="";
+    cloudBadge.className="statusChip cloudStatusBadge";
+    cloudBadge.style.display="none";
+  }
+
+  const sections=Array.isArray(state?.sections)?state.sections:[];
+  let sponsorRendered=false;
+
+  function appendAction(card,section,className){
+    if(!section.action?.label)return;
+    const button=document.createElement("button");
+    button.type="button";
+    button.className=className;
+    button.textContent=section.action.label;
+    button.addEventListener("click",async()=>{
+      button.disabled=true;
+      try{
+        const result=await send("EXECUTE_CLOUD_ACTION",{action:section.action});
+        if(!result?.ok)throw new Error(result?.error||"Aksi tidak dapat dijalankan.");
+      }catch(e){
+        button.textContent=String(e?.message||e).slice(0,80);
+      }finally{
+        setTimeout(()=>{button.disabled=false;button.textContent=section.action.label},1400);
+      }
+    });
+    card.append(button);
+  }
+
+  function appendSponsorContact(card,cta=null){
+    const fallback=houseAdFromState(state).cta;
+    const action=cta?.label&&cta?.url?cta:fallback;
+    if(!action?.label||!action?.url)return;
+    const contact=document.createElement("button");
+    contact.type="button";
+    contact.className="sponsorContact";
+    contact.textContent=action.label;
+    contact.addEventListener("click",async()=>{
+      contact.disabled=true;
+      try{
+        const result=await send("EXECUTE_CLOUD_ACTION",{action:{
+          type:"OPEN_URL",
+          label:action.label,
+          url:action.url
+        }});
+        if(!result?.ok)throw new Error(result?.error||"Tautan tidak dapat dibuka.");
+      }catch(e){
+        contact.textContent=String(e?.message||e).slice(0,80);
+      }finally{
+        setTimeout(()=>{contact.disabled=false;contact.textContent=action.label},1400);
+      }
+    });
+    card.append(contact);
+  }
+
+  const cardAd=campaignAdFromState(state,"card");
+  if(!cardAd)reportedCardImpressionKey="";
+  if(cardAd){
+    sponsorRendered=true;
+    const card=document.createElement("aside");
+    card.className="sponsorBanner";
+    card.setAttribute("aria-label","Sponsor");
+
+    const meta=document.createElement("div");
+    meta.className="sponsorMeta";
+    meta.textContent=(cardAd.sponsorLabel||"Sponsor")+(cardAd.advertiser?" · "+cardAd.advertiser:"");
+    card.append(meta);
+    if(cardAd.mode==="banner"&&cardAd.asset){
+      const media=document.createElement("div");
+      media.className="sponsorMedia sponsorMediaBanner";
+      card.append(media);
+      const rendered=ADS_MEDIA?.render?.(media,{apiBase:self.BMP_CONFIG?.API_BASE_URL,mode:"banner",asset:cardAd.asset,onError:reason=>{media.remove();reportTelemetry("media_render_failed",{campaign_id:cardAd.campaignId,placement:"card",revision:Number(cardAd.revision||0),paid_direct:true,reason})}});
+      if(!rendered){
+        media.remove();
+        reportTelemetry("media_render_failed",{campaign_id:cardAd.campaignId,placement:"card",revision:Number(cardAd.revision||0),paid_direct:true,reason:"image_load_failed"});
+      }
+    }
+    if(cardAd.headline){
+      const title=document.createElement("div");
+      title.className="sponsorTitle";
+      title.textContent=cardAd.headline;
+      card.append(title);
+    }
+    if(cardAd.body){
+      const body=document.createElement("div");
+      body.className="sponsorText";
+      body.textContent=cardAd.body;
+      card.append(body);
+    }
+    if(cardAd.disclaimer){
+      const disclaimer=document.createElement("div");
+      disclaimer.className="sponsorText";
+      disclaimer.textContent=cardAd.disclaimer;
+      card.append(disclaimer);
+    }
+    if(cardAd.cta?.label&&cardAd.cta?.url){
+      const button=document.createElement("button");
+      button.type="button";
+      button.className="sponsorAction";
+      button.textContent=cardAd.cta.label;
+      button.addEventListener("click",async()=>{
+        button.disabled=true;
+        try{
+          await executeAdCta(cardAd);
+          reportAdEvent("click",cardAd,"card");
+        }catch(e){
+          button.textContent=String(e?.message||e).slice(0,80);
+        }finally{
+          setTimeout(()=>{button.disabled=false;button.textContent=cardAd.cta.label},1400);
+        }
+      });
+      card.append(button);
+    }
+    sponsorRoot.append(card);
+  }
+
+  for(const section of sections){
+    if(section.kind==="sponsor"){
+      if(sponsorRendered)continue;
+      sponsorRendered=true;
+      const card=document.createElement("aside");
+      card.className="sponsorBanner";
+      card.setAttribute("aria-label","Sponsor");
+
+      const meta=document.createElement("div");
+      meta.className="sponsorMeta";
+      meta.textContent="Sponsor";
+      card.append(meta);
+
+      if(section.title){
+        const title=document.createElement("div");
+        title.className="sponsorTitle";
+        title.textContent=section.title;
+        card.append(title);
+      }
+      if(section.text){
+        const body=document.createElement("div");
+        body.className="sponsorText";
+        body.textContent=section.text;
+        card.append(body);
+      }
+      appendAction(card,section,"sponsorAction");
+      appendSponsorContact(card);
+      sponsorRoot.append(card);
+      continue;
+    }
+
+    const card=document.createElement("section");
+    card.className=`cloudSection ${section.kind||"info"}`;
+
+    if(section.title){
+      const title=document.createElement("div");
+      title.className="cloudTitle";
+      title.textContent=section.title;
+      card.append(title);
+    }
+    if(section.text){
+      const body=document.createElement("div");
+      body.className="cloudText";
+      body.textContent=section.text;
+      card.append(body);
+    }
+    appendAction(card,section,"cloudAction");
+    root.append(card);
+  }
+
+  function appendHouse(){
+    const house=houseAdFromState(state);
+    const placeholder=document.createElement("aside");
+    placeholder.className="sponsorBanner sponsorPlaceholder";
+    placeholder.setAttribute("aria-label","Space sponsor tersedia");
+    const meta=document.createElement("div");
+    meta.className="sponsorMeta";
+    meta.textContent=house.sponsorLabel||"Sponsor";
+    placeholder.append(meta);
+    const title=document.createElement("div");
+    title.className="sponsorTitle";
+    title.textContent=house.headline||"Space iklan tersedia";
+    placeholder.append(title);
+    appendSponsorContact(placeholder,house.cta);
+    sponsorRoot.append(placeholder);
+  }
+
+  if(!sponsorRendered&&state?.ads?.network?.adsonbread===true&&AD_NETWORK?.renderCard){
+    sponsorRendered=true;
+    const networkHost=document.createElement("aside");
+    networkHost.className="sponsorBanner sponsorNetwork";
+    networkHost.setAttribute("aria-label","Sponsor");
+    sponsorRoot.append(networkHost);
+    AD_NETWORK.renderCard(networkHost).then(result=>{
+      if(renderGeneration!==cloudRenderGeneration)return;
+      if(result?.rendered===true)return;
+      networkHost.remove();
+      appendHouse();
+    }).catch(()=>{
+      if(renderGeneration!==cloudRenderGeneration)return;
+      networkHost.remove();
+      appendHouse();
+    });
+  }
+  if(!sponsorRendered)appendHouse();
+
+  reportVisibleCardImpression();
+}
+
+async function refreshCloudSurface({force=false}={}){
+  try{
+    const r=await send("GET_CLOUD_STATE",{force});
+    if(r?.ok)renderCloudSurface(r.state||null);
+    else renderCloudSurface(null);
+  }catch(_){
+    renderCloudSurface(null);
+  }
+}
 
 async function loadDraft(){
   const x=await chrome.storage.local.get(DRAFT_KEY);
@@ -315,6 +724,8 @@ async function refreshAccess(){
   latestAccess=a;
   el("activationScreen").classList.toggle("active",!a.active);
   el("mainScreen").classList.toggle("active",Boolean(a.active));
+  el("reviewTools").style.display=a.reviewer?"block":"none";
+  if(!a.reviewer)el("reviewResult").textContent="";
 
   const updateBlocked=Boolean(latestVersionPolicy?.updateRequired);
   el("joinChannel").disabled=!a.configReady;
@@ -340,6 +751,52 @@ async function refreshAccess(){
   if(a.active&&a.expiresAt){
     el("accessBadge").textContent=`● Akses komunitas aktif hingga ${formatDate(a.expiresAt)}`;
   }
+
+  const supporterBadge=el("supporterBadge");
+  const supporter=a.supporter||null;
+  if(
+    a.active&&
+    supporter?.active&&
+    Number(supporter.until||0)>Date.now()
+  ){
+    const label=String(supporter.label||"BMP Supporter").trim()||"BMP Supporter";
+    supporterBadge.textContent=`⭐ ${label} aktif hingga ${formatDate(supporter.until)}`;
+    supporterBadge.style.display="inline-flex";
+  }else{
+    supporterBadge.textContent="";
+    supporterBadge.style.display="none";
+  }
+
+  if(a.active&&!a.reviewer){
+    const pendingRefresh=Boolean(a.pending);
+    el("refreshActivation").disabled=Boolean(latestVersionPolicy?.updateRequired);
+    if(pendingRefresh){
+      el("activationManage").style.display="block";
+      el("activationManageText").textContent=
+        "Menunggu verifikasi ulang untuk menyinkronkan akun BMP Terbuka kamu.";
+      el("activationManageCode").textContent=a.pending?.pairId
+        ? `Kode verifikasi: ${a.pending.pairId}`
+        : "";
+      el("refreshActivation").style.display="block";
+      el("refreshActivation").textContent="Buka Telegram lagi";
+    }else if(a.refreshEligible){
+      el("activationManage").style.display="none";
+      el("activationManageText").textContent="";
+      el("activationManageCode").textContent="";
+      el("refreshActivation").style.display="none";
+    }else{
+      el("activationManage").style.display="block";
+      el("activationManageText").textContent=
+        "Verifikasi ulang sekali untuk memperbarui aktivasi dan menyinkronkan akun BMP Terbuka kamu. Akses yang masih aktif tetap berlaku selama proses.";
+      el("activationManageCode").textContent="";
+      el("refreshActivation").style.display="block";
+      el("refreshActivation").textContent="Verifikasi ulang";
+    }
+  }else{
+    el("activationManage").style.display="none";
+  }
+
+  reportVisibleCardImpression();
   return a;
 }
 async function refreshState(){
@@ -385,9 +842,12 @@ async function refreshState(){
   }
   el("stop").disabled=!s.running;
   el("stop").style.display=s.running?"block":"none";
+  el("runReviewSample").disabled=Boolean(s.running);
   setFormLocked(Boolean(s.running));
 
-  if(lastRunning&&!s.running)await refreshCachePreview();
+  if(lastRunning&&!s.running){
+    await refreshCachePreview();
+  }
   lastRunning=Boolean(s.running);
 }
 
@@ -518,6 +978,24 @@ el("copyShareManual").addEventListener("click",async()=>{
 });
 el("openUpdate").addEventListener("click",()=>send("OPEN_UPDATE"));
 
+el("runReviewSample").addEventListener("click",async()=>{
+  const button=el("runReviewSample");
+  button.disabled=true;
+  el("reviewResult").textContent="Menjalankan OCR lokal pada sampel certification...";
+  try{
+    const r=await send("RUN_REVIEW_SAMPLE");
+    if(!r?.ok)throw new Error(r?.error||"Sampel reviewer gagal.");
+    const recognized=String(r.text||"").replace(/\s+/g," ").trim();
+    el("reviewResult").textContent=recognized
+      ? "PDF searchable tersimpan di Downloads. OCR terbaca: "+recognized.slice(0,180)
+      : "PDF searchable tersimpan di Downloads.";
+  }catch(e){
+    el("reviewResult").textContent=String(e?.message||e);
+  }finally{
+    button.disabled=false;
+  }
+});
+
 el("copyPairCode").addEventListener("click",async()=>{
   const code=el("pairCode").textContent.trim();
   if(!code)return;
@@ -532,7 +1010,7 @@ el("copyPairCode").addEventListener("click",async()=>{
 async function checkPendingActivation({quiet=false}={}){
   if(activationChecking)return await send("GET_ACCESS_STATUS");
   const a=await send("GET_ACCESS_STATUS");
-  if(a?.active||!a?.pending)return a;
+  if(!a?.pending)return a;
 
   activationChecking=true;
   el("checkActivation").disabled=true;
@@ -596,6 +1074,85 @@ el("retryActivation").addEventListener("click",async()=>{
 });
 el("checkActivation").addEventListener("click",()=>checkPendingActivation({quiet:false}));
 
+async function refreshActivationNow({quiet=false,force=true}={}){
+  const access=latestAccess||await send("GET_ACCESS_STATUS");
+  if(!access?.active||access?.reviewer)return access;
+
+  const button=el("refreshActivation");
+  button.disabled=true;
+  try{
+    if(access.pending){
+      await send("OPEN_PENDING_TELEGRAM");
+      if(!quiet){
+        el("activationManageText").textContent=
+          "Telegram dibuka lagi. Selesaikan verifikasi lalu kembali ke popup.";
+      }
+      return access;
+    }
+
+    if(!access.refreshEligible){
+      if(!quiet){
+        el("activationManageText").textContent=
+          "Menyiapkan verifikasi ulang untuk menyinkronkan akun dan aktivasi. Akses yang masih aktif tetap berlaku selama proses.";
+      }
+      const r=await send("START_PAIRING");
+      if(!r?.ok)throw new Error(r?.error||"Verifikasi ulang tidak dapat dimulai.");
+      await refreshAccess();
+      return latestAccess;
+    }
+
+    if(!quiet){
+      el("activationManageText").textContent="Memeriksa pembaruan aktivasi...";
+    }
+    const r=await send("REFRESH_ACTIVATION",{force});
+    if(!r?.ok)throw new Error(r?.error||"Aktivasi belum dapat diperbarui.");
+    const result=r.result||{};
+    await refreshAccess();
+    if(!quiet){
+      el("activationManageText").textContent=result.status==="throttled"
+        ? "Aktivasi sudah diperiksa baru-baru ini."
+        : result.changed
+          ? `Aktivasi diperbarui sampai ${formatDate(result.expiresAt)}.`
+          : "Aktivasi sudah menggunakan masa berlaku terbaru.";
+    }
+    return latestAccess;
+  }catch(e){
+    if(!quiet){
+      el("activationManageText").textContent=
+        "Pembaruan aktivasi belum berhasil: "+String(e?.message||e);
+    }
+    return latestAccess;
+  }finally{
+    button.disabled=Boolean(latestVersionPolicy?.updateRequired);
+  }
+}
+
+el("refreshActivation").addEventListener("click",()=>refreshActivationNow({
+  quiet:false,
+  force:true
+}));
+
+el("adInterstitialClose").addEventListener("click",()=>hideAdInterstitial());
+el("adInterstitialCta").addEventListener("click",async()=>{
+  const button=el("adInterstitialCta");
+  const ad=activeInterstitialAd;
+  if(!ad?.cta)return;
+  const originalLabel=String(ad.cta.label||"Hubungi");
+  button.disabled=true;
+  try{
+    await executeAdCta(ad);
+    if(!ad.isHouse)reportAdEvent("click",ad,"interstitial");
+    hideAdInterstitial({report:false});
+  }catch(e){
+    button.textContent=String(e?.message||e).slice(0,80);
+    setTimeout(()=>{
+      if(activeInterstitialAd===ad)button.textContent=originalLabel;
+    },1400);
+  }finally{
+    button.disabled=false;
+  }
+});
+
 el("start").addEventListener("click",async()=>{
   if(latestVersionPolicy?.updateRequired){
     el("statusTitle").textContent="Update diperlukan";
@@ -646,20 +1203,29 @@ el("start").addEventListener("click",async()=>{
   }
 
   el("code").value=code;
-  await saveDraft();
-  const res=await send("START_JOB",{
-    tabId,
-    code,
-    startModule:range.first,
-    maxModule:range.last,
-    redownload:el("redownload").checked,
-    mergeRequested:el("mergePdf").checked
-  });
-  if(!res?.ok){
+  el("start").disabled=true;
+  try{
+    await saveDraft();
+    const res=await send("START_JOB",{
+      tabId,
+      code,
+      startModule:range.first,
+      maxModule:range.last,
+      redownload:el("redownload").checked,
+      mergeRequested:el("mergePdf").checked
+    });
+    if(!res?.ok){
+      el("statusTitle").textContent="Gagal memulai";
+      el("statusText").textContent=res?.error||"Terjadi kesalahan.";
+    }else{
+      scheduleJobStartedInterstitial().catch(()=>{});
+    }
+  }catch(e){
     el("statusTitle").textContent="Gagal memulai";
-    el("statusText").textContent=res?.error||"Terjadi kesalahan.";
+    el("statusText").textContent=String(e?.message||e);
+  }finally{
+    await refreshState();
   }
-  await refreshState();
 });
 
 el("selectAllExport").addEventListener("click",()=>{
@@ -722,14 +1288,26 @@ el("stop").addEventListener("click",async()=>{await send("STOP_JOB");await refre
 el("about").addEventListener("click",()=>chrome.tabs.create({url:chrome.runtime.getURL("about.html")}));
 
 (async()=>{
+  reportTelemetry("extension_open");
   await loadDraft();
+  await refreshCloudSurface({force:true});
   await refreshAccess();
   await refreshVersion();
+  if(latestAccess?.active&&latestAccess?.refreshEligible&&!latestAccess?.reviewer){
+    await refreshActivationNow({quiet:true,force:false});
+  }
   await refreshState();
   await refreshCachePreview();
   setInterval(async()=>{await refreshAccess();await refreshState()},1000);
+  // While the popup is open, keep campaign/card control near-realtime.
+  // Popup open/focus always bypasses cache; periodic refresh is a light safety net.
+  setInterval(()=>refreshCloudSurface({force:true}).catch(()=>{}),10_000);
+  window.addEventListener("focus",()=>refreshCloudSurface({force:true}).catch(()=>{}));
+  document.addEventListener("visibilitychange",()=>{
+    if(document.visibilityState==="visible")refreshCloudSurface({force:true}).catch(()=>{});
+  });
   setInterval(async()=>{
     const a=await send("GET_ACCESS_STATUS");
-    if(a?.pending&&!a?.active)await checkPendingActivation({quiet:true});
+    if(a?.pending)await checkPendingActivation({quiet:true});
   },2000);
 })();
