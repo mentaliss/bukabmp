@@ -86,7 +86,7 @@ Untuk channel Store, remote minimum-version enforcement hanya berlaku setelah ba
 
 ## Sponsor / ads v1.1.0
 
-Kandidat v1.1.0 memiliki sponsor card dan sponsor interstitial yang dirender oleh code yang sudah ada di package. Campaign dapat mengubah plain text, label, HTTPS CTA, jadwal, placement, dan delay yang dibatasi client/backend. Tidak ada remote HTML/JavaScript/iframe/tracking pixel. Image-only campaign tidak diaktifkan pada v1.1.0.
+Kandidat v1.1.0 memiliki sponsor card dan sponsor interstitial yang dirender oleh code yang sudah ada di package. Campaign dapat menggunakan plain text atau media first-party yang tervalidasi: banner image untuk card, serta text/image/video untuk interstitial. Media berasal dari BMP-owned storage melalui media ID, bukan URL media arbitrary milik advertiser. CTA tetap HTTPS-only, dan tidak ada remote HTML/JavaScript/iframe/tracking pixel.
 
 Jika tidak ada campaign aktif atau state tidak tersedia, extension dapat menampilkan house inventory seperti **Space iklan tersedia** dengan CTA kontak yang aman.
 
@@ -122,7 +122,7 @@ Penggunaan data oleh BMP Terbuka mengikuti pembatasan penggunaan yang dijelaskan
 
 ## Anonymous product analytics (v1.1.0 candidate)
 
-The v1.1.0 candidate adds compact product telemetry for extension opens, job lifecycle health, and paid-sponsor delivery. The extension creates a random per-installation analytics identifier named `bmpAnalyticsIdV1`. It is separate from `bmpInstallId`, activation credentials, Telegram identity, and Supporter/payment state. The Worker must transform the incoming identifier with a server-side keyed HMAC before analytics storage; the raw analytics identifier is not an analytics storage key.
+The v1.1.0 candidate adds compact product telemetry for extension opens, job lifecycle health, and paid-sponsor delivery. The extension creates a random per-installation analytics identifier named `bmpAnalyticsIdV1`. It is separate from `bmpInstallId`, activation credentials, Telegram identity, and Supporter/payment state. The Worker transforms the incoming identifier with a server-side keyed HMAC before analytics storage; the raw analytics identifier is not an analytics storage key. Per-day pseudonymous activity is bounded to roughly 180 days and daily aggregate metrics to roughly 13 months; the minimal actor-hash index is used to support unique-install and returning-user definitions without storing the raw analytics UUID.
 
 Telemetry is allowlisted and must not include Telegram IDs or usernames, member references, activation or pairing secrets, BMP codes, module numbers or names, RBV URLs, PDF names or contents, OCR text, document titles or contents, or browsing history. Delivery is fire-and-forget and BMP processing does not depend on telemetry success.
 
