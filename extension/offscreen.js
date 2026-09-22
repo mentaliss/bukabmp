@@ -5,6 +5,7 @@ let progressRunId = "";
 let progressModule = 0;
 let progressPage = 0;
 let currentModuleKey = null;
+let currentPdfRunId = "";
 let currentPdf = null;
 const blobUrls = new Set();
 
@@ -149,31 +150,66 @@ async function dbClearCode(code) {
   });
 }
 
-async function ensureModulePdf(code, moduleNo) {
+function ownsActivePdf(runId, key = currentModuleKey) {
+  return Boolean(
+    runId &&
+    runId === activeJobRunId &&
+    runId === currentPdfRunId &&
+    currentPdf &&
+    currentModuleKey === key
+  );
+}
+
+function clearPdfOwnedBy(runId) {
+  if (!runId || currentPdfRunId !== runId) return;
+  currentModuleKey = null;
+  currentPdfRunId = "";
+  currentPdf = null;
+}
+
+async function ensureModulePdf(code, moduleNo, runId) {
   const key = `${code}:M${moduleNo}`;
-  if (currentModuleKey === key && currentPdf) return;
+  if (ownsActivePdf(runId, key)) return currentPdf;
+  if (!runId || runId !== activeJobRunId) {
+    throw new Error("OCR request berasal dari proses lama.");
+  }
+
+  const pdf = await PDFLib.PDFDocument.create();
+  if (runId !== activeJobRunId) {
+    throw new Error("OCR request dibatalkan sebelum state PDF dibuat.");
+  }
+  pdf.setTitle(`${code} M${moduleNo} Searchable OCR`);
+  pdf.setCreator("BMP Terbuka");
   currentModuleKey = key;
-  currentPdf = await PDFLib.PDFDocument.create();
-  currentPdf.setTitle(`${code} M${moduleNo} Searchable OCR`);
-  currentPdf.setCreator("BMP Terbuka");
+  currentPdfRunId = runId;
+  currentPdf = pdf;
+  return pdf;
 }
 
 async function addOcrPage(code, moduleNo, pageNo, dataUrl, runId) {
   if (!runId || runId !== activeJobRunId) {
     throw new Error("OCR request berasal dari proses lama.");
   }
-  await ensureModulePdf(code, moduleNo);
+  const key = `${code}:M${moduleNo}`;
+  const pdf = await ensureModulePdf(code, moduleNo, runId);
+  if (!ownsActivePdf(runId, key) || currentPdf !== pdf) {
+    throw new Error("State OCR berubah sebelum halaman diproses.");
+  }
+
   progressRunId = runId;
   progressModule = moduleNo;
   progressPage = pageNo;
   const w = await ensureWorker();
+  if (!ownsActivePdf(runId, key) || currentPdf !== pdf) {
+    throw new Error("OCR request dibatalkan sebelum recognition dimulai.");
+  }
 
   const res = await w.recognize(
     dataUrl,
     {pdfTitle: `${code} M${moduleNo} Page ${pageNo}`},
     {pdf: true}
   );
-  if (runId !== activeJobRunId) {
+  if (!ownsActivePdf(runId, key) || currentPdf !== pdf) {
     throw new Error("OCR request dibatalkan karena proses baru sudah dimulai.");
   }
   if (!res?.data?.pdf) {
@@ -181,32 +217,45 @@ async function addOcrPage(code, moduleNo, pageNo, dataUrl, runId) {
   }
 
   const pagePdf = await PDFLib.PDFDocument.load(new Uint8Array(res.data.pdf));
-  const copied = await currentPdf.copyPages(pagePdf, pagePdf.getPageIndices());
-  copied.forEach(p => currentPdf.addPage(p));
+  if (!ownsActivePdf(runId, key) || currentPdf !== pdf) {
+    throw new Error("OCR request dibatalkan saat PDF halaman disiapkan.");
+  }
+  const copied = await pdf.copyPages(pagePdf, pagePdf.getPageIndices());
+  if (!ownsActivePdf(runId, key) || currentPdf !== pdf) {
+    throw new Error("OCR request dibatalkan sebelum halaman digabungkan.");
+  }
+  copied.forEach(p => pdf.addPage(p));
   return String(res?.data?.text || "").trim();
 }
 
 async function finishModule(code, moduleNo, pages, runId) {
-  if (!runId || runId !== activeJobRunId) {
+  const key = `${code}:M${moduleNo}`;
+  if (!ownsActivePdf(runId, key)) {
     throw new Error("Finalisasi modul berasal dari proses lama.");
   }
-  const key = `${code}:M${moduleNo}`;
-  if (currentModuleKey !== key || !currentPdf) {
-    throw new Error(`State PDF Modul ${moduleNo} tidak tersedia.`);
-  }
-  if (currentPdf.getPageCount() !== Number(pages)) {
+  const pdf = currentPdf;
+  if (pdf.getPageCount() !== Number(pages)) {
     throw new Error("Jumlah halaman OCR tidak cocok.");
   }
 
-  const bytes = await currentPdf.save();
+  const bytes = await pdf.save();
+  if (!ownsActivePdf(runId, key) || currentPdf !== pdf) {
+    throw new Error("Finalisasi modul dibatalkan karena proses sudah berubah.");
+  }
+
+  // IndexedDB write is issued only while this generation still owns the PDF.
+  // A later generation writes after this transaction on the same object store,
+  // so an old generation cannot overwrite a newer completed module.
   await dbPut(key, bytes);
+  if (!ownsActivePdf(runId, key) || currentPdf !== pdf) {
+    throw new Error("Finalisasi modul selesai setelah proses dibatalkan.");
+  }
 
   const blob = new Blob([bytes], {type: "application/pdf"});
   const url = URL.createObjectURL(blob);
   blobUrls.add(url);
 
-  currentPdf = null;
-  currentModuleKey = null;
+  clearPdfOwnedBy(runId);
   return url;
 }
 
@@ -282,6 +331,7 @@ async function runReviewerSample() {
   const runId = "review:" + crypto.randomUUID();
   activeJobRunId = runId;
   currentModuleKey = null;
+  currentPdfRunId = "";
   currentPdf = null;
   try {
     const text = await addOcrPage(code, moduleNo, 1, reviewerSampleDataUrl(), runId);
@@ -289,11 +339,11 @@ async function runReviewerSample() {
     await dbClearCode(code);
     return {blobUrl, text};
   } catch (e) {
-    currentModuleKey = null;
-    currentPdf = null;
+    clearPdfOwnedBy(runId);
     await dbClearCode(code).catch(() => {});
     throw e;
   } finally {
+    clearPdfOwnedBy(runId);
     if (activeJobRunId === runId) activeJobRunId = "";
   }
 }
@@ -304,6 +354,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     if (msg.type === "OCR_ENGINE_PROBE") {
       assertLibraries();
+      sendResponse({ok: true});
+      return;
+    }
+    if (msg.type === "OCR_CANCEL_JOB") {
+      const runId = String(msg.runId || "");
+      if (runId && activeJobRunId === runId) {
+        activeJobRunId = "";
+        progressRunId = "";
+        clearPdfOwnedBy(runId);
+      }
       sendResponse({ok: true});
       return;
     }
@@ -320,6 +380,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const code = String(msg.code || "").toUpperCase();
       activeJobRunId = runId;
       currentModuleKey = null;
+      currentPdfRunId = "";
       currentPdf = null;
       sendResponse({
         ok: true,
@@ -335,8 +396,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === "OCR_RESET_JOB") {
       assertLibraries();
       await dbClearCode(String(msg.code || "").toUpperCase());
+      const oldRunId = activeJobRunId;
       activeJobRunId = "";
+      progressRunId = "";
+      clearPdfOwnedBy(oldRunId);
       currentModuleKey = null;
+      currentPdfRunId = "";
       currentPdf = null;
       sendResponse({ok: true});
       return;
@@ -346,8 +411,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const code = String(msg.code || "").toUpperCase();
       await dbClearCode(code);
       if (currentModuleKey && currentModuleKey.startsWith(code + ":M")) {
+        const oldRunId = activeJobRunId;
         activeJobRunId = "";
+        progressRunId = "";
+        clearPdfOwnedBy(oldRunId);
         currentModuleKey = null;
+        currentPdfRunId = "";
         currentPdf = null;
       }
       sendResponse({ok: true});
