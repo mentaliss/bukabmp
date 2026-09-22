@@ -214,7 +214,9 @@ test("popup sponsor UI mirrors Control Center styling and collapses broken media
   assert.match(html,/\.sponsorBanner\{padding:12px;border:1px solid #deded8;border-radius:12px/);
   assert.match(html,/\.sponsorTitle\{font-size:14px;font-weight:700/);
   assert.match(html,/\.sponsorAction\{display:inline-block;width:auto[^}]*text-decoration:underline/);
-  assert.match(html,/\.sponsorMediaAsset\{display:block;width:100%;height:auto;max-height:300px;object-fit:contain/);
+  assert.match(html,/\.sponsorMedia\{margin:0;background:transparent/);
+  assert.match(html,/\.adInterstitialMedia\{margin:0;max-height:300px;background:transparent/);
+  assert.match(html,/\.sponsorMediaAsset\{display:block;width:100%;height:auto;max-height:300px;object-fit:contain;background:transparent/);
   assert.match(popup,/media\.remove\(\);reportTelemetry\("media_render_failed"/);
   assert.match(popup,/mediaHost\.style\.display="none"/);
 });
@@ -264,4 +266,12 @@ test("popup loads generated config before sponsor media renderer",()=>{
   const popupScript=html.indexOf('<script src="popup.js"></script>');
   assert.ok(config>=0&&media>config&&popupScript>media);
   assert.match(popup,/self\.BMP_CONFIG\?\.API_BASE_URL/);
+});
+
+
+test("demo creative generator has no baked-in matte",async()=>{
+  const control=await readFile(new URL("../worker/src/control-center-ui.js",import.meta.url),"utf8");
+  assert.doesNotMatch(control,/fillStyle="#f1f1ed"/);
+  assert.doesNotMatch(control,/var m=width\*\.08/);
+  assert.match(control,/strokeRect\(2,2,width-4,height-4\)/);
 });
