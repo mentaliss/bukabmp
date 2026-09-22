@@ -134,10 +134,11 @@
       ?new Set(["video/mp4","video/webm"])
       :new Set(["image/jpeg","image/png","image/webp"]);
     if(!allowed.has(mime))return null;
+    const maxBytes=kind==="video"?10*1024*1024:3*1024*1024;
     return {
       id,
       mime,
-      bytes:boundedInt(raw.bytes,0,0,10*1024*1024),
+      bytes:boundedInt(raw.bytes,0,0,maxBytes),
       width:boundedInt(raw.width,0,0,8192),
       height:boundedInt(raw.height,0,0,8192),
       durationMs:kind==="video"?boundedInt(raw.duration_ms,0,0,15000):0
