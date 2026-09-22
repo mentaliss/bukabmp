@@ -182,6 +182,23 @@ export function sanitizeAdsState(raw, nowMs = Date.now()) {
     delay_max_ms: maxDelay
   };
 
+  const mediaConfigured = Boolean(
+    (out.card.mode === "banner" && out.card.asset) ||
+    (["image", "video"].includes(out.interstitial.mode) && out.interstitial.asset)
+  );
+  // Media fields may be visually self-sufficient in v2, but schema_version=1
+  // clients still need a text fallback. Reuse the advertiser name when the
+  // operator intentionally leaves headline/body empty.
+  if (
+    out.creative_version === 2 &&
+    mediaConfigured &&
+    !out.headline &&
+    !out.body &&
+    out.advertiser
+  ) {
+    out.headline = out.advertiser;
+  }
+
   const startsAt = out.starts_at ? Date.parse(out.starts_at) : null;
   const endsAt = out.ends_at ? Date.parse(out.ends_at) : null;
   const inWindow =
