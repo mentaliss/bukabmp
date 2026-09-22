@@ -152,6 +152,36 @@ test("Control Center publish sanitizes state and snapshots the previous live sta
   assert.ok(keys.some(key => key.startsWith("control-history:edge:")));
 });
 
+test("Control Center rejects invalid channel targets instead of falling back to github", async () => {
+  const environment = env({
+    PAIRINGS: new MemoryKV({
+      "extension-state:github": JSON.stringify({
+        schema_version: 1,
+        status_badge: {visible: true, kind: "info", text: "Keep github"}
+      })
+    })
+  });
+
+  const badGet = await worker.fetch(
+    new Request("https://worker.test/control/api/state?distribution_channel=typo", {headers: auth()}),
+    environment
+  );
+  assert.equal(badGet.status, 400);
+
+  const badPost = await worker.fetch(
+    new Request("https://worker.test/control/api/state?distribution_channel=typo", {
+      method: "POST",
+      headers: auth({"content-type": "application/json"}),
+      body: JSON.stringify({state: {schema_version: 1, status_badge: {visible: true, kind: "warning", text: "Wrong"}}})
+    }),
+    environment
+  );
+  assert.equal(badPost.status, 400);
+
+  const live = await environment.PAIRINGS.get("extension-state:github", "json");
+  assert.equal(live.status_badge.text, "Keep github");
+});
+
 test("Control Center validate never mutates the live channel state", async () => {
   const environment = env({
     PAIRINGS: new MemoryKV({
