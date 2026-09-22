@@ -783,6 +783,12 @@ async function askOffscreen(message) {
 }
 
 async function saveBlobUrl(blobUrl, filename) {
+  const revoke = () => chrome.runtime.sendMessage({
+    target: "offscreen",
+    type: "REVOKE_BLOB_URL",
+    blobUrl
+  }).catch(() => {});
+
   try {
     const id = await chrome.downloads.download({
       url: blobUrl,
@@ -790,20 +796,40 @@ async function saveBlobUrl(blobUrl, filename) {
       conflictAction: "overwrite",
       saveAs: false
     });
-    setTimeout(() => {
-      chrome.runtime.sendMessage({
-        target: "offscreen",
-        type: "REVOKE_BLOB_URL",
-        blobUrl
-      }).catch(() => {});
-    }, 15000);
+
+    let settled = false;
+    let fallbackTimer = null;
+    const cleanup = () => {
+      if (settled) return;
+      settled = true;
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+      chrome.downloads.onChanged.removeListener(onChanged);
+      revoke();
+    };
+    const onChanged = delta => {
+      if (Number(delta?.id) !== Number(id)) return;
+      const state = String(delta?.state?.current || "");
+      if (state === "complete" || state === "interrupted") cleanup();
+    };
+
+    chrome.downloads.onChanged.addListener(onChanged);
+    // Browser download completion is the primary lifetime signal. The long
+    // fallback prevents a leaked object URL if the completion event is lost,
+    // without prematurely revoking a large/slow PDF.
+    fallbackTimer = setTimeout(cleanup, 5 * 60 * 1000);
+
+    // Handle the small race where the download completed before the listener
+    // was installed.
+    try {
+      const [item] = await chrome.downloads.search({id});
+      if (["complete", "interrupted"].includes(String(item?.state || ""))) {
+        cleanup();
+      }
+    } catch (_) {}
+
     return id;
   } catch (error) {
-    chrome.runtime.sendMessage({
-      target: "offscreen",
-      type: "REVOKE_BLOB_URL",
-      blobUrl
-    }).catch(() => {});
+    revoke();
     throw error;
   }
 }
