@@ -292,6 +292,11 @@ test("Control Center v0.2 shell exposes human-facing sections and locks intersti
   assert.doesNotMatch(html, /Paid sponsor headline/);
   assert.match(html, /House Ad fallback preview/);
   assert.match(html, /AdsOnBread tidak disimulasikan di Control Center/);
+  assert.match(html, /Advanced JSON tidak valid/);
+  assert.match(html, /Advanced JSON harus berupa object/);
+  assert.match(html, /CTA URL harus HTTPS/);
+  assert.match(html, /Fallback CTA URL harus HTTPS/);
+  assert.match(html, /Release URL harus HTTPS/);
 });
 
 test("Control Center ALL target writes the same intended state to every channel", async () => {
