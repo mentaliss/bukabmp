@@ -17,6 +17,7 @@ let lastCompletedKey = "";
 let adInterstitialTimer = null;
 let activeInterstitialAd = null;
 let reportedCardImpressionKey = "";
+let cloudRenderGeneration = 0;
 const ADS_MEDIA = self.BMP_ADS_MEDIA;
 const AD_NETWORK = self.BMP_AD_NETWORK;
 
@@ -221,6 +222,7 @@ async function scheduleJobStartedInterstitial(){
 }
 
 function renderCloudSurface(state){
+  const renderGeneration=++cloudRenderGeneration;
   latestCloudState=state||null;
   const root=el("cloudSurface");
   const sponsorRoot=el("sponsorSlot");
@@ -426,10 +428,12 @@ function renderCloudSurface(state){
     networkHost.setAttribute("aria-label","Sponsor");
     sponsorRoot.append(networkHost);
     AD_NETWORK.renderCard(networkHost).then(result=>{
+      if(renderGeneration!==cloudRenderGeneration)return;
       if(result?.rendered===true)return;
       networkHost.remove();
       appendHouse();
     }).catch(()=>{
+      if(renderGeneration!==cloudRenderGeneration)return;
       networkHost.remove();
       appendHouse();
     });
