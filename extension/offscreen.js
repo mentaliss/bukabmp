@@ -279,11 +279,13 @@ function reviewerSampleDataUrl() {
 async function runReviewerSample() {
   const code = "REVIEW";
   const moduleNo = 1;
+  const runId = "review:" + crypto.randomUUID();
+  activeJobRunId = runId;
   currentModuleKey = null;
   currentPdf = null;
   try {
-    const text = await addOcrPage(code, moduleNo, 1, reviewerSampleDataUrl());
-    const blobUrl = await finishModule(code, moduleNo, 1);
+    const text = await addOcrPage(code, moduleNo, 1, reviewerSampleDataUrl(), runId);
+    const blobUrl = await finishModule(code, moduleNo, 1, runId);
     await dbClearCode(code);
     return {blobUrl, text};
   } catch (e) {
@@ -291,6 +293,8 @@ async function runReviewerSample() {
     currentPdf = null;
     await dbClearCode(code).catch(() => {});
     throw e;
+  } finally {
+    if (activeJobRunId === runId) activeJobRunId = "";
   }
 }
 
@@ -311,7 +315,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     if (msg.type === "OCR_PREPARE_JOB") {
       assertLibraries();
+      const runId = String(msg.runId || "");
+      if (!runId) throw new Error("runId OCR tidak tersedia.");
       const code = String(msg.code || "").toUpperCase();
+      activeJobRunId = runId;
       currentModuleKey = null;
       currentPdf = null;
       sendResponse({
@@ -328,6 +335,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === "OCR_RESET_JOB") {
       assertLibraries();
       await dbClearCode(String(msg.code || "").toUpperCase());
+      activeJobRunId = "";
       currentModuleKey = null;
       currentPdf = null;
       sendResponse({ok: true});
@@ -338,6 +346,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const code = String(msg.code || "").toUpperCase();
       await dbClearCode(code);
       if (currentModuleKey && currentModuleKey.startsWith(code + ":M")) {
+        activeJobRunId = "";
         currentModuleKey = null;
         currentPdf = null;
       }
@@ -345,14 +354,25 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
     if (msg.type === "OCR_ADD_PAGE") {
-      await addOcrPage(msg.code, Number(msg.module), Number(msg.page), msg.dataUrl);
+      await addOcrPage(
+        msg.code,
+        Number(msg.module),
+        Number(msg.page),
+        msg.dataUrl,
+        String(msg.runId || "")
+      );
       sendResponse({ok: true});
       return;
     }
     if (msg.type === "OCR_FINISH_MODULE") {
       sendResponse({
         ok: true,
-        blobUrl: await finishModule(msg.code, Number(msg.module), Number(msg.pages))
+        blobUrl: await finishModule(
+          msg.code,
+          Number(msg.module),
+          Number(msg.pages),
+          String(msg.runId || "")
+        )
       });
       return;
     }
