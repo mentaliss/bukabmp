@@ -839,7 +839,6 @@ async function startModule(tabId, state, attempt = 0) {
     if (nextAttempt > 20) {
       const latest = await getState();
       if (latest.running && String(latest.runId || "") === runId) {
-        cancelledRunIds.add(runId);
         await setStateForRun(runId, {
           running: false,
           runId: "",
@@ -849,6 +848,7 @@ async function startModule(tabId, state, attempt = 0) {
             "Tutup-buka halaman reader lalu coba lagi.",
           ocrProgress: ""
         });
+        cancelledRunIds.add(runId);
       }
       return;
     }
@@ -904,7 +904,6 @@ async function navigateCurrentModule() {
           String(latest.runId || "") === String(state.runId || "")
         ) {
           const id = String(state.runId || "");
-          cancelledRunIds.add(id);
           await setStateForRun(id, {
             running: false,
             runId: "",
@@ -912,6 +911,7 @@ async function navigateCurrentModule() {
             progress: String(e),
             ocrProgress: ""
           });
+          cancelledRunIds.add(id);
         }
       });
     }
@@ -1180,7 +1180,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
           String(latest.runId || "") === String(s.runId || "")
         ) {
           const id = String(s.runId || "");
-          cancelledRunIds.add(id);
           await setStateForRun(id, {
             running: false,
             runId: "",
@@ -1188,6 +1187,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
             progress: String(e),
             ocrProgress: ""
           });
+          cancelledRunIds.add(id);
         }
       });
     }
