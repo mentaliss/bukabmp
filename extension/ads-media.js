@@ -5,7 +5,10 @@ const VIDEO_MIME=new Set(["video/mp4","video/webm"]);
 function safeId(value){const id=String(value||"").trim();return /^[0-9a-f]{64}$/i.test(id)?id:"";}
 function safeBase(value){try{const url=new URL(String(value||""));return url.protocol==="https:"?url.toString().replace(/\/$/,""):"";}catch(_){return "";}}
 function mediaUrl(apiBase,asset){const base=safeBase(apiBase),id=safeId(asset?.id);return base&&id?`${base}/v1/media/${encodeURIComponent(id)}`:"";}
-function revokeNodeUrl(node){const u=node?.dataset?.bmpObjectUrl||"";if(u){try{URL.revokeObjectURL(u);}catch(_){}delete node.dataset.bmpObjectUrl;}}
+function revokeNodeUrl(node){
+  const u=node?.dataset?.bmpObjectUrl||"";if(u){try{URL.revokeObjectURL(u);}catch(_){}delete node.dataset.bmpObjectUrl;}
+  const p=node?.dataset?.bmpPosterUrl||"";if(p){try{URL.revokeObjectURL(p);}catch(_){}delete node.dataset.bmpPosterUrl;}
+}
 function clear(container){
   if(!container)return;
   for(const node of [...container.querySelectorAll("video,img")])revokeNodeUrl(node);
