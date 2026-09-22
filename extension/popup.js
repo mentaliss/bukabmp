@@ -1221,8 +1221,8 @@ el("start").addEventListener("click",async()=>{
       el("statusText").textContent=res?.error||"Terjadi kesalahan.";
       reportTelemetry("job_failed");
     }else{
-      reportTelemetry("job_started");
       scheduleJobStartedInterstitial().catch(()=>{});
+      reportTelemetry("job_started");
     }
   }catch(e){
     el("statusTitle").textContent="Gagal memulai";
