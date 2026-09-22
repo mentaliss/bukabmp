@@ -118,3 +118,12 @@ Fungsi aplikasi berinteraksi dengan layanan yang memang diperlukan, termasuk Clo
 BMP Terbuka tidak menjual isi materi, OCR text, atau PDF pengguna kepada advertiser.
 
 Penggunaan data oleh BMP Terbuka mengikuti pembatasan penggunaan yang dijelaskan di kebijakan ini; data pengguna extension tidak ditransfer, digunakan, atau dijual untuk personalized advertising atau retargeting.
+
+
+## Anonymous product analytics (v1.1.0 candidate)
+
+The v1.1.0 candidate adds compact product telemetry for extension opens, job lifecycle health, and paid-sponsor delivery. The extension creates a random per-installation analytics identifier named `bmpAnalyticsIdV1`. It is separate from `bmpInstallId`, activation credentials, Telegram identity, and Supporter/payment state. The Worker must transform the incoming identifier with a server-side keyed HMAC before analytics storage; the raw analytics identifier is not an analytics storage key.
+
+Telemetry is allowlisted and must not include Telegram IDs or usernames, member references, activation or pairing secrets, BMP codes, module numbers or names, RBV URLs, PDF names or contents, OCR text, document titles or contents, or browsing history. Delivery is fire-and-forget and BMP processing does not depend on telemetry success.
+
+Direct sponsor media is referenced by BMP-owned first-party media IDs. Advertiser-controlled arbitrary media URLs are not rendered by the extension. AdsOnBread is limited to fallback card inventory. Live AdsOnBread SDK/account activation remains an external release gate and executable remote JavaScript is not loaded by the Manifest V3 extension.
