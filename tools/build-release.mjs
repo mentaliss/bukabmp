@@ -118,6 +118,30 @@ for(const [url,rel,min,expectedSha256] of assets){
   fs.copyFileSync(cached,dest);
 }
 
+function replaceExact(file,from,to,label){
+  const text=fs.readFileSync(file,"utf8");
+  const count=text.split(from).length-1;
+  if(count!==1) throw new Error("Unexpected "+label+" occurrence count in "+file+": "+count);
+  fs.writeFileSync(file,text.replace(from,to));
+}
+
+function hardenTesseractForMv3(outDir){
+  const tesseract=path.join(outDir,"vendor","tesseract.min.js");
+  const worker=path.join(outDir,"vendor","worker.min.js");
+
+  // Tesseract browser distributions ship generic CDN fallbacks and legacy
+  // Function-constructor fallbacks. BMP always supplies local worker/core/lang
+  // paths, so remove those dead RHC paths from the compiled Store package.
+  replaceExact(tesseract,'"https://cdn.jsdelivr.net/npm/tesseract.js@v".concat(c,"/dist/worker.min.js")','"/vendor/worker.min.js"',"Tesseract worker CDN fallback");
+  replaceExact(tesseract,'Function("r","regeneratorRuntime = r")(o)','void 0',"Tesseract Function constructor fallback");
+  replaceExact(worker,'b=s||"https://cdn.jsdelivr.net/npm/@tesseract.js-data/".concat(i,m?"/4.0.0_best_int":"/4.0.0")','b=s||"/vendor/lang"',"Tesseract language CDN fallback");
+  replaceExact(worker,'f=o||"https://cdn.jsdelivr.net/npm/tesseract.js-core@v".concat(s.substring(1))','f=o||"/vendor/core"',"Tesseract core CDN fallback");
+  replaceExact(worker,'Function("r","regeneratorRuntime = r")(i)','void 0',"Tesseract worker Function constructor fallback");
+  replaceExact(worker,'new Function("return this")()','void 0',"Tesseract worker global Function constructor fallback");
+}
+
+hardenTesseractForMv3(out);
+
 // Indonesian fast traineddata is pinned to an immutable upstream commit.
 const trainedRaw=path.join(CACHE,"lang",`ind-${TESSDATA_FAST_COMMIT}.traineddata`);
 await ensure(
