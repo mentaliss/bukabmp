@@ -66,11 +66,29 @@ async function getState() {
   return {...DEFAULT_STATE, ...(x.bmpState || {})};
 }
 
+const JOB_SUCCESS_STATUSES=new Set(["DONE","END_CANDIDATE"]);
+const JOB_FAILURE_STATUSES=new Set(["ERROR","BLOCKED","LOGIN_REQUIRED","MISSING_GAP","INTERRUPTED"]);
+
+function reportJobStateTransition(previous,next){
+  try{
+    if(previous?.running!==true&&next?.running===true){
+      void reportTelemetryEvent("job_started").catch(()=>{});
+      return;
+    }
+    if(previous?.running===true&&next?.running!==true){
+      const status=String(next?.status||"");
+      if(JOB_SUCCESS_STATUSES.has(status))void reportTelemetryEvent("job_completed").catch(()=>{});
+      else if(JOB_FAILURE_STATUSES.has(status))void reportTelemetryEvent("job_failed").catch(()=>{});
+    }
+  }catch(_){}
+}
+
 async function setState(patch) {
   return await serializeStateMutation(async () => {
     const current = await getState();
     const next = {...current, ...patch};
     await chrome.storage.local.set({bmpState: next});
+    reportJobStateTransition(current,next);
     return next;
   });
 }
@@ -100,7 +118,9 @@ async function setStateForRun(runId, patch) {
     const next = {...current, ...patch};
     if (cancelledRunIds.has(id)) return null;
     await chrome.storage.local.set({bmpState: next});
-    return cancelledRunIds.has(id) ? null : next;
+    if (cancelledRunIds.has(id)) return null;
+    reportJobStateTransition(current,next);
+    return next;
   });
 }
 
