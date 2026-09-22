@@ -322,7 +322,7 @@ function renderAdPreview(showStatus){
   }
   var h=document.createElement("div");h.className="headline";h.textContent=ads.headline||"Paid sponsor headline";card.appendChild(h);
   if(ads.body){var b=document.createElement("div");b.className="bodyCopy";b.textContent=ads.body;card.appendChild(b)}
-  if(ads.cta){var a=document.createElement("span");a.className="cta";a.textContent=ads.cta.label;card.appendChild(a)}
+  if(ads.cta){var a=document.createElement("a");a.className="cta";a.textContent=ads.cta.label+" ↗";a.href=ads.cta.url;a.target="_blank";a.rel="noopener noreferrer";card.appendChild(a)}
   if(ads.disclaimer){var d=document.createElement("div");d.className="disclaimer";d.textContent=ads.disclaimer;card.appendChild(d)}
   if(el("placeCard").checked)host.appendChild(card);
   if(el("placeInterstitial").checked){
