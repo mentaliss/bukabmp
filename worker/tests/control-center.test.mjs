@@ -185,6 +185,31 @@ test("Control Center rejects invalid channel targets instead of falling back to 
   assert.equal(live.status_badge.text, "Keep github");
 });
 
+test("legacy admin extension-state rejects an invalid explicit channel", async () => {
+  const environment = env({
+    PAIRINGS: new MemoryKV({
+      "extension-state:github": JSON.stringify({
+        schema_version: 1,
+        status_badge: {visible: true, kind: "info", text: "Keep github"}
+      })
+    })
+  });
+
+  const response = await worker.fetch(
+    new Request("https://worker.test/admin/extension-state?distribution_channel=typo", {
+      method: "POST",
+      headers: auth({"content-type": "application/json"}),
+      body: JSON.stringify({schema_version: 1, status_badge: {visible: true, kind: "warning", text: "Wrong"}})
+    }),
+    environment
+  );
+  assert.equal(response.status, 400);
+  const body = await response.json();
+  assert.equal(body.error, "invalid_distribution_channel");
+  const live = await environment.PAIRINGS.get("extension-state:github", "json");
+  assert.equal(live.status_badge.text, "Keep github");
+});
+
 test("Control Center validate never mutates the live channel state", async () => {
   const environment = env({
     PAIRINGS: new MemoryKV({
@@ -330,6 +355,7 @@ test("Control Center v0.2 shell exposes human-facing sections and locks intersti
   assert.match(html, /CTA URL harus HTTPS/);
   assert.match(html, /Fallback CTA URL harus HTTPS/);
   assert.match(html, /Release URL harus HTTPS/);
+  assert.match(html, /Campaign ON butuh minimal satu placement/);
 });
 
 test("Control Center ALL target writes the same intended state to every channel", async () => {
