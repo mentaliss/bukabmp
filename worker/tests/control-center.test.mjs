@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
 import worker from "../src/index.js";
 
 class MemoryKV {
@@ -42,6 +43,12 @@ async function jsonResponse(path, options = {}, environment = env()) {
   const body = await response.json().catch(() => null);
   return {response, body};
 }
+
+test("deployment config persists the AD_MEDIA R2 binding", async () => {
+  const config = await readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8");
+  assert.match(config, /"binding"\s*:\s*"AD_MEDIA"/);
+  assert.match(config, /"bucket_name"\s*:\s*"bmp-terbuka-ad-media"/);
+});
 
 test("Control Center shell is inert without backend admin authority", async () => {
   const disabled = await worker.fetch(new Request("https://worker.test/control"), env({
