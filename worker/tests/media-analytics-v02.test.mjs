@@ -107,6 +107,33 @@ test("media validation enforces allowed MIME, magic, byte and duration bounds", 
     data_base64: b64(mp4),
     duration_ms: 15001
   }), null);
+  const jpeg = new Uint8Array(16);
+  jpeg.set([0xff, 0xd8, 0xff], 0);
+  assert.ok(sanitizeMediaUpload({mime: "image/jpeg", data_base64: b64(jpeg), width: 333, height: 2000}));
+
+  const png = new Uint8Array(16);
+  png.set([137,80,78,71,13,10,26,10], 0);
+  assert.ok(sanitizeMediaUpload({mime: "image/png", data_base64: b64(png)}));
+
+  const webm = new Uint8Array(16);
+  webm.set([0x1a,0x45,0xdf,0xa3], 0);
+  assert.ok(sanitizeMediaUpload({
+    mime: "video/webm",
+    data_base64: b64(webm),
+    duration_ms: 15000
+  }));
+  assert.equal(sanitizeMediaUpload({mime: "image/gif", data_base64: b64(webp)}), null);
+  assert.equal(sanitizeMediaUpload({mime: "image/webp", data_base64: b64(new Uint8Array(16))}), null);
+  assert.equal(sanitizeMediaUpload({mime: "video/mp4", data_base64: b64(mp4), duration_ms: 0}), null);
+
+  const imageTooLarge = new Uint8Array(3 * 1024 * 1024 + 1);
+  imageTooLarge.set([0xff, 0xd8, 0xff], 0);
+  assert.equal(sanitizeMediaUpload({mime: "image/jpeg", data_base64: b64(imageTooLarge)}), null);
+
+  const videoTooLarge = new Uint8Array(10 * 1024 * 1024 + 1);
+  videoTooLarge.set(Buffer.from("ftyp"), 4);
+  assert.equal(sanitizeMediaUpload({mime: "video/mp4", data_base64: b64(videoTooLarge), duration_ms: 5000}), null);
+
   assert.equal(MEDIA_LIMITS.image_bytes, 3 * 1024 * 1024);
   assert.equal(MEDIA_LIMITS.video_bytes, 10 * 1024 * 1024);
   assert.equal(MEDIA_LIMITS.video_duration_ms, 15000);
