@@ -248,3 +248,51 @@ test("community stats preserves the successful Telegram count when the sibling l
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test("ALL target rolls back a channel even if its write mutates and then throws", async () => {
+  const channels = ["github", "android", "cws", "edge"];
+  const store = new Map(channels.map(channel => [channel, {value: "old-" + channel}]));
+  let failed = false;
+  await assert.rejects(
+    publishAllChannels({
+      channels,
+      incoming: {value: "new"},
+      reason: "partial-write",
+      sanitize: value => ({...value}),
+      read: async channel => ({...store.get(channel)}),
+      snapshot: async () => {},
+      write: async (channel, value) => {
+        store.set(channel, {...value});
+        if (channel === "cws" && !failed) {
+          failed = true;
+          throw new Error("mutated_then_failed");
+        }
+      },
+      verify: async (channel, expected) => JSON.stringify(store.get(channel)) === JSON.stringify(expected)
+    }),
+    /mutated_then_failed/
+  );
+  for (const channel of channels) assert.equal(store.get(channel).value, "old-" + channel);
+});
+
+test("global version policy rejects contradictory versions and unsafe release URLs", async () => {
+  const env = {PAIRINGS: new MemoryKV()};
+  assert.equal((await writeGlobalVersionPolicy(env, {
+    latest_version: "1.0.5",
+    minimum_global: "1.1.0",
+    readiness: {}
+  })).ok, false);
+  assert.equal((await writeGlobalVersionPolicy(env, {
+    latest_version: "1.1.0",
+    minimum_global: "1.0.5",
+    release_url: "http://example.com/release",
+    readiness: {}
+  })).ok, false);
+  assert.equal((await writeGlobalVersionPolicy(env, {
+    latest_version: "1.1.0",
+    minimum_global: "1.0.5",
+    force_after: "not-a-date",
+    readiness: {}
+  })).ok, false);
+});
