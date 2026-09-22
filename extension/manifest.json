@@ -41,7 +41,7 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://community.bukabmp.workers.dev; img-src 'self' data: blob: https://community.bukabmp.workers.dev; media-src 'self' blob: https://community.bukabmp.workers.dev"
   },
   "default_locale": "id"
 }
