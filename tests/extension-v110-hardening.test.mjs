@@ -194,3 +194,15 @@ test("detected-last metadata is committed only by the active generation", () => 
   assert.match(background, /await activeRunState\(runId\)/);
   assert.match(background, /cancelledRunIds\.has\(String\(runId \|\| ""\)\)/);
 });
+
+
+test("raw state writes are restricted to lifecycle authority boundaries", () => {
+  const rawWrites = [...background.matchAll(/await setState\(/g)];
+  assert.equal(rawWrites.length, 6);
+  assert.ok(background.includes("const interrupt = async () => await setState("));
+  assert.ok(background.includes('details?.reason === "update"'));
+  assert.ok(background.includes("await setState({completedModules: [], detectedLastModule: null})"));
+  assert.ok(background.includes('status: "PREPARING"'));
+  assert.ok(background.includes('status: "STOPPED_BY_USER"'));
+  assert.ok(background.includes("cancelledRunIds.add(String(messageRunId))"));
+});
