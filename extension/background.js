@@ -13,6 +13,7 @@ const ACTIVATION_REFRESH_FAILURE_BACKOFF_MS = 60 * 1000;
 const JOB_ERROR_MESSAGE_TYPES = new Set(["START_JOB", "OCR_PAGE", "MODULE_RESULT"]);
 const DEFAULT_STATE = {
   running: false,
+  runId: "",
   tabId: null,
   code: "",
   startModule: 1,
@@ -766,6 +767,7 @@ async function startModule(tabId, state, attempt = 0) {
   try {
     await chrome.tabs.sendMessage(tabId, {
       type: "START_MODULE",
+      runId: state.runId,
       code: state.code,
       module: state.currentModule,
       delayMs: state.delayMs,
@@ -830,6 +832,7 @@ async function finishModule(mod, pages) {
   const state = await getState();
   const out = await askOffscreen({
     type: "OCR_FINISH_MODULE",
+    runId: state.runId,
     code: state.code,
     module: mod,
     pages
@@ -1229,7 +1232,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const probe = await askOffscreen({type: "OCR_ENGINE_PROBE"});
       if (!probe?.ok) throw new Error(probe?.error || "OCR lokal tidak siap.");
 
-      const prepared = await askOffscreen({type: "OCR_PREPARE_JOB", code});
+      const runId = crypto.randomUUID();
+      const prepared = await askOffscreen({
+        type: "OCR_PREPARE_JOB",
+        runId,
+        code
+      });
       if (!prepared?.ok) {
         throw new Error(prepared?.error || "Penyimpanan lokal tidak dapat dibaca.");
       }
@@ -1253,6 +1261,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       const nextState = await setState({
         running: true,
+        runId,
         tabId,
         code,
         startModule,
@@ -1319,6 +1328,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
     if (msg.type === "STOP_JOB") {
+      const state = await getState();
+      if (state.running && state.tabId) {
+        chrome.tabs.sendMessage(state.tabId, {
+          type: "STOP_MODULE",
+          runId: state.runId
+        }).catch(() => {});
+      }
       await setState({
         running: false,
         status: "STOPPED_BY_USER",
@@ -1331,7 +1347,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === "OCR_PROGRESS") {
       const state = await getState();
       const moduleNo = Number(msg.module || 0);
-      if (!state.running || (moduleNo > 0 && moduleNo !== Number(state.currentModule))) {
+      if (
+        !state.running ||
+        String(msg.runId || "") !== String(state.runId || "") ||
+        (moduleNo > 0 && moduleNo !== Number(state.currentModule))
+      ) {
         sendResponse({ok: true, stale: true});
         return;
       }
@@ -1353,7 +1373,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     if (msg.type === "PAGE_PROGRESS") {
       const state = await getState();
-      if (!state.running || Number(msg.module) !== Number(state.currentModule)) {
+      if (
+        !state.running ||
+        String(msg.runId || "") !== String(state.runId || "") ||
+        Number(msg.module) !== Number(state.currentModule)
+      ) {
         sendResponse({ok: true, stale: true});
         return;
       }
@@ -1373,12 +1397,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ok: false, error: "Proses tidak aktif."});
         return;
       }
+      if (String(msg.runId || "") !== String(state.runId || "")) {
+        sendResponse({ok: false, stale: true, error: "Pesan OCR berasal dari proses lama."});
+        return;
+      }
       if (Number(msg.module) !== Number(state.currentModule)) {
         sendResponse({ok: false, stale: true, error: "Pesan OCR berasal dari modul lama."});
         return;
       }
       const out = await askOffscreen({
         type: "OCR_ADD_PAGE",
+        runId: state.runId,
         code: state.code,
         module: msg.module,
         page: msg.page,
@@ -1396,6 +1425,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
 
       const mod = Number(msg.module);
+      if (String(msg.runId || "") !== String(state.runId || "")) {
+        sendResponse({ok: true, stale: true});
+        return;
+      }
       if (mod !== Number(state.currentModule)) {
         sendResponse({ok: true, stale: true});
         return;
