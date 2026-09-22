@@ -81,10 +81,10 @@ Automated CI already proves build/package/static compatibility. Before submissio
 - sponsor event privacy/integrity;
 - token-v2 refresh + Supporter snapshot;
 - Store-channel update behavior;
-- same-listing 1.0.5 → 1.1.0 preservation of token, draft, IndexedDB cache, and resume state.
+- same-listing 1.0.5 → 1.1.0 preservation of token, draft, IndexedDB cache, and resume state **only if a 1.0.5 Edge Store identity already exists**.
 
 Android Edge Canary signed CRX must be regression-tested separately because its private signing path is intentionally outside this public repo.
 
 ## Upgrade identity gate
 
-A separately installed candidate cannot prove persistence. Before public rollout, update the **existing Edge Store listing** from 1.0.5 to 1.1.0 in a controlled/hidden path and verify the browser preserves extension storage. Do not raise the Edge minimum version until this same-listing update is available and passes regression.
+A separately installed candidate cannot prove persistence. If a 1.0.5 Edge Store listing already exists, update that **same listing** to 1.1.0 in a controlled/hidden path and verify the browser preserves extension storage. If Edge Add-ons 1.1.0 is the first Store publication, it has a new Store identity and cannot inherit token/cache from the existing manually signed Android CRX or another Store identity. Do not claim cross-identity migration as an in-place update.
