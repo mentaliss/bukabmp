@@ -251,3 +251,15 @@ test("unknown page-count completion requires a confirmed end sentinel", () => {
   assert.match(contentScript, /halaman \$\{page \+ 1\} masih ada/);
   assert.match(contentScript, /Modul tidak disimpan agar PDF tidak terpotong/);
 });
+
+
+test("first-install ID creation is serialized so pairing cannot bind to a lost UUID", () => {
+  assert.match(background, /let installIdPromise = null/);
+  const start = background.indexOf("async function getInstallId");
+  const end = background.indexOf("function b64urlToBytes", start);
+  const block = background.slice(start, end);
+  assert.match(block, /if \(installIdPromise\) return await installIdPromise/);
+  assert.match(block, /installIdPromise = \(async \(\) =>/);
+  assert.match(block, /persisted\.bmpInstallId \|\| id/);
+  assert.match(block, /installIdPromise = null/);
+});
