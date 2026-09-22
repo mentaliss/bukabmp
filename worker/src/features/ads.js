@@ -211,6 +211,10 @@ export function sanitizeAdsState(raw, nowMs = Date.now()) {
     out.headline ||
     out.body
   );
+  const hasPlacement = Boolean(
+    out.placements.card ||
+    (out.placements.interstitial && out.interstitial.enabled)
+  );
 
   // Active is runtime eligibility only. Keep configured placements and
   // interstitial settings intact while a campaign is scheduled for later,
@@ -219,6 +223,7 @@ export function sanitizeAdsState(raw, nowMs = Date.now()) {
     out.enabled &&
     out.campaign_id &&
     hasCreative &&
+    hasPlacement &&
     inWindow
   );
 
