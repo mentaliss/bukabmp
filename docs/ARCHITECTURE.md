@@ -25,8 +25,10 @@ Chrome / Chromium
   │     └── exported searchable PDF
   │
   └── Cloudflare Worker
-        ├── activation/version data
-        └── approved cloud state/content only
+        ├── activation/version data + token-v2 refresh
+        ├── Telegram bot / Supporter / referral state
+        ├── approved realtime cloud state
+        └── validated coarse sponsor metrics
 ```
 
 ## Shared source, separate distribution profiles
@@ -34,6 +36,7 @@ Chrome / Chromium
 Satu source client digunakan untuk beberapa jalur distribusi:
 - `github`: manual desktop release;
 - `cws`: Chrome Web Store package;
+- `edge`: Microsoft Edge Add-ons package;
 - `android`: existing signed CRX path.
 
 CWS build dihasilkan dari source yang sama, tetapi menggunakan package profile sendiri. Build CWS menghapus broad `tabs` permission sementara build GitHub/Android mempertahankan baseline v1.0.5 sampai regression test membuktikan perubahan shared aman.
@@ -49,7 +52,7 @@ Halaman, OCR, dan PDF diproses lokal oleh extension/offscreen document. Activati
 ### Community activation
 Extension membuat pairing melalui API eksternal, menerima signed activation token, lalu memverifikasi signature token secara lokal menggunakan public key yang terdapat di client.
 
-Implementation, hosting, deployment, secret management, dan retention activation service berada di luar repository client publik.
+Source Cloudflare Worker untuk activation/version/bot/Supporter/realtime state berada di `worker/` pada repository ini agar dapat diaudit bersama client. Secret produksi, private signing key, reviewer secret, provider account, dan nilai konfigurasi rahasia tetap berada di environment/deployment provider.
 
 ### Executable code
 Semua JavaScript/WASM/model OCR yang diperlukan runtime harus berada di package extension. Dependency boleh diambil saat build, tetapi package end-user tidak boleh bergantung pada JavaScript/WASM executable yang di-host remote.
@@ -67,11 +70,13 @@ Cloud Surface hanya boleh mengontrol value yang lolos schema allowlist, misalnya
 
 Schema kandidat didokumentasikan di `docs/CLOUD_SURFACE.md`.
 
+Sponsor v1.1.0 memakai renderer yang sudah dibundel di popup. Backend hanya memilih plain creative/state yang lolos sanitizer. Event sponsor yang dikirim client bersifat coarse dan tidak membawa Telegram ID, installation ID, token aktivasi, kode BMP, atau isi dokumen.
+
 ## Update model
 
 Build `cws` mengirim distribution channel ke version API. Remote minimum-version policy tidak boleh memblokir build CWS sampai backend memberi `store_ready=true` untuk versi yang benar-benar tersedia melalui Store. Package update CWS tetap dikelola Chrome Web Store/browser.
 
-Build `github` dan `android` mempertahankan jalur manual yang sudah ada.
+Build `github` dan `android` mempertahankan jalur manual yang sudah ada; `edge` memakai policy Store independen seperti `cws`.
 
 ## Failure behavior
 
