@@ -484,3 +484,67 @@ test("public telemetry endpoint fails closed without HMAC secret and never requi
   assert.equal(result.body.error, "telemetry_not_configured");
 });
 
+
+
+test("D1 control state wins over stale KV", async () => {
+  const db = new MemoryControlD1({
+    cws: {
+      schema_version: 1,
+      status_badge: {visible: true, kind: "success", text: "FRESH D1"},
+      ads: {enabled: false}
+    }
+  });
+  const environment = env({
+    BOT_DB: db,
+    PAIRINGS: new MemoryKV({
+      "extension-state:cws": JSON.stringify({
+        schema_version: 1,
+        status_badge: {visible: true, kind: "warning", text: "STALE KV"},
+        ads: {enabled: false}
+      })
+    })
+  });
+
+  let result = await jsonResponse("/v1/extension-state?distribution_channel=cws", {}, environment);
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.status_badge.text, "FRESH D1");
+
+  const assetId = "a".repeat(64);
+  result = await jsonResponse(
+    "/control/api/state?distribution_channel=cws",
+    {
+      method: "POST",
+      headers: auth({"content-type": "application/json"}),
+      body: JSON.stringify({
+        reason: "realtime_media_publish",
+        state: {
+          schema_version: 1,
+          status_badge: {visible: true, kind: "success", text: "FRESH PUBLISH"},
+          ads: {
+            enabled: true,
+            campaign_id: "fresh-media",
+            revision: 2,
+            creative_version: 2,
+            headline: "Fresh",
+            placements: {card: true, interstitial: false},
+            card: {
+              mode: "banner",
+              asset: {id: assetId, mime: "image/png", bytes: 100, width: 1200, height: 675}
+            }
+          }
+        }
+      })
+    },
+    environment
+  );
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.state.ads.card.asset.id, assetId);
+
+  const d1State = JSON.parse(db.map.get("cws").state_json);
+  const kvState = await environment.PAIRINGS.get("extension-state:cws", "json");
+  assert.equal(d1State.ads.card.asset.id, assetId);
+  assert.equal(kvState.ads.card.asset.id, assetId);
+
+  const live = await jsonResponse("/v1/extension-state?distribution_channel=cws", {}, environment);
+  assert.equal(live.body.ads.card.asset.id, assetId);
+});
