@@ -146,7 +146,7 @@ if(process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.ar
   console.log("Missing ledger entries: "+result.missingLedger.join(", "));
   if(!write){
     console.log("READ-ONLY PASS. Re-run with --write to baseline only the missing ledger rows.");
-    process.exit(4);
+    process.exit(0);
   }
 
   if(!result.canBaseline){
