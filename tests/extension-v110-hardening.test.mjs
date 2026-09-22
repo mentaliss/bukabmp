@@ -91,13 +91,16 @@ test("cache and reviewer operations are isolated from active OCR", () => {
   assert.match(offscreen, /currentPdf\s*!==\s*pdf|currentPdf\s*===\s*pdf/);
 });
 
-test("download failure still revokes temporary blob URL", () => {
+test("download completion and failure both revoke temporary blob URLs", () => {
   const block = background.slice(
     background.indexOf("async function saveBlobUrl"),
     background.indexOf("async function runReviewerSample")
   );
-  assert.match(block, /catch \(error\)/);
-  assert.ok((block.match(/REVOKE_BLOB_URL/g) || []).length >= 2);
+  assert.match(block, /const revoke = \(\) => chrome\.runtime\.sendMessage/);
+  assert.match(block, /type: "REVOKE_BLOB_URL"/);
+  assert.match(block, /const cleanup = \(\) =>/);
+  assert.match(block, /revoke\(\)/);
+  assert.match(block, /catch \(error\)[\s\S]*revoke\(\)/);
 });
 
 test("stale persisted jobs have a safe recovery path", () => {
