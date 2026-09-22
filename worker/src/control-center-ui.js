@@ -6,221 +6,167 @@ export function controlCenterPage() {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BMP Terbuka Control Center</title>
 <style>
-:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#161616;background:#f4f4f1}
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh}
-button,input,select,textarea{font:inherit}
-button{cursor:pointer}
-.shell{max-width:1180px;margin:0 auto;padding:24px}
-.top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:20px}
-.brand h1{font-size:24px;margin:0 0 4px}.brand p{margin:0;color:#666;font-size:13px}
-.pill{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #d7d7d2;border-radius:999px;background:#fff;font-size:12px;font-weight:700}
-.dot{width:8px;height:8px;border-radius:50%;background:#aaa}.dot.ok{background:#16863a}.dot.warn{background:#c47b08}
-.grid{display:grid;grid-template-columns:240px minmax(0,1fr);gap:18px}
-.nav,.card{background:#fff;border:1px solid #dddcd6;border-radius:14px;box-shadow:0 4px 18px rgba(0,0,0,.035)}
-.nav{padding:12px;height:max-content;position:sticky;top:16px}
-.nav button{width:100%;border:0;background:transparent;text-align:left;padding:10px 11px;border-radius:9px;font-size:13px}
-.nav button.active{background:#111;color:#fff}.nav button:hover:not(.active){background:#f3f3ef}
-.content{display:grid;gap:16px}
-.card{padding:18px}.card h2{font-size:16px;margin:0 0 5px}.sub{font-size:12px;color:#70706b;margin:0 0 16px;line-height:1.5}
-.row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-label{display:grid;gap:6px;font-size:11px;font-weight:750;color:#51514d;text-transform:uppercase;letter-spacing:.045em}
-input,select,textarea{width:100%;border:1px solid #d8d8d2;background:#fff;border-radius:9px;padding:9px 10px;color:#171717;outline:none;text-transform:none;letter-spacing:normal;font-weight:500}
-textarea{min-height:90px;resize:vertical;line-height:1.45}
-input:focus,select:focus,textarea:focus{border-color:#777;box-shadow:0 0 0 3px rgba(0,0,0,.045)}
-.check{display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:normal;font-size:12px;font-weight:650}.check input{width:16px}
-.sep{height:1px;background:#ecece8;margin:17px 0}
-.actions{display:flex;flex-wrap:wrap;gap:8px}.primary,.secondary,.danger{border-radius:9px;padding:9px 12px;font-size:12px;font-weight:750}
-.primary{border:1px solid #111;background:#111;color:#fff}.secondary{border:1px solid #d2d2cd;background:#fff;color:#222}.danger{border:1px solid #d6a6a6;background:#fff5f5;color:#9c2222}
-.status{font-size:12px;min-height:18px;margin-top:10px}.status.ok{color:#18733a}.status.err{color:#a62323}
-.login{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;max-width:600px}
-.hidden{display:none!important}
-.preview{background:#fafaf7;border:1px solid #e0e0da;border-radius:12px;padding:14px;display:grid;gap:9px}
-.mock{width:min(100%,360px);background:#fff;border:1px solid #dadad4;border-radius:12px;padding:12px;box-shadow:0 8px 26px rgba(0,0,0,.06)}
-.badge{display:none;width:max-content;max-width:100%;font-size:11px;font-weight:700;padding:6px 8px;border-radius:999px;background:#eaf6ec;color:#1d7132}.badge.show{display:block}
-.sponsor{border:1px dashed #cfcfc8;border-radius:9px;padding:9px;margin-top:8px}.meta{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#777}.headline{font-size:12px;font-weight:800;margin-top:4px}.bodycopy{font-size:11px;color:#555;line-height:1.45;margin-top:4px;white-space:pre-wrap}.cta{display:inline-block;margin-top:7px;font-size:10px;text-decoration:underline;color:#333}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.kpi{border:1px solid #e2e2dd;border-radius:10px;padding:11px}.kpi b{display:block;font-size:16px}.kpi span{font-size:10px;color:#777}
-.history{display:grid;gap:8px}.historyItem{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #e4e4df;border-radius:9px;padding:9px 10px}.historyItem small{color:#777}.historyItem button{border:1px solid #d4d4ce;background:#fff;border-radius:7px;padding:6px 8px;font-size:10px}
-.code{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;background:#111;color:#eee;border-radius:10px;padding:12px;white-space:pre-wrap;max-height:360px;overflow:auto}
-.help{font-size:11px;color:#666;line-height:1.55}
-@media(max-width:820px){.grid{grid-template-columns:1fr}.nav{position:static;display:flex;overflow:auto}.nav button{white-space:nowrap;width:auto}.row,.row3,.kpis{grid-template-columns:1fr 1fr}.shell{padding:14px}}
-@media(max-width:520px){.row,.row3,.kpis{grid-template-columns:1fr}.top{display:block}.top .pill{margin-top:10px}}
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#171717;background:#f4f4f1}
+*{box-sizing:border-box}body{margin:0}.hidden{display:none!important}button,input,select,textarea{font:inherit}button{cursor:pointer}
+.shell{max-width:1280px;margin:auto;padding:22px}.top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:18px}
+.brand h1{font-size:22px;margin:0 0 4px}.brand p,.muted{color:#70706b;font-size:12px;margin:0}.pill{border:1px solid #d8d8d2;border-radius:999px;padding:7px 10px;background:#fff;font-size:11px}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#bbb;margin-right:6px}.dot.ok{background:#1f8a4c}.dot.warn{background:#b9770e}
+.card{background:#fff;border:1px solid #dfdfd8;border-radius:14px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.03)}.login{display:grid;grid-template-columns:1fr auto;gap:9px;margin-top:12px}
+input,select,textarea{width:100%;border:1px solid #d5d5cf;border-radius:8px;padding:9px 10px;background:#fff;color:#171717}textarea{min-height:84px;resize:vertical}
+button{border:1px solid #d5d5cf;background:#fff;border-radius:8px;padding:8px 11px}button.primary{background:#171717;color:#fff;border-color:#171717}button.danger{border-color:#d89b9b;color:#9d2323}.small{font-size:11px;padding:6px 8px}
+.grid{display:grid;grid-template-columns:190px 1fr;gap:16px}.nav{display:grid;gap:5px;align-content:start;position:sticky;top:18px}.nav button{text-align:left;border:0;background:transparent;padding:9px 10px}.nav button.active{background:#171717;color:#fff}.content{min-width:0}.panel{display:grid;gap:14px}
+.panelHead{display:flex;align-items:center;justify-content:space-between;gap:10px}.panelHead h2,.card h2{font-size:15px;margin:0}.sub{font-size:11px;color:#777;margin:4px 0 0;line-height:1.5}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.seg{display:flex;border:1px solid #d9d9d3;border-radius:9px;overflow:hidden;background:#fff}.seg button{border:0;border-right:1px solid #e4e4df;border-radius:0;padding:7px 10px;font-size:10px}.seg button:last-child{border-right:0}.seg button.active{background:#171717;color:#fff}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.kpi{background:#fff;border:1px solid #dfdfd8;border-radius:12px;padding:13px}.kpi b{display:block;font-size:20px;letter-spacing:-.02em}.kpi span{font-size:10px;color:#777}.kpi small{display:block;color:#999;font-size:9px;margin-top:3px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.field{display:grid;gap:5px;font-size:11px}.check{display:flex;align-items:center;gap:7px;font-size:11px}.check input{width:auto}
+.sectionTitle{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#777;margin:2px 0}.locked{border:1px solid #d9d9d3;background:#f4f4f1;border-radius:9px;padding:10px;font-size:11px}.locked b{float:right;font-size:9px;border:1px solid #c9c9c2;border-radius:999px;padding:2px 6px}
+.preview{border:1px dashed #cfcfc7;border-radius:12px;background:#fafaf8;padding:14px;min-height:110px}.adCard{max-width:520px;border:1px solid #deded8;border-radius:12px;background:#fff;padding:12px}.adMedia{display:flex;align-items:center;justify-content:center;background:#efefec;border-radius:9px;overflow:hidden;margin:8px 0;max-height:300px}.adMedia img,.adMedia video{display:block;width:100%;height:100%;max-height:300px;object-fit:contain}.label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#777}.headline{font-weight:700;margin-top:5px}.bodyCopy{font-size:11px;line-height:1.5;color:#444;margin-top:5px}.cta{display:inline-block;margin-top:9px;font-size:10px;text-decoration:underline}.disclaimer{font-size:9px;color:#888;margin-top:7px}
+.chart{width:100%;height:180px;border:1px solid #e3e3de;border-radius:10px;background:#fff}.status{font-size:10px;margin-top:7px;min-height:14px}.status.ok{color:#217442}.status.err{color:#a12828}
+.history{display:grid;gap:8px}.historyItem{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px solid #e3e3dd;border-radius:9px;padding:10px}.historyItem small{color:#777}.code{font:10px ui-monospace,SFMono-Regular,Menlo,monospace;min-height:240px}.advanced{border-top:1px solid #ecece7;padding-top:12px}.fileMeta{font-size:9px;color:#777;line-height:1.4}.readiness{display:grid;gap:8px}.readyRow{display:grid;grid-template-columns:1fr auto;align-items:center;border:1px solid #e3e3dd;border-radius:9px;padding:9px 10px}.badge{font-size:9px;border:1px solid #d6d6d0;border-radius:999px;padding:3px 7px}.badge.ready{color:#1f7d46}.badge.wait{color:#9b6b0b}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.nav{position:static;display:flex;overflow:auto}.nav button{white-space:nowrap}.kpis{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.shell{padding:12px}.row,.row3,.kpis{grid-template-columns:1fr}.top{display:block}.pill{margin-top:10px}.login{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="shell">
   <div class="top">
-    <div class="brand">
-      <h1>BMP Terbuka Control Center</h1>
-      <p>Private operator console · realtime extension surface + sponsor campaign</p>
-    </div>
+    <div class="brand"><h1>BMP Terbuka Control Center</h1><p>v0.2 · sponsor media, compact analytics, extension surface, and version readiness</p></div>
     <div class="pill"><span id="connDot" class="dot"></span><span id="connText">Locked</span></div>
   </div>
 
-  <div id="loginCard" class="card" style="margin-bottom:16px">
+  <section id="loginCard" class="card">
     <h2>Owner authentication</h2>
-    <p class="sub">Masukkan ADMIN_SETUP_TOKEN. Token hanya disimpan di memory tab ini dan tidak ditanam di halaman.</p>
-    <div class="login">
-      <input id="token" type="password" autocomplete="off" placeholder="ADMIN_SETUP_TOKEN">
-      <button id="connect" class="primary">Connect</button>
-    </div>
+    <p class="sub">Masukkan ADMIN_SETUP_TOKEN. Token hanya hidup di memory tab ini.</p>
+    <div class="login"><input id="token" type="password" autocomplete="off" placeholder="ADMIN_SETUP_TOKEN"><button id="connect" class="primary">Connect</button></div>
     <div id="loginStatus" class="status"></div>
-  </div>
+  </section>
 
   <div id="app" class="grid hidden">
-    <div class="nav">
+    <nav class="nav">
       <button data-tab="overview" class="active">Overview</button>
-      <button data-tab="surface">Extension Surface</button>
-      <button data-tab="ads">Ads Manager</button>
-      <button data-tab="history">History / Rollback</button>
-      <button data-tab="raw">Raw State</button>
-    </div>
+      <button data-tab="analytics">Analytics</button>
+      <button data-tab="ads">Ads</button>
+      <button data-tab="extension">Extension</button>
+      <button data-tab="version">Version</button>
+      <button data-tab="history">History</button>
+    </nav>
 
     <main class="content">
-      <section data-panel="overview" class="card">
-        <h2>Overview</h2>
-        <p class="sub">Live state per distribution channel. Store version policy is read-only here.</p>
-        <div class="row">
-          <label>Distribution channel
-            <select id="channel">
-              <option value="github">GitHub / manual</option>
-              <option value="android">Android</option>
-              <option value="cws">Chrome Web Store</option>
-              <option value="edge" selected>Microsoft Edge Add-ons</option>
-            </select>
-          </label>
-          <label>Actions
-            <div class="actions">
-              <button id="reload" class="secondary">Refresh live</button>
-              <button id="publishTop" class="primary">Publish state</button>
-            </div>
-          </label>
-        </div>
-        <div class="sep"></div>
+      <section data-panel="overview" class="panel">
+        <div class="panelHead"><div><h2>Overview</h2><p class="sub">Ringkasan screenshot-friendly. Subscriber dan member adalah dua angka berbeda; overlap tidak diketahui.</p></div><div id="periodOverview" class="seg"><button data-period="24h">24H</button><button data-period="7d" class="active">7D</button><button data-period="30d">30D</button></div></div>
         <div class="kpis">
-          <div class="kpi"><b id="kWorker">—</b><span>Worker</span></div>
-          <div class="kpi"><b id="kLatest">—</b><span>Latest version</span></div>
-          <div class="kpi"><b id="kMinimum">—</b><span>Minimum</span></div>
-          <div class="kpi"><b id="kStore">—</b><span>Store ready</span></div>
+          <div class="kpi"><b id="kSubscribers">—</b><span>Subscribers</span><small>Telegram Channel</small></div>
+          <div class="kpi"><b id="kMembers">—</b><span>Members</span><small>Group Terbuka</small></div>
+          <div class="kpi"><b id="kTotal">—</b><span>Total Users</span><small>pseudonymous installs observed</small></div>
+          <div class="kpi"><b id="kActive">—</b><span>Active Users</span><small>selected period</small></div>
+          <div class="kpi"><b id="kOpens">—</b><span>Opens</span><small>extension_open</small></div>
+          <div class="kpi"><b id="kJobs">—</b><span>Jobs</span><small>job_started</small></div>
+          <div class="kpi"><b id="kReturning">—</b><span>Returning</span><small>active users seen earlier</small></div>
+          <div class="kpi"><b id="kHealth">—</b><span>Health</span><small>completed vs failed jobs</small></div>
+          <div class="kpi"><b id="kReach">—</b><span>Ad Reach</span><small>paid direct only</small></div>
+          <div class="kpi"><b id="kImpressions">—</b><span>Impressions</span><small>paid direct only</small></div>
+          <div class="kpi"><b id="kCtr">—</b><span>CTR</span><small>clicks / impressions</small></div>
         </div>
-        <div class="sep"></div>
-        <div class="preview">
-          <strong style="font-size:12px">Popup surface preview</strong>
-          <div class="mock">
-            <div id="previewBadge" class="badge"></div>
-            <div id="previewSponsor" class="sponsor">
-              <div id="previewSponsorMeta" class="meta">Sponsor</div>
-              <div id="previewSponsorHeadline" class="headline">Space iklan tersedia</div>
-              <div id="previewSponsorBody" class="bodycopy"></div>
-              <div id="previewSponsorCta" class="cta">Pasang iklan? Hubungi</div>
-            </div>
+        <div class="row"><div class="card"><h2>Engagement</h2><canvas id="chartEngagement" class="chart"></canvas></div><div class="card"><h2>Ads</h2><canvas id="chartAds" class="chart"></canvas></div></div>
+        <div id="overviewStatus" class="status"></div>
+      </section>
+
+      <section data-panel="analytics" class="panel hidden">
+        <div class="panelHead"><div><h2>Analytics</h2><p class="sub">Default tetap ringkas. Filter channel hanya membaca data product telemetry anonim.</p></div></div>
+        <div class="toolbar">
+          <div id="periodAnalytics" class="seg"><button data-period="24h">24H</button><button data-period="7d" class="active">7D</button><button data-period="30d">30D</button></div>
+          <select id="analyticsChannel" style="max-width:220px"><option value="">ALL</option><option value="github">GitHub/manual</option><option value="android">Android</option><option value="edge">Edge</option><option value="cws">Chrome/CWS</option></select>
+          <button id="refreshAnalytics">Refresh</button>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><b id="aSuccess">—</b><span>Job success</span></div>
+          <div class="kpi"><b id="aFailed">—</b><span>Job failed</span></div>
+          <div class="kpi"><b id="aMediaFailed">—</b><span>Media render failure</span></div>
+          <div class="kpi"><b id="aClicks">—</b><span>Paid clicks</span></div>
+        </div>
+        <details class="card"><summary>Advanced / Performance details</summary><pre id="analyticsRaw" class="code"></pre></details>
+        <div id="analyticsStatus" class="status"></div>
+      </section>
+
+      <section data-panel="ads" class="panel hidden">
+        <div class="panelHead"><div><h2>Ads Manager</h2><p class="sub">Direct BMP Sponsor → AdsOnBread fallback → House Ad untuk card. Interstitial tidak memakai AdsOnBread.</p></div><div class="toolbar"><select id="adsTarget" class="target"><option value="all">ALL</option><option value="github">GitHub/manual</option><option value="android">Android</option><option value="edge">Edge</option><option value="cws">Chrome/CWS</option></select></div></div>
+
+        <div class="card">
+          <div class="row3">
+            <label class="check"><input id="adsEnabled" type="checkbox">Campaign ON</label>
+            <label class="field">Advertiser<input id="advertiser" maxlength="96"></label>
+            <label class="field">Schedule<select id="scheduleMode"><option value="now">Publish now</option><option value="scheduled">Scheduled</option></select></label>
+          </div>
+          <div id="scheduleFields" class="row hidden" style="margin-top:10px"><label class="field">Starts at<input id="startsAt" type="datetime-local"></label><label class="field">Ends at<input id="endsAt" type="datetime-local"></label></div>
+          <div class="row" style="margin-top:10px"><label class="field">Headline<input id="headline" maxlength="120"></label><label class="field">CTA label<input id="ctaLabel" maxlength="48"></label></div>
+          <label class="field" style="margin-top:10px">Body<textarea id="adBody" maxlength="700"></textarea></label>
+          <div class="row" style="margin-top:10px"><label class="field">CTA URL<input id="ctaUrl" placeholder="https://"></label><label class="field">Disclaimer<input id="disclaimer" maxlength="220"></label></div>
+        </div>
+
+        <div class="row">
+          <div class="card">
+            <div class="sectionTitle">Card</div>
+            <label class="field">Mode<select id="cardMode"><option value="text">Text</option><option value="banner">Banner</option></select></label>
+            <label id="cardUploadWrap" class="field hidden" style="margin-top:9px">Upload JPG / PNG / WebP ≤ 3 MiB<input id="cardFile" type="file" accept="image/jpeg,image/png,image/webp"><span id="cardMeta" class="fileMeta">No media selected</span></label>
+            <label class="check" style="margin-top:10px"><input id="networkFallback" type="checkbox" checked>AdsOnBread when direct card unavailable</label>
+          </div>
+          <div class="card">
+            <div class="sectionTitle">Interstitial</div>
+            <label class="field">Mode<select id="interstitialMode"><option value="text">Text</option><option value="image">Image</option><option value="video">Video</option></select></label>
+            <label id="interstitialUploadWrap" class="field hidden" style="margin-top:9px">Upload media<input id="interstitialFile" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"><span id="interstitialMeta" class="fileMeta">No media selected</span></label>
+            <div class="locked" style="margin-top:10px">Interstitial timing <strong>Random 2–5 seconds</strong><b>LOCKED</b></div>
           </div>
         </div>
-        <div id="globalStatus" class="status"></div>
+
+        <div class="card">
+          <div class="sectionTitle">Placement</div>
+          <div class="toolbar"><label class="check"><input id="placeCard" type="checkbox" checked>Card</label><label class="check"><input id="placeInterstitial" type="checkbox">Interstitial</label></div>
+        </div>
+
+        <div class="card">
+          <div class="sectionTitle">Fallback Ad</div>
+          <p class="sub">Terpisah dari paid campaign. Tetap tersedia saat direct sponsor dan network tidak tersedia.</p>
+          <div class="row" style="margin-top:10px"><label class="field">Headline<input id="houseHeadline" value="Space iklan tersedia"></label><label class="field">CTA label<input id="houseCtaLabel" value="Pasang iklan? Hubungi"></label></div>
+          <div class="row" style="margin-top:10px"><label class="field">Body<input id="houseBody"></label><label class="field">CTA URL<input id="houseCtaUrl" value="https://t.me/bukabmp?direct"></label></div>
+        </div>
+
+        <div class="toolbar"><button id="loadDemo">Load Demo Creative</button><button id="previewAds">Preview</button><button id="publishAds" class="primary">Publish</button><button id="pauseAds" class="danger">Campaign OFF</button></div>
+        <div class="preview"><div id="adPreview"></div></div>
+        <details class="card advanced"><summary>Advanced</summary><div class="row" style="margin-top:10px"><label class="field">Campaign ID<input id="campaignId" readonly></label><label class="field">Revision<input id="revision" readonly></label></div></details>
+        <div id="adsStatus" class="status"></div>
       </section>
 
-      <section data-panel="surface" class="card hidden">
-        <h2>Extension Surface</h2>
-        <p class="sub">Status badge dan cloud sections berubah realtime tanpa release extension. Semua input disanitize lagi oleh Worker saat publish.</p>
-        <div class="row3">
-          <label class="check"><input id="badgeVisible" type="checkbox"> Show status badge</label>
-          <label>Badge kind
-            <select id="badgeKind">
-              <option>info</option><option>success</option><option>warning</option><option>community</option><option>supporter</option>
-            </select>
-          </label>
-          <label>Badge text<input id="badgeText" maxlength="160" placeholder="Contoh: Maintenance selesai"></label>
+      <section data-panel="extension" class="panel hidden">
+        <div class="panelHead"><div><h2>Extension</h2><p class="sub">Surface sederhana; raw JSON tetap tersedia di Advanced.</p></div><select id="extensionTarget" class="target" style="max-width:220px"><option value="all">ALL</option><option value="github">GitHub/manual</option><option value="android">Android</option><option value="edge">Edge</option><option value="cws">Chrome/CWS</option></select></div>
+        <div class="card">
+          <div class="row3"><label class="check"><input id="badgeOn" type="checkbox">Status badge ON</label><label class="field">Type<select id="badgeKind"><option>info</option><option>success</option><option>warning</option><option>community</option><option>supporter</option></select></label><label class="field">Text<input id="badgeText" maxlength="160"></label></div>
         </div>
-        <div class="sep"></div>
-        <div class="row">
-          <label class="check"><input id="featureSupporter" type="checkbox"> Supporter card feature</label>
-          <label class="check"><input id="featureCommunity" type="checkbox"> Community banner feature</label>
-        </div>
-        <div class="sep"></div>
-        <label>Cloud sections JSON
-          <textarea id="sectionsJson" spellcheck="false" placeholder='[{"id":"notice","visible":true,"kind":"info","title":"Info","text":"...","action":null}]'></textarea>
-        </label>
-        <p class="help">Allowed renderer tetap plain text + allowlisted action. HTML/JS dari backend tidak pernah dieksekusi.</p>
-        <div class="actions">
-          <button class="primary publish">Publish surface</button>
-          <button class="secondary validate">Validate only</button>
-        </div>
-        <div class="status panelStatus"></div>
+        <div class="toolbar"><button id="previewExtension">Preview</button><button id="publishExtension" class="primary">Publish</button></div>
+        <div id="extensionPreview" class="preview"></div>
+        <details class="card advanced"><summary>Advanced</summary><textarea id="rawStateEditor" class="code"></textarea></details>
+        <div id="extensionStatus" class="status"></div>
       </section>
 
-      <section data-panel="ads" class="card hidden">
-        <h2>Ads Manager</h2>
-        <p class="sub">Paid campaign, house inventory, placement, schedule, dan interstitial delay dikontrol realtime.</p>
-        <div class="row3">
-          <label class="check"><input id="adsEnabled" type="checkbox"> Paid campaign enabled</label>
-          <label>Campaign ID<input id="campaignId" maxlength="64" placeholder="campaign-2026-09"></label>
-          <label>Revision<input id="revision" type="number" min="0" step="1" value="0"></label>
+      <section data-panel="version" class="panel hidden">
+        <div class="panelHead"><div><h2>Version</h2><p class="sub">Global latest/minimum. Minimum hanya berlaku pada channel yang ditandai Ready.</p></div></div>
+        <div class="card">
+          <div class="row"><label class="field">Latest version<input id="latestVersion" value="1.1.0"></label><label class="field">Minimum supported<input id="minimumGlobal" value="1.1.0"></label></div>
+          <div class="row" style="margin-top:10px"><label class="field">Release URL<input id="releaseUrl" placeholder="https://"></label><label class="field">Message<input id="versionMessage"></label></div>
         </div>
-        <div class="row3" style="margin-top:12px">
-          <label>Sponsor label<input id="sponsorLabel" maxlength="32" value="Sponsor"></label>
-          <label>Advertiser<input id="advertiser" maxlength="96" placeholder="Nama sponsor"></label>
-          <label>Headline<input id="headline" maxlength="120" placeholder="Headline campaign"></label>
-        </div>
-        <div style="margin-top:12px">
-          <label>Body<textarea id="adBody" maxlength="700"></textarea></label>
-        </div>
-        <div class="row" style="margin-top:12px">
-          <label>Disclaimer<input id="disclaimer" maxlength="220" placeholder="Konten berbayar / disclaimer"></label>
-          <label>CTA label<input id="ctaLabel" maxlength="48" placeholder="Lihat selengkapnya"></label>
-        </div>
-        <div style="margin-top:12px"><label>CTA HTTPS URL<input id="ctaUrl" type="url" placeholder="https://..."></label></div>
-        <div class="row" style="margin-top:12px">
-          <label>Starts at<input id="startsAt" type="datetime-local"></label>
-          <label>Ends at<input id="endsAt" type="datetime-local"></label>
-        </div>
-        <div class="sep"></div>
-        <div class="row3">
-          <label class="check"><input id="placeCard" type="checkbox"> Popup card</label>
-          <label class="check"><input id="placeInterstitial" type="checkbox"> Interstitial</label>
-          <label class="check"><input id="interstitialEnabled" type="checkbox"> Interstitial enabled</label>
-        </div>
-        <div class="row" style="margin-top:12px">
-          <label>Delay minimum (ms)<input id="delayMin" type="number" min="2000" max="5000" value="2000"></label>
-          <label>Delay maximum (ms)<input id="delayMax" type="number" min="2000" max="5000" value="5000"></label>
-        </div>
-        <div class="sep"></div>
-        <h2 style="font-size:13px">House inventory</h2>
-        <p class="sub">Fallback wajib saat paid campaign tidak aktif / backend state gagal.</p>
-        <div class="row3">
-          <label>Label<input id="houseLabel" maxlength="32" value="Sponsor"></label>
-          <label>Headline<input id="houseHeadline" maxlength="120" value="Space iklan tersedia"></label>
-          <label>CTA label<input id="houseCtaLabel" maxlength="48" value="Pasang iklan? Hubungi"></label>
-        </div>
-        <div class="row" style="margin-top:12px">
-          <label>Body<textarea id="houseBody" maxlength="420"></textarea></label>
-          <label>CTA HTTPS URL<input id="houseCtaUrl" type="url" value="https://t.me/bukabmp?direct"></label>
-        </div>
-        <div class="sep"></div>
-        <div class="actions">
-          <button class="primary publish">Publish campaign</button>
-          <button class="secondary validate">Validate only</button>
-          <button id="pauseAds" class="danger">Emergency pause paid ads</button>
-        </div>
-        <div class="status panelStatus"></div>
+        <div class="card"><div class="sectionTitle">Readiness</div><div class="readiness">
+          <label class="readyRow">GitHub/manual <span><input id="readyGithub" type="checkbox"> Ready</span></label>
+          <label class="readyRow">Android <span><input id="readyAndroid" type="checkbox"> Ready</span></label>
+          <label class="readyRow">Edge <span><input id="readyEdge" type="checkbox"> Ready</span></label>
+          <label class="readyRow">Chrome/CWS <span><input id="readyCws" type="checkbox"> Ready</span></label>
+        </div></div>
+        <div class="toolbar"><button id="reloadVersion">Reload</button><button id="saveVersion" class="primary">Save policy</button></div>
+        <div id="effectiveVersion" class="card"></div>
+        <div id="versionStatus" class="status"></div>
       </section>
 
-      <section data-panel="history" class="card hidden">
-        <h2>History / Rollback</h2>
-        <p class="sub">Setiap publish dari Control Center membuat snapshot sebelum state baru ditulis. Maksimal 20 entri per channel.</p>
+      <section data-panel="history" class="panel hidden">
+        <div class="panelHead"><div><h2>History</h2><p class="sub">Rollback tetap per channel supaya pemulihan eksplisit.</p></div><div class="toolbar"><select id="historyTarget" style="max-width:220px"><option value="github">GitHub/manual</option><option value="android">Android</option><option value="edge">Edge</option><option value="cws">Chrome/CWS</option></select><button id="refreshHistory">Refresh</button></div></div>
         <div id="historyList" class="history"></div>
-        <div class="actions" style="margin-top:12px"><button id="refreshHistory" class="secondary">Refresh history</button></div>
-        <div class="status panelStatus"></div>
-      </section>
-
-      <section data-panel="raw" class="card hidden">
-        <h2>Sanitized live state</h2>
-        <p class="sub">Ini state yang benar-benar dibaca extension setelah server-side sanitizer.</p>
-        <pre id="rawState" class="code">{}</pre>
-        <div class="actions" style="margin-top:12px">
-          <button id="copyRaw" class="secondary">Copy JSON</button>
-          <button class="secondary validate">Validate current form</button>
-        </div>
-        <div class="status panelStatus"></div>
+        <div id="historyStatus" class="status"></div>
       </section>
     </main>
   </div>
@@ -228,289 +174,302 @@ input:focus,select:focus,textarea:focus{border-color:#777;box-shadow:0 0 0 3px r
 
 <script>
 (function(){
-  var authToken = '';
-  var loadedState = null;
-  var workerVersion = '';
-  var historyItems = [];
+"use strict";
+var authToken="";
+var overviewPeriod="7d";
+var analyticsPeriod="7d";
+var loadedStates={};
+var currentState=null;
+var cardAsset=null;
+var interstitialAsset=null;
+var posterAsset=null;
+var analyticsData=null;
 
-  function el(id){ return document.getElementById(id); }
-  function qsAll(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); }
-  function channel(){ return el('channel').value; }
-  function setStatus(node,msg,ok){
-    node.textContent = msg || '';
-    node.className = 'status ' + (msg ? (ok ? 'ok' : 'err') : '');
+function el(id){return document.getElementById(id)}
+function all(sel){return Array.prototype.slice.call(document.querySelectorAll(sel))}
+function status(node,text,ok){node.textContent=text||"";node.className="status "+(ok===true?"ok":ok===false?"err":"")}
+function targetValue(id){return el(id).value}
+function number(value){return new Intl.NumberFormat("id-ID").format(Number(value||0))}
+function pct(value){return Number(value||0).toFixed(1)+"%"}
+function isoLocal(value){if(!value)return "";var d=new Date(value);if(!Number.isFinite(d.getTime()))return "";var p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes())}
+function toIso(value){if(!value)return null;var d=new Date(value);return Number.isFinite(d.getTime())?d.toISOString():null}
+async function api(path,options){
+  options=options||{};
+  options.headers=Object.assign({},options.headers||{},{Authorization:"Bearer "+authToken});
+  var r=await fetch(path,options);
+  var data=await r.json().catch(function(){return {}});
+  if(!r.ok)throw new Error(data.error||data.detail||("HTTP "+r.status));
+  return data;
+}
+function baseState(){
+  var source=currentState&&typeof currentState==="object"?JSON.parse(JSON.stringify(currentState)):{schema_version:1};
+  source.schema_version=1;
+  return source;
+}
+async function loadState(target){
+  var data=await api("/control/api/state?distribution_channel="+encodeURIComponent(target));
+  if(target==="all"){
+    loadedStates=data.states||{};
+    currentState=loadedStates.github||Object.values(loadedStates)[0]||{schema_version:1};
+  }else{
+    loadedStates[target]=data.state;
+    currentState=data.state;
   }
-  function authHeaders(extra){
-    var out = {'Authorization':'Bearer ' + authToken};
-    if(extra) Object.keys(extra).forEach(function(k){ out[k]=extra[k]; });
-    return out;
+  fillAds(currentState);
+  fillExtension(currentState);
+  return data;
+}
+function nextCampaignId(state){
+  var current=String(state&&state.ads&&state.ads.campaign_id||"");
+  return current||("campaign-"+Date.now().toString(36));
+}
+function fillAds(state){
+  var ads=state&&state.ads||{};
+  el("adsEnabled").checked=ads.enabled===true;
+  el("advertiser").value=ads.advertiser||"";
+  el("headline").value=ads.headline||"";
+  el("adBody").value=ads.body||"";
+  el("ctaLabel").value=ads.cta&&ads.cta.label||"";
+  el("ctaUrl").value=ads.cta&&ads.cta.url||"";
+  el("disclaimer").value=ads.disclaimer||"";
+  el("cardMode").value=ads.card&&ads.card.mode==="banner"?"banner":"text";
+  el("interstitialMode").value=ads.interstitial&&["image","video"].indexOf(ads.interstitial.mode)>=0?ads.interstitial.mode:"text";
+  el("networkFallback").checked=ads.network&&ads.network.adsonbread===true;
+  el("placeCard").checked=ads.placements?ads.placements.card===true:true;
+  el("placeInterstitial").checked=ads.placements?ads.placements.interstitial===true:false;
+  el("houseHeadline").value=ads.house&&ads.house.headline||"Space iklan tersedia";
+  el("houseBody").value=ads.house&&ads.house.body||"";
+  el("houseCtaLabel").value=ads.house&&ads.house.cta&&ads.house.cta.label||"Pasang iklan? Hubungi";
+  el("houseCtaUrl").value=ads.house&&ads.house.cta&&ads.house.cta.url||"https://t.me/bukabmp?direct";
+  el("startsAt").value=isoLocal(ads.starts_at);
+  el("endsAt").value=isoLocal(ads.ends_at);
+  el("scheduleMode").value=ads.starts_at||ads.ends_at?"scheduled":"now";
+  el("campaignId").value=nextCampaignId(state);
+  el("revision").value=String(Number(ads.revision||0)+1);
+  cardAsset=ads.card&&ads.card.asset||null;
+  interstitialAsset=ads.interstitial&&ads.interstitial.asset||null;
+  posterAsset=ads.interstitial&&ads.interstitial.poster_asset||null;
+  updateUploadVisibility();
+  renderAdPreview();
+}
+function buildAdsState(){
+  var state=baseState();
+  var schedule=el("scheduleMode").value;
+  state.ads={
+    enabled:el("adsEnabled").checked,
+    campaign_id:el("campaignId").value||nextCampaignId(currentState),
+    revision:Number(el("revision").value||1),
+    creative_version:2,
+    sponsor_label:"Sponsor",
+    advertiser:el("advertiser").value.trim(),
+    headline:el("headline").value.trim(),
+    body:el("adBody").value.trim(),
+    disclaimer:el("disclaimer").value.trim(),
+    cta:el("ctaLabel").value.trim()&&el("ctaUrl").value.trim()?{label:el("ctaLabel").value.trim(),url:el("ctaUrl").value.trim()}:null,
+    card:{mode:el("cardMode").value,asset:el("cardMode").value==="banner"?cardAsset:null},
+    network:{adsonbread:el("networkFallback").checked},
+    house:{sponsor_label:"Sponsor",headline:el("houseHeadline").value.trim()||"Space iklan tersedia",body:el("houseBody").value.trim(),cta:{label:el("houseCtaLabel").value.trim()||"Pasang iklan? Hubungi",url:el("houseCtaUrl").value.trim()}},
+    starts_at:schedule==="scheduled"?toIso(el("startsAt").value):null,
+    ends_at:schedule==="scheduled"?toIso(el("endsAt").value):null,
+    placements:{card:el("placeCard").checked,interstitial:el("placeInterstitial").checked},
+    interstitial:{enabled:el("placeInterstitial").checked,trigger:"job_started",mode:el("interstitialMode").value,asset:el("interstitialMode").value==="text"?null:interstitialAsset,poster_asset:el("interstitialMode").value==="video"?posterAsset:null,delay_min_ms:2000,delay_max_ms:5000}
+  };
+  return state;
+}
+function mediaUrl(asset){return asset&&asset.id?"/v1/media/"+encodeURIComponent(asset.id):""}
+function renderAdPreview(){
+  var state;
+  try{state=buildAdsState()}catch(e){return}
+  var ads=state.ads||{};
+  var host=el("adPreview");host.textContent="";
+  var card=document.createElement("div");card.className="adCard";
+  var label=document.createElement("div");label.className="label";label.textContent="Sponsor"+(ads.advertiser?" · "+ads.advertiser:"");card.appendChild(label);
+  var mode=ads.card&&ads.card.mode;
+  if(mode==="banner"&&ads.card.asset){
+    var mh=document.createElement("div");mh.className="adMedia";
+    var img=document.createElement("img");img.src=mediaUrl(ads.card.asset);img.alt="Sponsor preview";mh.appendChild(img);card.appendChild(mh);
   }
-  async function api(path, options){
-    var opts = options || {};
-    opts.headers = authHeaders(opts.headers || {});
-    var res = await fetch(path, opts);
-    var data = await res.json().catch(function(){ return {}; });
-    if(!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
-    return data;
-  }
-  function isoToLocal(value){
-    if(!value) return '';
-    var d = new Date(value);
-    if(!Number.isFinite(d.getTime())) return '';
-    var off = d.getTimezoneOffset();
-    return new Date(d.getTime()-off*60000).toISOString().slice(0,16);
-  }
-  function localToIso(value){
-    if(!value) return null;
-    var d = new Date(value);
-    return Number.isFinite(d.getTime()) ? d.toISOString() : null;
-  }
-  function safeJson(value,fallback){
-    try { return JSON.parse(value); } catch(e) { return fallback; }
-  }
-
-  function fillForm(state){
-    loadedState = state || {};
-    var badge = loadedState.status_badge || {};
-    el('badgeVisible').checked = badge.visible === true;
-    el('badgeKind').value = badge.kind || 'info';
-    el('badgeText').value = badge.text || '';
-    var features = loadedState.features || {};
-    el('featureSupporter').checked = features.supporter_card === true;
-    el('featureCommunity').checked = features.community_banner === true;
-    el('sectionsJson').value = JSON.stringify(loadedState.sections || [], null, 2);
-
-    var ads = loadedState.ads || {};
-    el('adsEnabled').checked = ads.enabled === true;
-    el('campaignId').value = ads.campaign_id || '';
-    el('revision').value = Number(ads.revision || 0);
-    el('sponsorLabel').value = ads.sponsor_label || 'Sponsor';
-    el('advertiser').value = ads.advertiser || '';
-    el('headline').value = ads.headline || '';
-    el('adBody').value = ads.body || '';
-    el('disclaimer').value = ads.disclaimer || '';
-    el('ctaLabel').value = ads.cta && ads.cta.label ? ads.cta.label : '';
-    el('ctaUrl').value = ads.cta && ads.cta.url ? ads.cta.url : '';
-    el('startsAt').value = isoToLocal(ads.starts_at);
-    el('endsAt').value = isoToLocal(ads.ends_at);
-    el('placeCard').checked = !!(ads.placements && ads.placements.card);
-    el('placeInterstitial').checked = !!(ads.placements && ads.placements.interstitial);
-    el('interstitialEnabled').checked = !!(ads.interstitial && ads.interstitial.enabled);
-    el('delayMin').value = Number(ads.interstitial && ads.interstitial.delay_min_ms || 2000);
-    el('delayMax').value = Number(ads.interstitial && ads.interstitial.delay_max_ms || 5000);
-
-    var house = ads.house || {};
-    el('houseLabel').value = house.sponsor_label || 'Sponsor';
-    el('houseHeadline').value = house.headline || 'Space iklan tersedia';
-    el('houseBody').value = house.body || '';
-    el('houseCtaLabel').value = house.cta && house.cta.label ? house.cta.label : 'Pasang iklan? Hubungi';
-    el('houseCtaUrl').value = house.cta && house.cta.url ? house.cta.url : 'https://t.me/bukabmp?direct';
-    renderPreview(loadedState);
-    el('rawState').textContent = JSON.stringify(loadedState,null,2);
-  }
-
-  function buildState(){
-    var next = JSON.parse(JSON.stringify(loadedState || {}));
-    next.schema_version = 1;
-    next.status_badge = {
-      visible: el('badgeVisible').checked,
-      kind: el('badgeKind').value,
-      text: el('badgeText').value
-    };
-    next.features = {
-      supporter_card: el('featureSupporter').checked,
-      community_banner: el('featureCommunity').checked
-    };
-    var sections = safeJson(el('sectionsJson').value, null);
-    if(!Array.isArray(sections)) throw new Error('Cloud sections JSON harus berupa array JSON.');
-    next.sections = sections;
-    var cta = el('ctaLabel').value.trim() && el('ctaUrl').value.trim()
-      ? {label:el('ctaLabel').value.trim(),url:el('ctaUrl').value.trim()}
-      : null;
-    var houseCta = el('houseCtaLabel').value.trim() && el('houseCtaUrl').value.trim()
-      ? {label:el('houseCtaLabel').value.trim(),url:el('houseCtaUrl').value.trim()}
-      : null;
-    next.ads = {
-      enabled: el('adsEnabled').checked,
-      campaign_id: el('campaignId').value.trim(),
-      revision: Math.max(0,Number(el('revision').value || 0)),
-      sponsor_label: el('sponsorLabel').value.trim(),
-      advertiser: el('advertiser').value.trim(),
-      headline: el('headline').value.trim(),
-      body: el('adBody').value.trim(),
-      disclaimer: el('disclaimer').value.trim(),
-      image_url: '',
-      cta: cta,
-      house: {
-        sponsor_label: el('houseLabel').value.trim(),
-        headline: el('houseHeadline').value.trim(),
-        body: el('houseBody').value.trim(),
-        cta: houseCta
-      },
-      starts_at: localToIso(el('startsAt').value),
-      ends_at: localToIso(el('endsAt').value),
-      placements: {
-        card: el('placeCard').checked,
-        interstitial: el('placeInterstitial').checked
-      },
-      interstitial: {
-        enabled: el('interstitialEnabled').checked,
-        trigger: 'job_started',
-        delay_min_ms: Number(el('delayMin').value || 2000),
-        delay_max_ms: Number(el('delayMax').value || 5000)
-      }
-    };
-    return next;
-  }
-
-  function renderPreview(state){
-    var s = state || buildState();
-    var b = s.status_badge || {};
-    el('previewBadge').textContent = b.text || '';
-    el('previewBadge').className = 'badge' + (b.visible && b.text ? ' show' : '');
-    var ads = s.ads || {};
-    var paid = ads.active === true && ads.placements && ads.placements.card;
-    var house = ads.house || {};
-    el('previewSponsorMeta').textContent = paid ? (ads.sponsor_label || 'Sponsor') : (house.sponsor_label || 'Sponsor');
-    el('previewSponsorHeadline').textContent = paid ? (ads.headline || '') : (house.headline || 'Space iklan tersedia');
-    el('previewSponsorBody').textContent = paid ? (ads.body || '') : (house.body || '');
-    var action = paid ? ads.cta : house.cta;
-    el('previewSponsorCta').textContent = action && action.label ? action.label : '';
-    el('previewSponsorCta').style.display = action && action.label ? 'inline-block' : 'none';
-  }
-
-  function renderHistory(){
-    var root = el('historyList');
-    root.innerHTML = '';
-    if(!historyItems.length){
-      root.textContent = 'Belum ada snapshot Control Center untuk channel ini.';
-      return;
+  var h=document.createElement("div");h.className="headline";h.textContent=ads.headline||"Paid sponsor headline";card.appendChild(h);
+  if(ads.body){var b=document.createElement("div");b.className="bodyCopy";b.textContent=ads.body;card.appendChild(b)}
+  if(ads.cta){var a=document.createElement("span");a.className="cta";a.textContent=ads.cta.label;card.appendChild(a)}
+  if(ads.disclaimer){var d=document.createElement("div");d.className="disclaimer";d.textContent=ads.disclaimer;card.appendChild(d)}
+  host.appendChild(card);
+  if(el("placeInterstitial").checked){
+    var second=card.cloneNode(true);
+    var oldMedia=second.querySelector(".adMedia");if(oldMedia)oldMedia.remove();
+    if(ads.interstitial&&ads.interstitial.asset){
+      var im=document.createElement("div");im.className="adMedia";
+      if(ads.interstitial.mode==="video"){var v=document.createElement("video");v.src=mediaUrl(ads.interstitial.asset);v.muted=true;v.autoplay=true;v.loop=false;v.playsInline=true;if(ads.interstitial.poster_asset)v.poster=mediaUrl(ads.interstitial.poster_asset);im.appendChild(v)}
+      else{var ii=document.createElement("img");ii.src=mediaUrl(ads.interstitial.asset);ii.alt="Interstitial preview";im.appendChild(ii)}
+      second.insertBefore(im,second.children[1]||null);
     }
-    historyItems.forEach(function(item){
-      var row = document.createElement('div');
-      row.className = 'historyItem';
-      var copy = document.createElement('div');
-      var title = document.createElement('strong');
-      title.textContent = item.reason || 'publish';
-      title.style.fontSize = '11px';
-      var small = document.createElement('small');
-      small.style.display='block';
-      small.textContent = new Date(item.created_at).toLocaleString() + ' · ' + (item.summary || item.id);
-      copy.appendChild(title); copy.appendChild(small);
-      var btn = document.createElement('button');
-      btn.textContent = 'Rollback';
-      btn.addEventListener('click', async function(){
-        if(!confirm('Rollback channel ' + channel() + ' ke snapshot ini? Current state akan disnapshot dulu.')) return;
-        btn.disabled = true;
-        try{
-          var data = await api('/control/api/rollback',{
-            method:'POST',
-            headers:{'content-type':'application/json'},
-            body:JSON.stringify({distribution_channel:channel(),history_id:item.id})
-          });
-          fillForm(data.state);
-          historyItems = data.history || [];
-          renderHistory();
-          setStatus(el('globalStatus'),'Rollback published.',true);
-        }catch(e){
-          setStatus(el('globalStatus'),e.message,false);
-        }finally{ btn.disabled=false; }
-      });
-      row.appendChild(copy); row.appendChild(btn); root.appendChild(row);
-    });
+    var lock=document.createElement("div");lock.className="disclaimer";lock.textContent="Interstitial · Random 2–5 seconds · LOCKED";second.appendChild(lock);host.appendChild(second);
   }
-
-  async function loadState(){
-    setStatus(el('globalStatus'),'Loading...',true);
-    var data = await api('/control/api/state?distribution_channel=' + encodeURIComponent(channel()));
-    workerVersion = data.worker_version || '';
-    historyItems = data.history || [];
-    fillForm(data.state || {});
-    renderHistory();
-    var vp = data.version_policy || {};
-    el('kWorker').textContent = workerVersion || '—';
-    el('kLatest').textContent = vp.latest_version || '—';
-    el('kMinimum').textContent = vp.minimum_version || '—';
-    el('kStore').textContent = vp.store_ready === true ? 'YES' : 'NO';
-    setStatus(el('globalStatus'),'Live state loaded for ' + channel() + '.',true);
-  }
-
-  async function validateForm(){
-    var state = buildState();
-    var data = await api('/control/api/validate?distribution_channel=' + encodeURIComponent(channel()),{
-      method:'POST',
-      headers:{'content-type':'application/json'},
-      body:JSON.stringify(state)
-    });
-    renderPreview(data.state);
-    el('rawState').textContent = JSON.stringify(data.state,null,2);
-    return data.state;
-  }
-
-  async function publish(reason){
-    var state = buildState();
-    var data = await api('/control/api/state?distribution_channel=' + encodeURIComponent(channel()),{
-      method:'POST',
-      headers:{'content-type':'application/json'},
-      body:JSON.stringify({state:state,reason:reason || 'control_center_publish'})
-    });
-    loadedState = data.state;
-    historyItems = data.history || [];
-    fillForm(data.state);
-    renderHistory();
-    setStatus(el('globalStatus'),'Published to ' + channel() + '.',true);
-  }
-
-  el('connect').addEventListener('click', async function(){
-    authToken = el('token').value.trim();
-    if(!authToken){ setStatus(el('loginStatus'),'Token diperlukan.',false); return; }
-    try{
-      var s = await api('/control/api/session');
-      el('app').classList.remove('hidden');
-      el('loginCard').classList.add('hidden');
-      el('connDot').className='dot ok';
-      el('connText').textContent='Owner session';
-      workerVersion = s.worker_version || '';
-      await loadState();
-    }catch(e){
-      authToken='';
-      el('connDot').className='dot warn';
-      el('connText').textContent='Locked';
-      setStatus(el('loginStatus'),e.message,false);
+}
+function updateUploadVisibility(){
+  el("cardUploadWrap").classList.toggle("hidden",el("cardMode").value!=="banner");
+  el("interstitialUploadWrap").classList.toggle("hidden",el("interstitialMode").value==="text");
+  el("scheduleFields").classList.toggle("hidden",el("scheduleMode").value!=="scheduled");
+}
+function fileToBase64(file){return new Promise(function(resolve,reject){var r=new FileReader();r.onload=function(){resolve(String(r.result).split(",")[1]||"")};r.onerror=reject;r.readAsDataURL(file)})}
+function inspectFile(file){
+  return new Promise(function(resolve,reject){
+    if(file.type.indexOf("image/")===0){
+      var img=new Image(),url=URL.createObjectURL(file);
+      img.onload=function(){URL.revokeObjectURL(url);resolve({width:img.naturalWidth,height:img.naturalHeight,duration_ms:0})};
+      img.onerror=function(){URL.revokeObjectURL(url);reject(new Error("Image metadata tidak terbaca."))};img.src=url;return;
     }
+    var video=document.createElement("video"),u=URL.createObjectURL(file);video.preload="metadata";
+    video.onloadedmetadata=function(){var meta={width:video.videoWidth,height:video.videoHeight,duration_ms:Math.round(video.duration*1000)};URL.revokeObjectURL(u);resolve(meta)};
+    video.onerror=function(){URL.revokeObjectURL(u);reject(new Error("Video metadata tidak terbaca."))};video.src=u;
   });
-  el('token').addEventListener('keydown',function(e){ if(e.key==='Enter') el('connect').click(); });
-  el('channel').addEventListener('change',function(){ loadState().catch(function(e){setStatus(el('globalStatus'),e.message,false);}); });
-  el('reload').addEventListener('click',function(){ loadState().catch(function(e){setStatus(el('globalStatus'),e.message,false);}); });
-  el('refreshHistory').addEventListener('click',function(){ loadState().catch(function(e){setStatus(el('globalStatus'),e.message,false);}); });
-  el('publishTop').addEventListener('click',function(){ publish('overview_publish').catch(function(e){setStatus(el('globalStatus'),e.message,false);}); });
-  qsAll('.publish').forEach(function(btn){ btn.addEventListener('click',function(){ publish('control_center_publish').catch(function(e){setStatus(btn.closest('.card').querySelector('.panelStatus'),e.message,false);}); }); });
-  qsAll('.validate').forEach(function(btn){ btn.addEventListener('click',async function(){ var status=btn.closest('.card').querySelector('.panelStatus'); try{ await validateForm(); setStatus(status,'Validation PASS. Tidak ada state yang ditulis.',true); }catch(e){ setStatus(status,e.message,false); } }); });
-  el('pauseAds').addEventListener('click',async function(){
-    if(!confirm('Pause paid campaign untuk channel ' + channel() + '? House ad tetap aktif.')) return;
-    try{
-      var data=await api('/control/api/pause-ads',{
-        method:'POST',
-        headers:{'content-type':'application/json'},
-        body:JSON.stringify({distribution_channel:channel()})
-      });
-      loadedState=data.state; historyItems=data.history||[]; fillForm(data.state); renderHistory();
-      setStatus(el('globalStatus'),'Paid ads paused. House inventory tetap tersedia.',true);
-    }catch(e){ setStatus(el('globalStatus'),e.message,false); }
+}
+async function uploadFile(file){
+  var allowed=["image/jpeg","image/png","image/webp","video/mp4","video/webm"];
+  if(allowed.indexOf(file.type)<0)throw new Error("Format media tidak didukung.");
+  var isVideo=file.type.indexOf("video/")===0;
+  if(file.size>(isVideo?10:3)*1024*1024)throw new Error("Ukuran media melewati batas.");
+  var meta=await inspectFile(file);
+  if(isVideo&&meta.duration_ms>15000)throw new Error("Video maksimal 15 detik.");
+  var data=await api("/control/api/media",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({mime:file.type,data_base64:await fileToBase64(file),width:meta.width,height:meta.height,duration_ms:meta.duration_ms})});
+  return data.asset;
+}
+async function posterFromVideo(file){
+  var video=document.createElement("video"),url=URL.createObjectURL(file);video.muted=true;video.playsInline=true;video.preload="auto";
+  return await new Promise(function(resolve){
+    var finish=function(value){URL.revokeObjectURL(url);resolve(value)};
+    video.onloadeddata=function(){try{video.currentTime=Math.min(.2,Math.max(0,(video.duration||1)/4))}catch(e){}};
+    video.onseeked=function(){try{var c=document.createElement("canvas");c.width=video.videoWidth||540;c.height=video.videoHeight||540;c.getContext("2d").drawImage(video,0,0,c.width,c.height);c.toBlob(function(blob){if(!blob)return finish(null);finish(new File([blob],"poster.png",{type:"image/png"}))},"image/png")}catch(e){finish(null)}};
+    video.onerror=function(){finish(null)};video.src=url;
   });
-  el('copyRaw').addEventListener('click',async function(){ try{ await navigator.clipboard.writeText(el('rawState').textContent); }catch(e){} });
-  qsAll('input,select,textarea').forEach(function(node){
-    if(node.id==='token'||node.id==='channel') return;
-    node.addEventListener('input',function(){ try{renderPreview(buildState());}catch(e){} });
-    node.addEventListener('change',function(){ try{renderPreview(buildState());}catch(e){} });
+}
+function demoImage(width,height,name){
+  return new Promise(function(resolve){
+    var c=document.createElement("canvas");c.width=width;c.height=height;var x=c.getContext("2d");
+    x.fillStyle="#f1f1ed";x.fillRect(0,0,width,height);x.fillStyle="#fff";x.strokeStyle="#1b1b1b";x.lineWidth=Math.max(3,width/300);var m=width*.08;x.fillRect(m,height*.12,width-m*2,height*.76);x.strokeRect(m,height*.12,width-m*2,height*.76);
+    x.textAlign="center";x.fillStyle="#171717";x.font="700 "+Math.round(width*.05)+"px system-ui";x.fillText("DEMO SPONSOR",width/2,height*.43);x.font="600 "+Math.round(width*.04)+"px system-ui";x.fillText("BMP Terbuka",width/2,height*.54);x.font="400 "+Math.round(width*.026)+"px system-ui";x.fillText("Materi iklan contoh",width/2,height*.64);
+    c.toBlob(function(blob){resolve(new File([blob],name,{type:"image/webp"}))},"image/webp",.86);
   });
-  qsAll('.nav button').forEach(function(btn){
-    btn.addEventListener('click',function(){
-      qsAll('.nav button').forEach(function(x){x.classList.remove('active');});
-      btn.classList.add('active');
-      qsAll('[data-panel]').forEach(function(p){p.classList.toggle('hidden',p.getAttribute('data-panel')!==btn.getAttribute('data-tab'));});
-    });
+}
+async function demoVideo(){
+  var c=document.createElement("canvas");c.width=540;c.height=540;var x=c.getContext("2d");var stream=c.captureStream?c.captureStream(12):null;
+  if(!stream||typeof MediaRecorder==="undefined")return null;
+  var mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp8")?"video/webm;codecs=vp8":"video/webm";
+  var rec=new MediaRecorder(stream,{mimeType:mime});var chunks=[];rec.ondataavailable=function(e){if(e.data.size)chunks.push(e.data)};
+  var done=new Promise(function(resolve){rec.onstop=function(){resolve(new File(chunks,"demo-interstitial-video-1x1.webm",{type:"video/webm"}))}});
+  rec.start();var start=performance.now();
+  await new Promise(function(resolve){
+    function frame(now){var t=(now-start)/1000;x.fillStyle="#f1f1ed";x.fillRect(0,0,540,540);x.fillStyle="#fff";x.fillRect(45,65,450,410);x.fillStyle="#171717";x.textAlign="center";x.font="700 30px system-ui";x.fillText("DEMO SPONSOR",270,220);x.font="600 25px system-ui";x.fillText("BMP Terbuka",270,270);x.font="400 17px system-ui";x.fillText("Materi iklan contoh",270,315);x.fillRect(45,450,Math.min(450,450*t/5),4);if(t<5)requestAnimationFrame(frame);else resolve()}requestAnimationFrame(frame);
   });
+  rec.stop();return await done;
+}
+async function loadDemo(){
+  status(el("adsStatus"),"Membuat dan upload demo creative…",null);
+  var banner=await demoImage(1200,675,"demo-banner-16x9.webp");
+  var square=await demoImage(1080,1080,"demo-interstitial-1x1.webp");
+  cardAsset=await uploadFile(banner);
+  interstitialAsset=await uploadFile(square);
+  el("cardMode").value="banner";el("interstitialMode").value="image";el("placeCard").checked=true;el("placeInterstitial").checked=true;el("adsEnabled").checked=true;el("advertiser").value="BMP Terbuka";el("headline").value="DEMO SPONSOR";el("adBody").value="Materi iklan contoh";el("disclaimer").value="Demo creative · bukan pengiklan nyata";
+  el("cardMeta").textContent=banner.name+" · "+number(banner.size)+" bytes";el("interstitialMeta").textContent=square.name+" · "+number(square.size)+" bytes";
+  var video=await demoVideo().catch(function(){return null});
+  if(video){
+    var vAsset=await uploadFile(video);if(vAsset){interstitialAsset=vAsset;el("interstitialMode").value="video";el("interstitialMeta").textContent=video.name+" · 5s demo";}
+    var poster=await posterFromVideo(video).catch(function(){return null});if(poster)posterAsset=await uploadFile(poster).catch(function(){return null});
+  }
+  updateUploadVisibility();renderAdPreview();status(el("adsStatus"),"Demo creative loaded. Preview dulu sebelum publish.",true);
+}
+function fillExtension(state){
+  var badge=state&&state.status_badge||{};
+  el("badgeOn").checked=badge.visible===true;el("badgeKind").value=badge.kind||"info";el("badgeText").value=badge.text||"";
+  el("rawStateEditor").value=JSON.stringify(state||{schema_version:1},null,2);renderExtensionPreview();
+}
+function buildExtensionState(){
+  var state;
+  try{state=JSON.parse(el("rawStateEditor").value||"{}")}catch(e){state=baseState()}
+  state.schema_version=1;
+  state.status_badge={visible:el("badgeOn").checked,kind:el("badgeKind").value,text:el("badgeText").value.trim()};
+  return state;
+}
+function renderExtensionPreview(){var s=buildExtensionState(),p=el("extensionPreview");p.textContent="";var b=document.createElement("div");b.className="adCard";b.innerHTML="<div class='label'>Status badge</div><div class='headline'></div>";b.querySelector(".headline").textContent=s.status_badge.visible?(s.status_badge.text||"—"):"OFF";var d=document.createElement("div");d.className="disclaimer";d.textContent="Type: "+s.status_badge.kind;p.appendChild(b)}
+async function publishState(target,state,reason){
+  return await api("/control/api/state?distribution_channel="+encodeURIComponent(target),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({state:state,reason:reason})});
+}
+async function loadAnalytics(period,channel){
+  var query="?period="+encodeURIComponent(period)+"&channel="+encodeURIComponent(channel||"");
+  var data=await api("/control/api/analytics"+query);analyticsData=data;
+  var community=await api("/control/api/community");
+  el("kSubscribers").textContent=community.subscribers==null?"—":number(community.subscribers);
+  el("kMembers").textContent=community.members==null?"—":number(community.members);
+  el("kTotal").textContent=data.available?number(data.total_users):"—";
+  el("kActive").textContent=data.available?number(data.active_users):"—";
+  el("kOpens").textContent=data.available?number(data.opens):"—";
+  el("kJobs").textContent=data.available?number(data.jobs):"—";
+  el("kReturning").textContent=data.available?pct(data.returning_percent):"—";
+  el("kHealth").textContent=data.available?pct(data.health_percent):"—";
+  el("kReach").textContent=data.available?number(data.ad_reach):"—";
+  el("kImpressions").textContent=data.available?number(data.impressions):"—";
+  el("kCtr").textContent=data.available?pct(data.ctr_percent):"—";
+  el("aSuccess").textContent=data.available?pct(data.health_percent):"—";
+  el("aFailed").textContent=data.available?number(data.job_failed):"—";
+  el("aMediaFailed").textContent=data.available?number(data.media_render_failed):"—";
+  el("aClicks").textContent=data.available?number(data.clicks):"—";
+  el("analyticsRaw").textContent=JSON.stringify(data,null,2);
+  drawCharts(data.series||[]);
+  return data;
+}
+function drawChart(canvas,series,keys){
+  var dpr=window.devicePixelRatio||1,w=canvas.clientWidth||500,h=canvas.clientHeight||180;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);var c=canvas.getContext("2d");c.scale(dpr,dpr);c.clearRect(0,0,w,h);c.strokeStyle="#d8d8d2";c.lineWidth=1;c.beginPath();c.moveTo(30,h-24);c.lineTo(w-10,h-24);c.stroke();
+  var byDate={};series.forEach(function(r){if(keys.indexOf(r.metric)<0)return;(byDate[r.date]||(byDate[r.date]={}))[r.metric]=Number(r.value||0)});var dates=Object.keys(byDate).sort();if(!dates.length){c.fillStyle="#888";c.font="11px system-ui";c.fillText("No data yet",38,45);return}
+  var max=1;dates.forEach(function(d){keys.forEach(function(k){max=Math.max(max,byDate[d][k]||0)})});var patterns=[[0],[5,3],[2,3]];keys.forEach(function(k,ki){c.setLineDash(patterns[ki%patterns.length]);c.strokeStyle="#222";c.lineWidth=1.5;c.beginPath();dates.forEach(function(d,i){var x=30+(dates.length===1?0:(w-45)*i/(dates.length-1));var y=h-24-(h-42)*(byDate[d][k]||0)/max;if(i===0)c.moveTo(x,y);else c.lineTo(x,y)});c.stroke()});c.setLineDash([]);
+  c.fillStyle="#777";c.font="9px system-ui";keys.forEach(function(k,i){c.fillText(k,38+i*105,15)});
+}
+function drawCharts(series){drawChart(el("chartEngagement"),series,["extension_open","job_started","job_completed"]);drawChart(el("chartAds"),series,["ad_impression","ad_click"])}
+async function loadVersion(){
+  var data=await api("/control/api/version-policy");var p=data.policy||{};
+  el("latestVersion").value=p.latest_version||"1.1.0";el("minimumGlobal").value=p.minimum_global||"1.1.0";el("releaseUrl").value=p.release_url||"";el("versionMessage").value=p.message||"";
+  var r=p.readiness||{};el("readyGithub").checked=r.github===true;el("readyAndroid").checked=r.android===true;el("readyEdge").checked=r.edge===true;el("readyCws").checked=r.cws===true;
+  renderEffective(data.effective||{});return data;
+}
+function renderEffective(effective){var host=el("effectiveVersion");host.textContent="";Object.keys(effective).forEach(function(k){var p=effective[k],row=document.createElement("div");row.className="readyRow";var text=document.createElement("span");text.textContent=k+" · latest "+(p.latest_version||"—")+" · minimum "+(p.minimum_version||"not enforced");var badge=document.createElement("span");badge.className="badge "+(p.store_ready?"ready":"wait");badge.textContent=p.store_ready?"Ready":"Waiting";row.appendChild(text);row.appendChild(badge);host.appendChild(row)})}
+async function saveVersion(){
+  var body={latest_version:el("latestVersion").value.trim(),minimum_global:el("minimumGlobal").value.trim(),release_url:el("releaseUrl").value.trim(),message:el("versionMessage").value.trim(),readiness:{github:el("readyGithub").checked,android:el("readyAndroid").checked,edge:el("readyEdge").checked,cws:el("readyCws").checked}};
+  var data=await api("/control/api/version-policy",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});renderEffective(data.effective||{});return data;
+}
+async function loadHistory(){
+  var channel=el("historyTarget").value,data=await api("/control/api/state?distribution_channel="+encodeURIComponent(channel)),host=el("historyList");host.textContent="";
+  (data.history||[]).forEach(function(item){var row=document.createElement("div");row.className="historyItem";var info=document.createElement("div");var strong=document.createElement("div");strong.textContent=item.summary||"snapshot";var small=document.createElement("small");small.textContent=new Date(item.created_at).toLocaleString()+" · "+item.reason;info.appendChild(strong);info.appendChild(small);var btn=document.createElement("button");btn.className="small";btn.textContent="Rollback";btn.onclick=async function(){if(!confirm("Rollback "+channel+" ke snapshot ini?"))return;try{await api("/control/api/rollback",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({distribution_channel:channel,history_id:item.id})});status(el("historyStatus"),"Rollback complete.",true);await loadHistory()}catch(e){status(el("historyStatus"),e.message,false)}};row.appendChild(info);row.appendChild(btn);host.appendChild(row)});
+  if(!(data.history||[]).length)host.textContent="Belum ada snapshot.";
+}
+
+el("connect").onclick=async function(){
+  authToken=el("token").value.trim();if(!authToken){status(el("loginStatus"),"Token diperlukan.",false);return}
+  try{await api("/control/api/session");el("loginCard").classList.add("hidden");el("app").classList.remove("hidden");el("connDot").className="dot ok";el("connText").textContent="Owner session";await Promise.all([loadState("all"),loadAnalytics(overviewPeriod,""),loadVersion()]);status(el("overviewStatus"),"Live data loaded.",true)}
+  catch(e){authToken="";status(el("loginStatus"),e.message,false);el("connDot").className="dot warn";el("connText").textContent="Locked"}
+};
+el("token").addEventListener("keydown",function(e){if(e.key==="Enter")el("connect").click()});
+all(".nav button").forEach(function(btn){btn.onclick=function(){all(".nav button").forEach(function(x){x.classList.remove("active")});btn.classList.add("active");all("[data-panel]").forEach(function(p){p.classList.toggle("hidden",p.getAttribute("data-panel")!==btn.getAttribute("data-tab"))})}});
+all("#periodOverview button").forEach(function(btn){btn.onclick=async function(){all("#periodOverview button").forEach(function(x){x.classList.remove("active")});btn.classList.add("active");overviewPeriod=btn.dataset.period;try{await loadAnalytics(overviewPeriod,"");status(el("overviewStatus"),"Updated.",true)}catch(e){status(el("overviewStatus"),e.message,false)}}});
+all("#periodAnalytics button").forEach(function(btn){btn.onclick=function(){all("#periodAnalytics button").forEach(function(x){x.classList.remove("active")});btn.classList.add("active");analyticsPeriod=btn.dataset.period}});
+el("refreshAnalytics").onclick=async function(){try{await loadAnalytics(analyticsPeriod,el("analyticsChannel").value);status(el("analyticsStatus"),"Updated.",true)}catch(e){status(el("analyticsStatus"),e.message,false)}};
+["cardMode","interstitialMode","scheduleMode"].forEach(function(id){el(id).onchange=function(){updateUploadVisibility();renderAdPreview()}});
+["advertiser","headline","adBody","ctaLabel","ctaUrl","disclaimer","placeCard","placeInterstitial","networkFallback","adsEnabled","houseHeadline","houseBody","houseCtaLabel","houseCtaUrl"].forEach(function(id){el(id).addEventListener("input",renderAdPreview);el(id).addEventListener("change",renderAdPreview)});
+el("cardFile").onchange=async function(){var f=this.files[0];if(!f)return;try{cardAsset=await uploadFile(f);el("cardMeta").textContent=f.name+" · "+number(f.size)+" bytes";renderAdPreview();status(el("adsStatus"),"Banner uploaded.",true)}catch(e){status(el("adsStatus"),e.message,false)}};
+el("interstitialFile").onchange=async function(){var f=this.files[0];if(!f)return;try{interstitialAsset=await uploadFile(f);posterAsset=null;if(f.type.indexOf("video/")===0){var poster=await posterFromVideo(f);if(poster)posterAsset=await uploadFile(poster)}el("interstitialMeta").textContent=f.name+" · "+number(f.size)+" bytes";renderAdPreview();status(el("adsStatus"),"Interstitial media uploaded.",true)}catch(e){status(el("adsStatus"),e.message,false)}};
+el("loadDemo").onclick=function(){loadDemo().catch(function(e){status(el("adsStatus"),e.message,false)})};
+el("previewAds").onclick=renderAdPreview;
+el("adsTarget").onchange=function(){loadState(this.value).then(function(){status(el("adsStatus"),"State loaded.",true)}).catch(function(e){status(el("adsStatus"),e.message,false)})};
+el("publishAds").onclick=async function(){try{var target=targetValue("adsTarget"),data=await publishState(target,buildAdsState(),"ads_publish");if(target==="all"){loadedStates=data.states||{};currentState=loadedStates.github}else{currentState=data.state;loadedStates[target]=data.state}fillAds(currentState);status(el("adsStatus"),"Published to "+target+".",true)}catch(e){status(el("adsStatus"),e.message,false)}};
+el("pauseAds").onclick=async function(){var target=targetValue("adsTarget");if(target==="all"){status(el("adsStatus"),"Pause darurat harus per channel supaya eksplisit.",false);return}try{var data=await api("/control/api/pause-ads",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({distribution_channel:target})});currentState=data.state;fillAds(currentState);status(el("adsStatus"),"Campaign OFF. House Ad tetap tersedia.",true)}catch(e){status(el("adsStatus"),e.message,false)}};
+
+["badgeOn","badgeKind","badgeText"].forEach(function(id){el(id).addEventListener("input",renderExtensionPreview);el(id).addEventListener("change",renderExtensionPreview)});
+el("extensionTarget").onchange=function(){loadState(this.value).then(function(){status(el("extensionStatus"),"State loaded.",true)}).catch(function(e){status(el("extensionStatus"),e.message,false)})};
+el("previewExtension").onclick=renderExtensionPreview;
+el("publishExtension").onclick=async function(){try{var target=targetValue("extensionTarget"),data=await publishState(target,buildExtensionState(),"extension_surface_publish");if(target==="all"){loadedStates=data.states||{};currentState=loadedStates.github}else{currentState=data.state;loadedStates[target]=data.state}fillExtension(currentState);status(el("extensionStatus"),"Published to "+target+".",true)}catch(e){status(el("extensionStatus"),e.message,false)}};
+
+el("reloadVersion").onclick=function(){loadVersion().then(function(){status(el("versionStatus"),"Reloaded.",true)}).catch(function(e){status(el("versionStatus"),e.message,false)})};
+el("saveVersion").onclick=function(){saveVersion().then(function(){status(el("versionStatus"),"Version policy saved. Readiness safety applied.",true)}).catch(function(e){status(el("versionStatus"),e.message,false)})};
+el("refreshHistory").onclick=function(){loadHistory().catch(function(e){status(el("historyStatus"),e.message,false)})};
+el("historyTarget").onchange=function(){loadHistory().catch(function(e){status(el("historyStatus"),e.message,false)})};
 })();
 </script>
 </body>
@@ -519,7 +478,7 @@ input:focus,select:focus,textarea:focus{border-color:#777;box-shadow:0 0 0 3px r
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
-      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'none'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' blob:; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
       "X-Content-Type-Options": "nosniff",
       "Referrer-Policy": "no-referrer",
       "Permissions-Policy": "camera=(), microphone=(), geolocation=()"
