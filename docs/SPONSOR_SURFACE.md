@@ -76,3 +76,14 @@ Pasang iklan? Hubungi
 ```
 
 Backend boleh mengubah copy/CTA house inventory secara realtime, tetapi local fallback tetap ada agar surface tidak menjadi card kosong.
+
+
+## v1.1.0 media contract
+
+Direct paid sponsor creative remains declarative JSON. Creative version 2 is additive: legacy text fields remain the fallback, while card creative may reference a BMP-owned banner asset and interstitial creative may reference a BMP-owned image or video asset. The extension derives media URLs only from its configured BMP Worker origin and a validated media ID.
+
+Card priority is Direct BMP Sponsor → AdsOnBread fallback → House Ad. Interstitial priority is Direct BMP Sponsor → House Ad; AdsOnBread is never an interstitial. Media failures fall back without blocking START_JOB, OCR, cache writes, downloads, STOP, or popup resume. The interstitial clock remains random 2–5 seconds and begins only after START_JOB succeeds.
+
+Image media accepts JPEG, PNG, and WebP up to 3 MiB. SVG and GIF are rejected. Video accepts MP4 and WebM up to 10 MiB and 15 seconds, uses muted inline autoplay, does not loop indefinitely, remains closable, and uses `object-fit: contain`.
+
+The repository includes a local AdsOnBread test adapter for no-fill/failure behavior. A live vendor SDK is not claimed here; before release it must be obtained under the provider terms, vendorized locally, reviewed, and reflected in privacy/store disclosures.
