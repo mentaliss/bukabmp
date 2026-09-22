@@ -763,7 +763,8 @@ async function runReviewerSample() {
 }
 
 async function startModule(tabId, state, attempt = 0) {
-  if (!state.running) return;
+  if (!state.running || !state.runId) return;
+  const runId = String(state.runId);
   try {
     await chrome.tabs.sendMessage(tabId, {
       type: "START_MODULE",
@@ -776,23 +777,32 @@ async function startModule(tabId, state, attempt = 0) {
   } catch (e) {
     const nextAttempt = attempt + 1;
     if (nextAttempt > 20) {
-      await setState({
-        running: false,
-        status: "ERROR",
-        progress:
-          "Halaman modul terbuka, tetapi komponen pemrosesan belum siap. " +
-          "Tutup-buka halaman reader lalu coba lagi.",
-        ocrProgress: ""
-      });
+      const latest = await getState();
+      if (latest.running && String(latest.runId || "") === runId) {
+        await setState({
+          running: false,
+          status: "ERROR",
+          progress:
+            "Halaman modul terbuka, tetapi komponen pemrosesan belum siap. " +
+            "Tutup-buka halaman reader lalu coba lagi.",
+          ocrProgress: ""
+        });
+      }
       return;
     }
+    const latest = await getState();
+    if (!latest.running || String(latest.runId || "") !== runId) return;
     await setState({
       status: "WAITING_PAGE",
       progress: `Menunggu halaman siap... (${nextAttempt}/20)`
     });
     setTimeout(async () => {
       const s = await getState();
-      if (s.running && s.tabId === tabId) {
+      if (
+        s.running &&
+        s.tabId === tabId &&
+        String(s.runId || "") === runId
+      ) {
         startModule(tabId, s, nextAttempt).catch(() => {});
       }
     }, 1500);
@@ -819,10 +829,17 @@ async function navigateCurrentModule() {
     if (
       s.running &&
       s.tabId === state.tabId &&
-      s.currentModule === state.currentModule
+      s.currentModule === state.currentModule &&
+      String(s.runId || "") === String(state.runId || "")
     ) {
       startModule(state.tabId, s, 0).catch(async e => {
-        await setState({running: false, status: "ERROR", progress: String(e)});
+        const latest = await getState();
+        if (
+          latest.running &&
+          String(latest.runId || "") === String(state.runId || "")
+        ) {
+          await setState({running: false, status: "ERROR", progress: String(e)});
+        }
       });
     }
   }, 1200);
@@ -1065,7 +1082,13 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     const s = await getState();
     if (s.running && s.tabId === tabId) {
       startModule(tabId, s).catch(async e => {
-        await setState({running: false, status: "ERROR", progress: String(e)});
+        const latest = await getState();
+        if (
+          latest.running &&
+          String(latest.runId || "") === String(s.runId || "")
+        ) {
+          await setState({running: false, status: "ERROR", progress: String(e)});
+        }
       });
     }
   }, 900);
@@ -1597,7 +1620,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (JOB_ERROR_MESSAGE_TYPES.has(String(msg?.type || ""))) {
       try {
         const state = await getState();
-        if (msg?.type === "START_JOB" || state.running) {
+        const sameRun = Boolean(
+          msg?.runId &&
+          state.running &&
+          String(msg.runId) === String(state.runId || "")
+        );
+        if (msg?.type === "START_JOB" || sameRun) {
           await setState({
             running: false,
             status: "ERROR",
