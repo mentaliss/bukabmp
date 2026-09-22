@@ -839,8 +839,10 @@ async function startModule(tabId, state, attempt = 0) {
     if (nextAttempt > 20) {
       const latest = await getState();
       if (latest.running && String(latest.runId || "") === runId) {
-        await setState({
+        cancelledRunIds.add(runId);
+        await setStateForRun(runId, {
           running: false,
+          runId: "",
           status: "ERROR",
           progress:
             "Halaman modul terbuka, tetapi komponen pemrosesan belum siap. " +
@@ -879,6 +881,7 @@ async function navigateCurrentModule() {
     ocrProgress: ""
   });
   if (!opening) return;
+  await requireActiveRun(state.runId);
   await chrome.tabs.update(state.tabId, {
     url: viewerUrl(state.code, state.currentModule)
   });
@@ -900,7 +903,15 @@ async function navigateCurrentModule() {
           latest.running &&
           String(latest.runId || "") === String(state.runId || "")
         ) {
-          await setState({running: false, status: "ERROR", progress: String(e)});
+          const id = String(state.runId || "");
+          cancelledRunIds.add(id);
+          await setStateForRun(id, {
+            running: false,
+            runId: "",
+            status: "ERROR",
+            progress: String(e),
+            ocrProgress: ""
+          });
         }
       });
     }
@@ -1071,13 +1082,16 @@ async function maybeBuildRequestedMerge(state, detectedLastModule = null) {
     };
   }
 
-  await setState({
-    status: "BUILDING_MERGE",
-    progress: target.full
-      ? `Menggabungkan Modul 1–${target.last}...`
-      : `Menggabungkan Modul ${target.first}–${target.last}...`,
-    ocrProgress: ""
-  });
+  if (state.runId) {
+    const merging = await setStateForRun(state.runId, {
+      status: "BUILDING_MERGE",
+      progress: target.full
+        ? `Menggabungkan Modul 1–${target.last}...`
+        : `Menggabungkan Modul ${target.first}–${target.last}...`,
+      ocrProgress: ""
+    });
+    if (!merging) throw new Error("Proses berubah sebelum PDF gabungan dibuat.");
+  }
   const filename = await buildMergedPdf(state, target.first, target.last, {full: target.full});
   return {
     made: true,
@@ -1165,7 +1179,15 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
           latest.running &&
           String(latest.runId || "") === String(s.runId || "")
         ) {
-          await setState({running: false, status: "ERROR", progress: String(e)});
+          const id = String(s.runId || "");
+          cancelledRunIds.add(id);
+          await setStateForRun(id, {
+            running: false,
+            runId: "",
+            status: "ERROR",
+            progress: String(e),
+            ocrProgress: ""
+          });
         }
       });
     }
