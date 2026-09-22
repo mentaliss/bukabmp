@@ -96,3 +96,12 @@ Cloudflare, Telegram, GitHub, Microsoft Edge, browser, dan penyedia sumber dapat
 Client tidak menggunakan isi BMP, hasil OCR, atau PDF untuk advertising atau profiling. Fitur sponsor/ads tidak termasuk dalam initial Edge Store candidate.
 
 Jika fitur sponsor/ads ditambahkan pada release masa depan, privacy disclosure dan Store listing harus diperbarui sebelum fitur tersebut diaktifkan.
+
+## v1.1.0 candidate: anonymous product analytics and sponsor media
+
+The candidate adds compact anonymous product telemetry for extension opens, job lifecycle health, and paid-direct sponsor delivery. A random per-installation `bmpAnalyticsIdV1` is separate from `bmpInstallId`, activation credentials, Telegram identity, and Supporter/payment state. The Worker transforms the incoming analytics ID with an independent server-side HMAC key (`TELEMETRY_HASH_KEY`) before analytics storage; the raw analytics ID is not used as the stored actor identifier.
+
+Telemetry is strictly product-usage data. It must not include Telegram IDs or usernames, member references, activation or pairing credentials, `bmpInstallId`, BMP codes, module names/numbers, RBV URLs, PDF names/content, OCR text, document titles/content, or browsing history. Telemetry delivery is failure-tolerant and BMP processing does not depend on it.
+
+Direct sponsor media is uploaded through the owner Control Center and stored under BMP-owned first-party media IDs. The extension does not render arbitrary advertiser-controlled media URLs. The AdsOnBread production SDK/account remains an external release gate; remote executable JavaScript is not permitted by this integration.
+
