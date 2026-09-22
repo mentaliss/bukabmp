@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  analyticsSummary,
   sanitizeTelemetryEvent,
   telemetryActorHash
 } from "../src/features/telemetry.js";
@@ -52,6 +53,23 @@ class MemoryR2 {
 function b64(bytes) {
   return Buffer.from(bytes).toString("base64");
 }
+
+test("analytics ratios are undefined when there is no denominator", async () => {
+  const db = {
+    prepare() {
+      return {
+        bind() { return this; },
+        async all() { return {results: []}; },
+        async first() { return {value: 0}; }
+      };
+    }
+  };
+  const summary = await analyticsSummary({BOT_DB: db}, {period: "7d"}, Date.parse("2026-09-22T00:00:00Z"));
+  assert.equal(summary.available, true);
+  assert.equal(summary.returning_percent, null);
+  assert.equal(summary.health_percent, null);
+  assert.equal(summary.ctr_percent, null);
+});
 
 test("telemetry rejects forbidden identity/content keys and accepts only product dimensions", () => {
   const base = {
