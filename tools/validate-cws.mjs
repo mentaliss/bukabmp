@@ -108,6 +108,12 @@ for(const rel of ["background.js","cloud-surface.js","telemetry.js","ads-media.j
   if(/new\s+Worker\s*\(\s*["']https?:\/\//i.test(code))fail(`Remote Worker URL found in ${rel}`);
 }
 
+// Compiled third-party files are reviewed too; keep the shipped vendor bundle local-only.
+for(const rel of ["vendor/tesseract.min.js","vendor/worker.min.js"]){
+  const code=fs.readFileSync(mustFile(rel),"utf8");
+  if(/cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com/i.test(code)) fail(`Remote CDN reference found in compiled vendor file: ${rel}`);
+  if(/\bnew\s+Function\s*\(|\bFunction\s*\(\s*[\"']/.test(code)) fail(`Dynamic code constructor found in compiled vendor file: ${rel}`);
+}
 for(const rel of ["popup.html","offscreen.html","about.html"]){
   const html=fs.readFileSync(mustFile(rel),"utf8");
   if(/<script[^>]+src\s*=\s*["']https?:\/\//i.test(html))fail(`Remote script tag found in ${rel}`);
