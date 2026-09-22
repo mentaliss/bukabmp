@@ -1,10 +1,10 @@
 # Privacy Policy
 
-BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku client extension BMP Terbuka v1.0.5 Store candidate dan perilaku backend Store-control V11 yang harus sudah live sebelum candidate disubmit ke Store.
+BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku source extension dan Cloudflare Worker yang digunakan kandidat v1.1.0.
 
 ## Data materi
 
-Extension memproses halaman materi, OCR, dan penyusunan PDF di perangkat pengguna. Community/activation service tidak digunakan untuk menerima:
+Extension memproses halaman materi, OCR, cache PDF, penggabungan PDF, dan ekspor PDF di perangkat pengguna. Backend BMP Terbuka tidak menerima:
 - password atau credential portal sumber;
 - NIM;
 - cookie/session portal sumber;
@@ -12,87 +12,109 @@ Extension memproses halaman materi, OCR, dan penyusunan PDF di perangkat penggun
 - teks OCR isi materi;
 - PDF hasil.
 
-OCR tidak menggunakan layanan OCR cloud. Tesseract.js, WebAssembly OCR, model bahasa Indonesia, dan pdf-lib dibundel di dalam release extension.
+OCR tidak menggunakan layanan OCR cloud. Tesseract.js, WebAssembly OCR, model bahasa Indonesia, dan pdf-lib dibundel di package release.
 
-## Penyimpanan lokal PDF
+## Penyimpanan lokal extension
 
-Selain salinan yang diekspor melalui browser Downloads, extension menyimpan PDF modul secara lokal di IndexedDB extension agar pengguna dapat:
-- melanjutkan proses tanpa mengulang OCR modul yang sudah selesai;
-- mengekspor ulang PDF modul;
-- membuat PDF gabungan dari modul yang sudah tersedia;
-- melihat ringkasan penyimpanan per BMP.
-
-Database client saat ini bernama `bmp-terbuka-pdf-cache` dengan object store `pdfs`. Data ini berada di storage origin extension dan tidak dikirim ke community/activation service.
-
-Pengguna dapat menghapus penyimpanan lokal untuk BMP yang sedang dipilih dari UI extension. Menghapus cache BMP tidak menghapus file yang sebelumnya sudah diekspor ke Downloads. Data extension juga dapat hilang ketika pengguna menghapus extension atau membersihkan storage extension melalui browser.
-
-## Data lokal extension
-
-Browser extension local storage dapat menyimpan data operasional, termasuk:
-- installation ID acak yang dibuat oleh extension;
+Browser dapat menyimpan data operasional di storage origin extension, antara lain:
+- installation ID acak yang dibuat extension;
 - signed community activation token;
-- status pairing/aktivasi;
-- draft input dan konfigurasi proses;
-- status pekerjaan yang sedang/terakhir dijalankan;
+- status pairing sementara;
+- draft kode BMP/rentang dan opsi proses;
+- status pekerjaan;
 - metadata cache per BMP;
-- cache kebijakan versi/update;
-- cache Cloud Surface yang telah divalidasi.
+- version-policy cache;
+- validated realtime state/ads cache.
 
-Installation ID bukan NIM dan bukan credential portal sumber.
+PDF modul disimpan lokal di IndexedDB `bmp-terbuka-pdf-cache`, object store `pdfs`, dengan key per BMP seperti `CODE:M1`. File di Downloads hanyalah salinan ekspor. Mengosongkan cache satu BMP tidak menghapus file yang sudah diekspor.
 
-## Aktivasi komunitas dan retention
+Update **in-place dengan extension identity yang sama** mempertahankan storage browser menurut model extension Chromium. Uninstall, pembersihan storage browser, atau instalasi dengan identity berbeda dapat menghilangkan/memisahkan data tersebut.
 
-Pada backend Store-control V11, sesi pairing disimpan sementara di Cloudflare KV namespace yang digunakan layanan komunitas. Record pairing berisi data operasional seperti installation ID acak, versi extension, distribution channel, hash poll secret, status, dan waktu pembuatan. Setelah verifikasi, record sementara juga dapat memuat signed activation token.
+## Aktivasi komunitas
 
-Pairing record memakai TTL **15 menit** dan kedaluwarsa otomatis.
+Extension membuat pairing ke backend dengan:
+- installation ID acak;
+- versi extension;
+- distribution channel;
+- pada one-time legacy→v2 re-verification, current signed activation token dapat dikirim kembali ke backend agar sisa masa aktif tidak dipendekkan.
 
-Untuk membatasi abuse pada pembuatan pairing, service dapat membuat fingerprint satu arah dari alamat IP request menggunakan salt rahasia. Counter rate-limit tersebut memakai TTL **60 detik**. Nilai IP mentah tidak disimpan dalam KV record rate-limit itu.
+Backend memverifikasi token tersebut secara kriptografis. Token invalid, expired, atau dari install berbeda tidak memberi expiry floor. Untuk expiry-preservation, member reference satu arah juga harus cocok dengan akun Telegram yang melakukan verifikasi.
 
-Membership Telegram diperiksa ketika aktivasi dilakukan. Ordinary community activation pada backend Store-control V11 tidak membuat record identitas Telegram jangka panjang setelah sesi pairing berakhir. Signed community token yang diterima extension disimpan lokal di browser dan normalnya berlaku **14 hari**.
+Pairing sementara disimpan di Cloudflare KV dengan TTL **15 menit**. Record pairing dapat memuat installation ID, version/channel, hash poll secret, status, timestamp, expiry floor/member reference tervalidasi, dan setelah sukses signed activation token untuk diambil client selama TTL tersebut.
 
-## Store reviewer activation
+Membership Telegram diperiksa saat aktivasi/re-verifikasi dan token refresh. Signed activation token disimpan oleh extension, terikat ke installation ID, dan diverifikasi lokal menggunakan public key.
 
-Store reviewer menggunakan jalur khusus yang tetap menghasilkan signed token normal, terikat ke installation ID dan diverifikasi client dengan public key yang dibundel.
+## Durable account/activation data
 
-- reviewer secret hanya dikonfigurasi server-side dan tidak dimasukkan ke package extension atau repository publik;
-- rate-limit reviewer menggunakan fingerprint satu arah dari IP dengan TTL **10 menit**;
-- reviewer token memiliki masa berlaku maksimum **24 jam**;
-- reviewer token membawa scope `store_review` sehingga panel certification lokal hanya terlihat oleh reviewer yang telah diverifikasi.
+Backend v1.1.0 juga menggunakan D1/KV untuk fungsi bot, aktivasi, referral, dan Supporter. Bergantung feature gate produksi, data berikut dapat disimpan lebih lama daripada sesi pairing:
+- Telegram user ID internal untuk user bot;
+- first/last activation timestamp dan activation count;
+- opaque referral code dan referral/qualification state;
+- Supporter entitlement dan target masa aktivasi;
+- payment/idempotency records yang dibutuhkan untuk mencegah kredit ganda dan merekonsiliasi transaksi;
+- pilihan Supporter Wall dan state operasional terkait.
 
-Panel certification memproses fixture gambar yang dibuat lokal di extension melalui engine OCR/PDF yang sama. Fixture tersebut bukan materi BMP asli dan tidak membutuhkan credential sumber.
+Data durable tersebut tidak berisi halaman BMP, gambar materi, teks OCR, atau PDF hasil. Source saat ini tidak memberi TTL otomatis untuk seluruh record D1 tersebut; retention mengikuti kebutuhan operasional/transaksi sampai ada proses penghapusan/migrasi yang berlaku.
 
-## Pemeriksaan versi
+## Supporter dan Support Bot
 
-Extension dapat menghubungi community service untuk memperoleh kebijakan versi. Request mencakup versi extension dan distribution channel.
+Supporter bersifat opsional dan bukan syarat untuk OCR/PDF inti. Source saat ini menggunakan beberapa record sementara:
+- draft invoice Supporter: TTL **24 jam**;
+- konteks troubleshooting Supporter: TTL **6 jam**;
+- counter kuota AI: TTL **48 jam**.
 
-Chrome Web Store dan Edge Add-ons memakai policy channel terpisah. Remote minimum-version enforcement untuk channel Store hanya diterapkan setelah service menandai channel tersebut `store_ready=true`, sehingga versi yang masih draft atau dalam review tidak mengunci pengguna.
+Entitlement, payment/idempotency, referral, dan activation ledger dapat bersifat durable sebagaimana dijelaskan di atas.
 
-## Realtime state/content
+## Rate limiting dan anti-abuse
 
-Store candidate dapat meminta `/v1/extension-state` dengan versi extension dan distribution channel. Response hanya boleh berisi state/plain content yang lolos allowlist client, seperti section visibility, judul/teks, feature flag, dan action dari registry tetap. Payload disimpan sementara di local storage sebagai cache sesuai TTL server yang dibatasi client.
+Beberapa endpoint memakai fingerprint satu arah dari alamat IP dengan salt server:
+- pair start: counter TTL **60 detik**;
+- ad-event ingest: counter TTL **60 detik**;
+- reviewer activation: counter TTL **10 menit**.
 
-Request ini tidak memuat halaman BMP, gambar halaman, teks OCR, PDF, password, NIM, atau cookie/session portal.
+Source aplikasi tidak menyimpan IP mentah di record counter tersebut. Infrastruktur Cloudflare dapat memiliki log platform tersendiri sesuai konfigurasi/provider.
 
-Server tidak boleh mengirim JavaScript, arbitrary HTML, remote WASM, executable Worker URL, atau functionality baru untuk dieksekusi extension.
+## Pemeriksaan versi dan realtime state
 
-## Fitur Supporter/Support Bot terpisah
+Extension dapat meminta:
+- `/v1/version` dengan versi extension + distribution channel;
+- `/v1/extension-state` dengan versi extension + distribution channel.
 
-Community service juga dapat melayani fitur Telegram Supporter/Support Bot yang dipicu pengguna secara terpisah dari fungsi inti extension. Pada backend candidate yang diaudit:
-- draft invoice Supporter memakai TTL **24 jam**;
-- konteks troubleshooting Supporter memakai TTL **6 jam**;
-- counter kuota AI memakai TTL **48 jam**;
-- record entitlement Supporter, pilihan Supporter Wall, dan bukti/idempotency pembayaran dapat disimpan tanpa TTL otomatis selama diperlukan untuk menjalankan entitlement, pilihan publikasi, dan pencatatan transaksi.
+Realtime state berisi plain state/content yang melewati allowlist client. Backend tidak dapat mengirim JavaScript, arbitrary HTML, remote WASM, remote Worker, atau functionality baru untuk dieksekusi extension.
 
-Supporter bersifat opsional dan bukan syarat untuk fungsi OCR/PDF inti. Data Supporter tidak berisi halaman materi, OCR text, atau PDF hasil. Pengelola harus menangani permintaan koreksi/penghapusan data yang dapat dihapus tanpa merusak kewajiban transaksi atau pencegahan duplikasi pembayaran.
+Untuk channel Store, remote minimum-version enforcement hanya berlaku setelah backend menandai channel tersebut `store_ready=true`.
 
-## Telemetry dan logging
+## Sponsor / ads v1.1.0
 
-Client tidak mengirim isi dokumen, gambar halaman, teks OCR, atau PDF hasil sebagai telemetry kepada developer.
+Kandidat v1.1.0 memiliki sponsor card dan sponsor interstitial yang dirender oleh code yang sudah ada di package. Campaign dapat mengubah plain text, label, HTTPS CTA, jadwal, placement, dan delay yang dibatasi client/backend. Tidak ada remote HTML/JavaScript/iframe/tracking pixel. Image-only campaign tidak diaktifkan pada v1.1.0.
 
-Cloudflare, Telegram, GitHub, Microsoft Edge, browser, dan penyedia sumber dapat menghasilkan log platform mereka sendiri sesuai konfigurasi/kebijakan masing-masing. Retention log platform yang tidak dikendalikan langsung oleh source BMP Terbuka tidak dinyatakan sebagai retention record aplikasi di atas.
+Jika tidak ada campaign aktif atau state tidak tersedia, extension dapat menampilkan house inventory seperti **Space iklan tersedia** dengan CTA kontak yang aman.
 
-## Sharing dan penggunaan data
+Untuk campaign aktif, extension dapat mengirim event coarse:
+- `impression`, `click`, atau `dismiss`;
+- placement (`card` / `interstitial`);
+- campaign ID + revision;
+- distribution channel;
+- extension version.
 
-Client tidak menggunakan isi BMP, hasil OCR, atau PDF untuk advertising atau profiling. Fitur sponsor/ads tidak termasuk dalam initial Edge Store candidate.
+Event ads **tidak** memuat Telegram user ID, installation ID, activation token, kode BMP, nama modul, halaman, OCR text, atau PDF. Backend memvalidasi event terhadap campaign/revision/placement yang sedang aktif sebelum menghitungnya. Jika Analytics Engine tersedia, field coarse tersebut dapat dicatat di sana; source juga dapat menulis event coarse ke log Worker. Retention log/Analytics Engine mengikuti konfigurasi/provider yang berlaku.
 
-Jika fitur sponsor/ads ditambahkan pada release masa depan, privacy disclosure dan Store listing harus diperbarui sebelum fitur tersebut diaktifkan.
+Isi BMP/OCR/PDF tidak digunakan untuk advertising atau profiling.
+
+Pemilihan campaign v1.1.0 bersifat **contextual pada distribution channel/campaign state**, bukan berdasarkan identitas pengguna, histori penggunaan, kode BMP, isi dokumen, atau profil personal. BMP Terbuka tidak menggunakan atau mentransfer data pengguna extension untuk personalized/interest-based/retargeted advertising.
+
+Karena sponsor adalah bagian dari pengalaman runtime, listing Store dan privacy disclosure untuk release yang memuat fitur ini harus menjelaskan keberadaan sponsor card/interstitial secara akurat.
+
+## Store reviewer
+
+Reviewer Store memakai signed token normal yang terikat installation ID dan diverifikasi client. Reviewer secret tetap server-side dan tidak masuk package/repository.
+
+Reviewer token memiliki masa berlaku maksimum **24 jam** dan scope `store_review`. Reviewer-only OCR fixture dibuat lokal dan bukan materi BMP asli.
+
+## Sharing dan pihak ketiga
+
+Fungsi aplikasi berinteraksi dengan layanan yang memang diperlukan, termasuk Cloudflare untuk backend, Telegram untuk komunitas/bot, browser/store untuk extension distribution, dan portal sumber yang dibuka pengguna. Masing-masing penyedia dapat memiliki log/kebijakan platform sendiri.
+
+BMP Terbuka tidak menjual isi materi, OCR text, atau PDF pengguna kepada advertiser.
+
+Penggunaan data oleh BMP Terbuka mengikuti pembatasan penggunaan yang dijelaskan di kebijakan ini; data pengguna extension tidak ditransfer, digunakan, atau dijual untuk personalized advertising atau retargeting.
