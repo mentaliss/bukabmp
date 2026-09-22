@@ -38,6 +38,7 @@ const DEFAULT_STATE = {
 
 let creatingOffscreen = null;
 let startJobClaimRunId = "";
+const cancelledRunIds = new Set();
 const cacheInfoMemo = new Map();
 
 function configReady() {
@@ -60,6 +61,37 @@ async function setState(patch) {
   const next = {...current, ...patch};
   await chrome.storage.local.set({bmpState: next});
   return next;
+}
+
+async function activeRunState(runId) {
+  const id = String(runId || "");
+  if (!id || cancelledRunIds.has(id)) return null;
+  const current = await getState();
+  if (
+    cancelledRunIds.has(id) ||
+    !current.running ||
+    String(current.runId || "") !== id
+  ) return null;
+  return current;
+}
+
+async function setStateForRun(runId, patch) {
+  const id = String(runId || "");
+  const current = await activeRunState(id);
+  if (!current || cancelledRunIds.has(id)) return null;
+  const next = {...current, ...patch};
+  // There is intentionally no await between the last cancellation check and
+  // issuing storage.set. STOP_JOB marks the generation cancelled synchronously;
+  // any later STOP/new-run write is therefore ordered after this invocation.
+  if (cancelledRunIds.has(id)) return null;
+  await chrome.storage.local.set({bmpState: next});
+  return cancelledRunIds.has(id) ? null : next;
+}
+
+async function requireActiveRun(runId) {
+  const current = await activeRunState(runId);
+  if (!current) throw new Error("Proses sudah dihentikan atau diganti.");
+  return current;
 }
 
 async function getCacheMetaMap() {
@@ -802,10 +834,11 @@ async function startModule(tabId, state, attempt = 0) {
     }
     const latest = await getState();
     if (!latest.running || String(latest.runId || "") !== runId) return;
-    await setState({
+    const waiting = await setStateForRun(runId, {
       status: "WAITING_PAGE",
       progress: `Menunggu halaman siap... (${nextAttempt}/20)`
     });
+    if (!waiting) return;
     setTimeout(async () => {
       const s = await getState();
       if (
@@ -822,11 +855,12 @@ async function startModule(tabId, state, attempt = 0) {
 async function navigateCurrentModule() {
   const state = await getState();
   if (!state.running || !state.tabId) return;
-  await setState({
+  const opening = await setStateForRun(state.runId, {
     status: `OPENING_M${state.currentModule}`,
     progress: `Membuka Modul ${state.currentModule}...`,
     ocrProgress: ""
   });
+  if (!opening) return;
   await chrome.tabs.update(state.tabId, {
     url: viewerUrl(state.code, state.currentModule)
   });
@@ -864,10 +898,19 @@ async function finishModule(state, mod, pages) {
     pages
   });
   if (!out?.ok) throw new Error(out?.error || "Gagal menyusun PDF.");
+  if (!(await activeRunState(state.runId))) {
+    chrome.runtime.sendMessage({
+      target: "offscreen",
+      type: "REVOKE_BLOB_URL",
+      blobUrl: out.blobUrl
+    }).catch(() => {});
+    throw new Error("Proses berubah sebelum PDF modul diekspor.");
+  }
   await saveBlobUrl(
     out.blobUrl,
     `BMP Terbuka/${state.code}/${state.code}_M${mod}_Searchable.pdf`
   );
+  await requireActiveRun(state.runId);
   invalidateCacheInfo(state.code);
 }
 
@@ -879,6 +922,14 @@ async function buildMergedPdf(state, firstModule, lastModule, {full = false} = {
     lastModule
   });
   if (!out?.ok) throw new Error(out?.error || "Gagal membuat PDF gabungan.");
+  if (state.runId && !(await activeRunState(state.runId))) {
+    chrome.runtime.sendMessage({
+      target: "offscreen",
+      type: "REVOKE_BLOB_URL",
+      blobUrl: out.blobUrl
+    }).catch(() => {});
+    throw new Error("Proses berubah sebelum PDF gabungan diekspor.");
+  }
   const filename = full
     ? `${state.code}_FULL_Searchable.pdf`
     : `${state.code}_M${firstModule}-M${lastModule}_Searchable.pdf`;
@@ -886,6 +937,7 @@ async function buildMergedPdf(state, firstModule, lastModule, {full = false} = {
     out.blobUrl,
     `BMP Terbuka/${state.code}/${filename}`
   );
+  if (state.runId) await requireActiveRun(state.runId);
   return filename;
 }
 
@@ -1241,6 +1293,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
 
       const runId = crypto.randomUUID();
+      cancelledRunIds.delete(runId);
       requestRunId = runId;
       startJobClaimRunId = runId;
 
@@ -1293,13 +1346,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         mergeMessage: ""
       });
 
-      const assertCurrentRun = async () => {
-        const current = await getState();
-        if (!current.running || String(current.runId || "") !== runId) {
-          throw new Error("Proses dibatalkan sebelum persiapan selesai.");
-        }
-        return current;
-      };
+      const assertCurrentRun = async () => await requireActiveRun(runId);
 
       const probe = await askOffscreen({type: "OCR_ENGINE_PROBE"});
       if (!probe?.ok) throw new Error(probe?.error || "OCR lokal tidak siap.");
@@ -1346,7 +1393,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         await assertCurrentRun();
       }
 
-      const nextState = await setState({
+      await assertCurrentRun();
+      const nextState = await setStateForRun(runId, {
         running: true,
         runId,
         tabId,
@@ -1375,13 +1423,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         detectedLastModule: knownLast,
         mergeMessage: ""
       });
+      if (!nextState) throw new Error("Proses dibatalkan sebelum persiapan selesai.");
       if (startJobClaimRunId === runId) startJobClaimRunId = "";
 
       if (effectiveMaxModule < startModule) {
         const message = knownLast
           ? `Modul terakhir yang terdeteksi adalah M${knownLast}; rentang ini tidak perlu diproses.`
           : "Tidak ada modul pada rentang ini yang dapat diproses.";
-        await setState({running: false, status: "DONE", progress: message, ocrProgress: ""});
+        const done = await setStateForRun(runId, {
+          running: false,
+          runId: "",
+          status: "DONE",
+          progress: message,
+          ocrProgress: ""
+        });
+        if (!done) {
+          sendResponse({ok: true, stale: true});
+          return;
+        }
         sendResponse({ok: true, resumed: true, skippedModules: []});
         return;
       }
@@ -1394,19 +1453,29 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         } catch (e) {
           mergeMessage = `PDF gabungan gagal: ${String(e?.message || e)}`;
         }
+        await requireActiveRun(runId);
         const finalState = {...nextState, mergeMessage};
-        await setState({
+        const done = await setStateForRun(runId, {
           running: false,
+          runId: "",
           status: "DONE",
           progress: finalSummary(finalState, mergeMessage),
           mergeMessage,
           ocrProgress: ""
         });
+        if (!done) {
+          sendResponse({ok: true, stale: true});
+          return;
+        }
         sendResponse({ok: true, resumed: true, skippedModules});
         return;
       }
 
-      await setState({currentModule});
+      const committed = await setStateForRun(runId, {currentModule});
+      if (!committed) {
+        sendResponse({ok: true, stale: true});
+        return;
+      }
       await navigateCurrentModule();
       sendResponse({
         ok: true,
@@ -1417,6 +1486,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     if (msg.type === "STOP_JOB") {
       const state = await getState();
+      if (state.runId) cancelledRunIds.add(String(state.runId));
       if (state.running && state.tabId) {
         chrome.tabs.sendMessage(state.tabId, {
           type: "STOP_MODULE",
@@ -1462,10 +1532,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       else if (raw.includes("loading tesseract") || raw.includes("initializing"))
         label = "Menyiapkan OCR";
       const pageLabel = Number(msg.page) > 0 ? ` halaman ${msg.page}` : "";
-      await setState({
+      const updated = await setStateForRun(state.runId, {
         ocrProgress: `${label}${pageLabel}${pct ? ` — ${pct}` : ""}`
       });
-      sendResponse({ok: true});
+      sendResponse(updated ? {ok: true} : {ok: true, stale: true});
       return;
     }
     if (msg.type === "PAGE_PROGRESS") {
@@ -1480,12 +1550,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
       const totalPages = Number(msg.totalPages || 0);
       const pageSuffix = totalPages > 0 ? ` / ${totalPages}` : "";
-      await setState({
+      const updated = await setStateForRun(state.runId, {
         status: `DOWNLOADING_M${msg.module}`,
         progress: `Modul ${msg.module} • halaman ${msg.page}${pageSuffix}`,
         ocrProgress: `Menyiapkan halaman ${msg.page}${pageSuffix}`
       });
-      sendResponse({ok: true});
+      sendResponse(updated ? {ok: true} : {ok: true, stale: true});
       return;
     }
     if (msg.type === "OCR_PAGE") {
@@ -1532,11 +1602,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
 
       if (msg.result === "complete") {
-        await setState({
+        const finalizing = await setStateForRun(state.runId, {
           status: `OCR_FINALIZING_M${mod}`,
           progress: `Modul ${mod} selesai. Menyusun PDF...`
         });
+        if (!finalizing) {
+          sendResponse({ok: true, stale: true});
+          return;
+        }
         await finishModule(state, mod, msg.pages);
+        await requireActiveRun(state.runId);
 
         const completed = normalizeModules(
           [...(state.completedModules || []), mod],
@@ -1566,9 +1641,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           } catch (e) {
             mergeMessage = `PDF gabungan gagal: ${String(e?.message || e)}`;
           }
+          await requireActiveRun(state.runId);
           const finalState = {...readyState, mergeMessage};
-          await setState({
+          const done = await setStateForRun(state.runId, {
             running: false,
+            runId: "",
             completedModules: completed,
             processedModules: processed,
             status: "DONE",
@@ -1576,11 +1653,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             mergeMessage,
             ocrProgress: ""
           });
+          if (!done) {
+            sendResponse({ok: true, stale: true});
+            return;
+          }
           sendResponse({ok: true});
           return;
         }
 
-        await setState({
+        const advanced = await setStateForRun(state.runId, {
           completedModules: completed,
           processedModules: processed,
           currentModule: nextModule,
@@ -1588,6 +1669,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           progress: `PDF Modul ${mod} siap. Membuka Modul ${nextModule}...`,
           ocrProgress: ""
         });
+        if (!advanced) {
+          sendResponse({ok: true, stale: true});
+          return;
+        }
         setTimeout(navigateCurrentModule, Math.max(1000, state.delayMs));
         sendResponse({ok: true});
         return;
@@ -1606,19 +1691,25 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             ? `PDF gabungan tidak dibuat karena Modul ${mod} belum tersedia.`
             : `Modul ${mod} belum tersedia.`;
           const stopped = {...state, completedModules: completed};
-          await setState({
+          const done = await setStateForRun(state.runId, {
             running: false,
+            runId: "",
             status: "MISSING_GAP",
             progress: `${gapMessage}\n${finalSummary(stopped)}`,
             mergeMessage: state.mergeRequested ? gapMessage : "",
             ocrProgress: ""
           });
+          if (!done) {
+            sendResponse({ok: true, stale: true});
+            return;
+          }
           sendResponse({ok: true});
           return;
         }
 
         const lastMod = mod - 1;
         if (lastMod >= 1) await setDetectedLastModule(state.code, lastMod);
+        await requireActiveRun(state.runId);
         const detectedLastModule = lastMod >= 1 ? lastMod : null;
         const readyState = {
           ...state,
@@ -1639,12 +1730,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           }
         }
 
+        await requireActiveRun(state.runId);
         const detectedText = lastMod >= 1
           ? `Modul terakhir terdeteksi: M${lastMod}.`
           : "Modul 1 tidak tersedia.";
         const summary = finalSummary(readyState, mergeMessage);
-        await setState({
+        const done = await setStateForRun(state.runId, {
           running: false,
+          runId: "",
           completedModules: completed,
           detectedLastModule,
           effectiveMaxModule: readyState.effectiveMaxModule,
@@ -1653,39 +1746,46 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           mergeMessage,
           ocrProgress: ""
         });
+        if (!done) {
+          sendResponse({ok: true, stale: true});
+          return;
+        }
         sendResponse({ok: true});
         return;
       }
 
       if (msg.result === "login_required") {
-        await setState({
+        const done = await setStateForRun(state.runId, {
           running: false,
+          runId: "",
           status: "LOGIN_REQUIRED",
           progress: "Sesi sumber meminta login ulang.",
           ocrProgress: ""
         });
-        sendResponse({ok: true});
+        sendResponse(done ? {ok: true} : {ok: true, stale: true});
         return;
       }
 
       if (msg.result === "blocked") {
-        await setState({
+        const done = await setStateForRun(state.runId, {
           running: false,
+          runId: "",
           status: "BLOCKED",
           progress: "Akses ditolak oleh server. Proses dihentikan tanpa mencoba ulang.",
           ocrProgress: ""
         });
-        sendResponse({ok: true});
+        sendResponse(done ? {ok: true} : {ok: true, stale: true});
         return;
       }
 
-      await setState({
+      const done = await setStateForRun(state.runId, {
         running: false,
+        runId: "",
         status: "ERROR",
         progress: msg.reason || "Proses tidak dapat dilanjutkan.",
         ocrProgress: ""
       });
-      sendResponse({ok: true});
+      sendResponse(done ? {ok: true} : {ok: true, stale: true});
       return;
     }
 
@@ -1706,6 +1806,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           String(messageRunId) === String(state.runId || "")
         );
         if (sameRun) {
+          cancelledRunIds.add(String(messageRunId));
           await setState({
             running: false,
             runId: "",
