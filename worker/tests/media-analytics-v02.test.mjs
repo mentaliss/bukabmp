@@ -153,6 +153,8 @@ test("first-party media stores immutable content hash IDs and serves video byte 
   );
   assert.equal(response.status, 206);
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(response.headers.get("access-control-allow-origin"), "*");
+  assert.equal(response.headers.get("cross-origin-resource-policy"), "cross-origin");
   assert.equal(response.headers.get("content-range"), "bytes 4-11/32");
   assert.deepEqual([...new Uint8Array(await response.arrayBuffer())], [...mp4.slice(4, 12)]);
 });
