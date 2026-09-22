@@ -114,7 +114,7 @@ import {parseReferralStartArg} from "./features/referral.js";
 import {attributeReferralFromCode} from "./features/referral-service.js";
 import {recordAdEvent, sanitizeAdEvent, sanitizeAdsState} from "./features/ads.js";
 
-const APP_VERSION = "1.0.5-support-bot-v21-v110-final-audit";
+const APP_VERSION = "1.0.5-support-bot-v22-v110-refresh-floor";
 const TOKEN_ISSUER = "bmp-terbuka-community";
 const TOKEN_AUDIENCE = "bmp-terbuka-extension";
 const VERSION_CHECK_AFTER_SECONDS = 24 * 60 * 60;

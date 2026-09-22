@@ -302,12 +302,15 @@ async function activationExpiryForRefresh(
   if (pendingDays > 0) {
     target += pendingDays * 86400000;
   }
-  target = Math.min(Math.max(current, target), maxExpiry);
+  // The server-side cap may limit new entitlement growth, but refresh must
+  // never shorten an already-valid signed token (including a preserved legacy
+  // expiry floor that is temporarily beyond the ordinary cap).
+  target = Math.max(current, Math.min(target, maxExpiry));
 
   const changed = target > current + 1000;
   const supporterBonusApplied = Boolean(
-    pendingDays > 0 ||
-    trackedExpiry > current + 1000
+    changed &&
+    (pendingDays > 0 || trackedExpiry > current + 1000)
   );
 
   if (
