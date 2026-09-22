@@ -179,5 +179,5 @@ Reviewer code:
 8. When status becomes `In the store`, capture the Edge listing URL/Store identity.
 9. Test the Store edition, including Edge Canary Android install-by-ID/listing path where available.
 10. Set `EXTENSION_EDGE_RELEASE_URL` to the final listing URL and then `EXTENSION_EDGE_STORE_READY=true`.
-11. Before Public rollout, prove same-listing 1.0.5 → 1.1.0 preserves activation token, install ID, draft, IndexedDB PDF cache, and resume behavior.
+11. If a 1.0.5 Edge Store listing already exists, prove same-listing 1.0.5 → 1.1.0 preserves activation token, install ID, draft, IndexedDB PDF cache, and resume behavior. If 1.1.0 is the first Edge Store listing, record that it is a new identity and do not claim migration from the manually signed CRX.
 12. Change visibility to Public only after controlled Store + authenticated real-device regression passes.
