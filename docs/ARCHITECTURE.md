@@ -36,6 +36,7 @@ Chrome / Chromium
 Satu source client digunakan untuk beberapa jalur distribusi:
 - `github`: manual desktop release;
 - `cws`: Chrome Web Store package;
+- `edge`: Microsoft Edge Add-ons package;
 - `android`: existing signed CRX path.
 
 CWS build dihasilkan dari source yang sama, tetapi menggunakan package profile sendiri. Build CWS menghapus broad `tabs` permission sementara build GitHub/Android mempertahankan baseline v1.0.5 sampai regression test membuktikan perubahan shared aman.
@@ -75,7 +76,7 @@ Sponsor v1.1.0 memakai renderer yang sudah dibundel di popup. Backend hanya memi
 
 Build `cws` mengirim distribution channel ke version API. Remote minimum-version policy tidak boleh memblokir build CWS sampai backend memberi `store_ready=true` untuk versi yang benar-benar tersedia melalui Store. Package update CWS tetap dikelola Chrome Web Store/browser.
 
-Build `github` dan `android` mempertahankan jalur manual yang sudah ada.
+Build `github` dan `android` mempertahankan jalur manual yang sudah ada; `edge` memakai policy Store independen seperti `cws`.
 
 ## Failure behavior
 
