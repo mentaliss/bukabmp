@@ -845,10 +845,6 @@ async function refreshState(){
 
   if(lastRunning&&!s.running){
     await refreshCachePreview();
-    const done=["DONE","MAX_MODULE_REACHED","END_CANDIDATE"].includes(String(s.status||""));
-    const failed=["ERROR","BLOCKED","LOGIN_REQUIRED","MISSING_GAP"].includes(String(s.status||""));
-    if(done)reportTelemetry("job_completed");
-    else if(failed)reportTelemetry("job_failed");
   }
   lastRunning=Boolean(s.running);
 }
@@ -1219,15 +1215,12 @@ el("start").addEventListener("click",async()=>{
     if(!res?.ok){
       el("statusTitle").textContent="Gagal memulai";
       el("statusText").textContent=res?.error||"Terjadi kesalahan.";
-      reportTelemetry("job_failed");
     }else{
       scheduleJobStartedInterstitial().catch(()=>{});
-      reportTelemetry("job_started");
     }
   }catch(e){
     el("statusTitle").textContent="Gagal memulai";
     el("statusText").textContent=String(e?.message||e);
-    reportTelemetry("job_failed");
   }finally{
     await refreshState();
   }
