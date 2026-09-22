@@ -1,5 +1,7 @@
 let worker = null;
 let workerPromise = null;
+let activeJobRunId = "";
+let progressRunId = "";
 let progressModule = 0;
 let progressPage = 0;
 let currentModuleKey = null;
@@ -29,6 +31,7 @@ async function ensureWorker() {
     logger: m => {
       chrome.runtime.sendMessage({
         type: "OCR_PROGRESS",
+        runId: progressRunId,
         module: progressModule,
         page: progressPage,
         status: m.status || "",
@@ -155,8 +158,12 @@ async function ensureModulePdf(code, moduleNo) {
   currentPdf.setCreator("BMP Terbuka");
 }
 
-async function addOcrPage(code, moduleNo, pageNo, dataUrl) {
+async function addOcrPage(code, moduleNo, pageNo, dataUrl, runId) {
+  if (!runId || runId !== activeJobRunId) {
+    throw new Error("OCR request berasal dari proses lama.");
+  }
   await ensureModulePdf(code, moduleNo);
+  progressRunId = runId;
   progressModule = moduleNo;
   progressPage = pageNo;
   const w = await ensureWorker();
@@ -166,6 +173,9 @@ async function addOcrPage(code, moduleNo, pageNo, dataUrl) {
     {pdfTitle: `${code} M${moduleNo} Page ${pageNo}`},
     {pdf: true}
   );
+  if (runId !== activeJobRunId) {
+    throw new Error("OCR request dibatalkan karena proses baru sudah dimulai.");
+  }
   if (!res?.data?.pdf) {
     throw new Error(`OCR tidak menghasilkan PDF untuk Modul ${moduleNo} halaman ${pageNo}.`);
   }
@@ -176,7 +186,10 @@ async function addOcrPage(code, moduleNo, pageNo, dataUrl) {
   return String(res?.data?.text || "").trim();
 }
 
-async function finishModule(code, moduleNo, pages) {
+async function finishModule(code, moduleNo, pages, runId) {
+  if (!runId || runId !== activeJobRunId) {
+    throw new Error("Finalisasi modul berasal dari proses lama.");
+  }
   const key = `${code}:M${moduleNo}`;
   if (currentModuleKey !== key || !currentPdf) {
     throw new Error(`State PDF Modul ${moduleNo} tidak tersedia.`);
