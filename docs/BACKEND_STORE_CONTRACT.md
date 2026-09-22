@@ -1,10 +1,10 @@
-# Backend Store Contract
+# Backend / Store Contract — v1.1.0
 
-Dokumen ini adalah kontrak minimum untuk private activation/control backend agar client Store tidak perlu didesain ulang lagi.
+Kontrak ini menjelaskan interface antara package extension dan Cloudflare Worker pada kandidat v1.1.0. Source Worker berada di `worker/`; secret dan authority produksi tetap server-side.
 
 ## Distribution channels
 
-Backend harus memperlakukan nilai berikut sebagai channel terpisah:
+Known channel:
 
 ```text
 github
@@ -13,98 +13,99 @@ cws
 edge
 ```
 
-Unknown channel harus diperlakukan konservatif dan tidak boleh menaikkan minimum version untuk channel Store lain.
+Policy version dan realtime state dipisahkan per channel. Store channel tidak boleh memaksa minimum version baru sebelum `store_ready=true`.
 
 ## Version endpoint
-
-Existing endpoint:
 
 ```text
 GET /v1/version?extension_version=<version>&distribution_channel=<channel>
 ```
 
-Response candidate:
+Response mencakup latest/minimum version, force-after, release URL, message, dan `store_ready`.
 
-```json
-{
-  "latest_version": "1.0.5",
-  "minimum_version": "1.0.5",
-  "force_after": null,
-  "release_url": "",
-  "message": "",
-  "store_ready": false
-}
+Client Store mengabaikan remote minimum-version enforcement saat `store_ready=false`.
+
+## Pairing
+
+```text
+POST /v1/pair/start
+GET  /v1/pair/status
 ```
 
-Rules:
-- `cws` dan `edge` wajib channel-specific.
-- Selama versi baru masih draft/in review, `store_ready=false`.
-- Hanya setelah versi benar-benar tersedia di Store, backend boleh mengembalikan `store_ready=true` dan menaikkan minimum version channel tersebut.
-- `github` / `android` tidak boleh ikut terkunci karena status CWS/Edge.
-
-Client sudah fail-open untuk Store minimum-version enforcement sampai `store_ready=true`.
-
-## Pairing endpoint
-
-Client sekarang mengirim:
+Payload start v1.1.0:
 
 ```json
 {
   "install_id": "<random UUID>",
-  "extension_version": "1.0.5",
-  "distribution_channel": "cws"
+  "extension_version": "1.1.0",
+  "distribution_channel": "edge",
+  "current_token": "<optional current signed token during re-verification>"
 }
 ```
 
-Backend lama yang mengabaikan field tambahan tetap kompatibel.
+`current_token` hanya dipakai untuk one-time legacy→v2 migration. Backend:
+- memverifikasi RS256 issuer/audience/expiry;
+- memastikan token berasal dari install yang sama;
+- mengambil expiry floor + member_ref dari token valid;
+- saat Telegram user baru selesai diverifikasi, expiry floor hanya diterapkan bila member_ref cocok dengan user yang sama;
+- invalid/expired/foreign token tidak memberi floor.
+
+Client juga memverifikasi replacement token dan menolak swap bila token baru memperpendek token aktif.
+
+Pair record TTL: **15 menit**.
+
+## Token v2 refresh
+
+```text
+POST /v1/token/refresh
+Authorization: Bearer <signed-token-v2>
+```
+
+Backend memeriksa:
+- minimum extension version 1.1.0;
+- token signature/issuer/audience/scope;
+- `token_version >= 2`;
+- `sub=tg:<id>`;
+- installation ID;
+- membership channel + group;
+- current Supporter entitlement.
+
+Refresh tidak boleh memperpendek expiry. Bonus entitlement yang tercatat dapat diterapkan lalu pending bonus di-clear sesuai authority backend.
+
+## Realtime state / ads
+
+```text
+GET /v1/extension-state
+POST /v1/ad-event
+```
+
+Detail schema berada di `docs/CLOUD_SURFACE.md`.
+
+Ads v1.1.0:
+- text creative only;
+- HTTPS CTA;
+- card/interstitial placement;
+- interstitial fixed trigger `job_started`;
+- delay clamped 2–5 detik;
+- house fallback;
+- event metrics tanpa user/document identifier.
+
+Ad events di-rate-limit dan divalidasi terhadap campaign/revision/placement yang sedang aktif.
 
 ## Reviewer activation
 
-Reviewer Store harus memakai **normal signed-token authority**, bukan hard-coded client bypass.
+Reviewer memakai signed token authority yang sama, bukan hard-coded client bypass:
+1. client membuat pair;
+2. reviewer membuka `/review`;
+3. secret reviewer tetap private di provider/Store certification notes;
+4. backend mengeluarkan installation-bound RS256 token dengan scope `store_review`;
+5. client menampilkan local OCR fixture.
 
-Recommended backend model:
-1. client membuat pair seperti biasa;
-2. untuk submission/reviewer, backend menyediakan temporary revocable verification path;
-3. reviewer secret/credential hanya ditaruh di private CWS/Edge test instructions;
-4. verification menghasilkan token RS256 normal yang tetap terikat ke `install_id`, issuer, audience, dan expiry;
-5. reviewer credential dapat dicabut setelah review tanpa release extension.
-
-Public repository tidak boleh berisi reviewer secret.
-
-Existing client menerima `deep_link` dari pair response dan membukanya. Backend boleh memakai HTTPS verification page untuk reviewer selama flow akhirnya mengeluarkan token normal melalui pair status.
-
-## Realtime Cloud Surface
-
-Implement:
-
-```text
-GET /v1/extension-state?extension_version=<version>&distribution_channel=<channel>
-```
-
-Response harus mengikuti `docs/CLOUD_SURFACE.md`.
-
-No JavaScript, HTML executable, WASM, worker URL, command language, atau downloaded functionality.
-
-## Retention/privacy evidence required before Store publication
-
-Sebelum privacy policy dinyatakan final, private backend perlu memiliki jawaban berbasis implementasi untuk:
-- storage yang dipakai untuk pair record;
-- field pair yang disimpan;
-- TTL pair/poll secret;
-- apakah Telegram user ID/username disimpan;
-- membership lookup/cache dan TTL;
-- activation/supporter record dan TTL;
-- request/IP/provider logs yang berada di kontrol operator;
-- deletion/expiry behavior;
-- backup/replication retention bila ada;
-- pihak ketiga yang menerima data;
-- apakah ada analytics/telemetry.
-
-Jangan mengisi angka retention berdasarkan tebakan. Ambil langsung dari Worker/KV/D1/R2/config/logging yang live.
+Reviewer token maksimum 24 jam.
 
 ## Security invariants
 
-Backend tidak pernah memerlukan:
+Backend extension tidak memerlukan atau menerima:
 - password portal sumber;
 - NIM;
 - cookie/session portal;
@@ -112,4 +113,15 @@ Backend tidak pernah memerlukan:
 - OCR text;
 - generated PDF.
 
-Private signing key, Telegram bot token, reviewer secret, dan backend secrets tidak boleh masuk public extension/repository.
+Private signing key, bot token, reviewer secret, admin token, dan provider credentials tidak boleh masuk package extension atau repository.
+
+## Publication gates
+
+Sebelum publikasi Store:
+- live Worker harus menjalankan backend commit yang telah diaudit;
+- channel target tetap `store_ready=false` selama draft/review;
+- privacy/listing harus mendeklarasikan realtime sponsor + coarse metrics;
+- clean-install reviewer flow harus lulus;
+- same-listing update dari live 1.0.5 ke 1.1.0 harus membuktikan token/storage/cache bertahan;
+- authenticated real-device RBV smoke regression harus lulus;
+- minimum-version baru hanya dinaikkan setelah package 1.1.0 benar-benar tersedia di channel tersebut.
