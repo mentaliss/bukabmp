@@ -1,0 +1,43 @@
+name: Extension 1.1.0 Media Analytics
+
+on:
+  push:
+    branches:
+      - "extension-v1.1.0-media-analytics"
+  pull_request:
+    branches:
+      - "extension-v1.1.0-final-audit"
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    env:
+      BMP_API_BASE_URL: https://community.bukabmp.workers.dev
+      BMP_TELEGRAM_CHANNEL_URL: https://t.me/bukabmp
+      BMP_TELEGRAM_GROUP_URL: https://t.me/+0pAg9ymEhWdkZmNl
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate source and tests
+        run: npm run validate
+      - name: Build and validate GitHub/manual
+        run: |
+          npm run build:release
+          npm run validate:github
+      - name: Build and validate Android
+        run: |
+          npm run build:android
+          npm run validate:android
+      - name: Build and validate Chrome Web Store
+        run: |
+          npm run build:cws
+          npm run validate:cws
+      - name: Build and validate Edge Add-ons
+        run: |
+          npm run build:edge
+          npm run validate:edge
