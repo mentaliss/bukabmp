@@ -149,3 +149,15 @@ test("media-only v2 campaign without advertiser stays inactive for old-client sa
   }, Date.now());
   assert.equal(state.active, false);
 });
+
+
+test("enabled campaign without a placement stays inactive", () => {
+  const state = sanitizeAdsState({
+    enabled: true,
+    campaign_id: "no-placement",
+    headline: "Invisible sponsor",
+    placements: {card: false, interstitial: false},
+    interstitial: {enabled: false}
+  });
+  assert.equal(state.active, false);
+});
