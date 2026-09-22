@@ -142,11 +142,16 @@ function repairSafeSchemaProblems(result){
   }
 }
 
-function writeBaseline(){
-  const values = EXPECTED_MIGRATIONS.map(name =>
+export function baselineStatements(){
+  return EXPECTED_MIGRATIONS.map(name =>
     `INSERT INTO d1_migrations(name) SELECT '${name}' WHERE NOT EXISTS (SELECT 1 FROM d1_migrations WHERE name='${name}');`
-  ).join("\n");
-  runSql("BEGIN;\n"+values+"\nCOMMIT;");
+  );
+}
+
+function writeBaseline(){
+  // Cloudflare D1 rejects explicit SQL BEGIN/COMMIT through the remote query API.
+  // Execute each idempotent insert independently, then verify the full ledger.
+  for(const sql of baselineStatements()) runSql(sql);
 }
 
 if(process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])){
