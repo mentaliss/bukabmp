@@ -57,6 +57,9 @@ test("Control Center shell is inert without backend admin authority", async () =
   assert.doesNotMatch(html, /owner-secret/);
   assert.match(enabled.headers.get("content-security-policy") || "", /default-src 'none'/);
   assert.match(enabled.headers.get("content-security-policy") || "", /connect-src 'self'/);
+  const script = html.match(/<script>([\\s\\S]*?)<\\/script>/);
+  assert.ok(script, "Control Center inline script must exist");
+  assert.doesNotThrow(() => new Function(script[1]), "Control Center inline script must parse");
 });
 
 test("Control Center API rejects requests without the owner token", async () => {
