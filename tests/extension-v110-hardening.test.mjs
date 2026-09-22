@@ -213,3 +213,14 @@ test("reviewer fixture cannot collide with a valid user BMP cache key", () => {
   assert.doesNotMatch(offscreen, /const code = "REVIEW"/);
   assert.ok(!/^[A-Z0-9_-]{3,32}$/.test("@BMP-REVIEW-FIXTURE"));
 });
+
+
+test("delayed module navigation cannot escape its owning job generation", () => {
+  assert.match(background, /async function navigateCurrentModule\(expectedRunId = ""\)/);
+  assert.match(background, /String\(state\.runId \|\| ""\) !== String\(expectedRunId\)/);
+  assert.match(background, /const expectedRunId = String\(state\.runId\)/);
+  assert.match(background, /Number\(s\.currentModule\) === expectedModule/);
+  assert.match(background, /\(\) => navigateCurrentModule\(expectedRunId\)/);
+  assert.match(background, /await navigateCurrentModule\(runId\)/);
+  assert.doesNotMatch(background, /setTimeout\(navigateCurrentModule,/);
+});
