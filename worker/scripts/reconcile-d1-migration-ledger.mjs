@@ -47,10 +47,10 @@ function rowsFromWranglerJson(parsed){
 }
 
 function runSql(sql){
-  const npx = process.platform === "win32" ? "npx.cmd" : "npx";
+  const wranglerBin = fileURLToPath(new URL("../node_modules/wrangler/bin/wrangler.js", import.meta.url));
   const out = execFileSync(
-    npx,
-    ["wrangler","d1","execute",DATABASE,"--remote","--json","--command",sql],
+    process.execPath,
+    [wranglerBin,"d1","execute",DATABASE,"--remote","--json","--command",sql],
     {encoding:"utf8",stdio:["ignore","pipe","inherit"]}
   );
   return rowsFromWranglerJson(JSON.parse(out));
