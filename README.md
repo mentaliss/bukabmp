@@ -93,6 +93,12 @@ npm run build:release
 
 Lihat [docs/RELEASE.md](docs/RELEASE.md).
 
+## Private Control Center
+
+Operator dapat menggunakan private Control Center untuk mengubah status badge, extension cloud sections, sponsor campaign, house inventory, jadwal/placement iklan, emergency pause, dan rollback state tanpa merilis ulang extension.
+
+Control Center memakai `ADMIN_SETUP_TOKEN` sebagai application-level authority dan direkomendasikan ditempatkan di belakang Cloudflare Access. Lihat [docs/CONTROL_CENTER.md](docs/CONTROL_CENTER.md).
+
 ## Responsible use
 
 BMP Terbuka **tidak memberikan hak akses maupun hak redistribusi**. Gunakan hanya untuk materi yang memang dapat Anda akses dan sesuai hak/izin yang berlaku.
