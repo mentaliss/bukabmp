@@ -1,6 +1,6 @@
 # Privacy Policy
 
-BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku client extension BMP Terbuka v1.0.5 Store candidate dan perilaku backend Store-control V11 yang harus sudah live sebelum candidate disubmit ke Store.
+BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku extension BMP Terbuka v1.0.5 yang masih dirilis ke pengguna, kandidat extension v1.1.0, dan backend Community Worker / Control Center v0.2 yang saat ini mendukung keduanya.
 
 ## Data materi
 
@@ -93,15 +93,17 @@ Cloudflare, Telegram, GitHub, Microsoft Edge, browser, dan penyedia sumber dapat
 
 ## Sharing dan penggunaan data
 
-Client tidak menggunakan isi BMP, hasil OCR, atau PDF untuk advertising atau profiling. Fitur sponsor/ads tidak termasuk dalam initial Edge Store candidate.
+Client tidak menggunakan isi BMP, hasil OCR, atau PDF untuk advertising atau profiling. Extension v1.0.5 yang masih dirilis ke pengguna tidak memiliki surface sponsor v1.1.0. Kandidat v1.1.0 menambahkan sponsor card/interstitial yang declarative dan first-party sebagaimana dijelaskan di bawah.
 
-Jika fitur sponsor/ads ditambahkan pada release masa depan, privacy disclosure dan Store listing harus diperbarui sebelum fitur tersebut diaktifkan.
+Sebelum kandidat v1.1.0 dipublikasikan melalui Store, privacy disclosure dan Store listing harus menjelaskan sponsor serta anonymous product analytics secara akurat.
 
 ## v1.1.0 candidate: anonymous product analytics and sponsor media
 
 The candidate adds compact anonymous product telemetry for extension opens, job lifecycle health, and paid-direct sponsor delivery. A random per-installation `bmpAnalyticsIdV1` is separate from `bmpInstallId`, activation credentials, Telegram identity, and Supporter/payment state. The Worker transforms the incoming analytics ID with an independent server-side HMAC key (`TELEMETRY_HASH_KEY`) before analytics storage; the raw analytics ID is not used as the stored actor identifier. Per-day pseudonymous activity is bounded to roughly 180 days and daily aggregate metrics to roughly 13 months; the minimal actor-hash index supports unique-install and returning-user definitions without retaining the raw analytics UUID.
 
 Telemetry is strictly product-usage data. It must not include Telegram IDs or usernames, member references, activation or pairing credentials, `bmpInstallId`, BMP codes, module names/numbers, RBV URLs, PDF names/content, OCR text, document titles/content, or browsing history. Telemetry delivery is failure-tolerant and BMP processing does not depend on it.
+
+Telemetry rate limiting is keyed from the server-side HMAC pseudonym derived from `bmpAnalyticsIdV1`, bucketed per minute with a short-lived KV counter (about 120 seconds). The raw analytics UUID is not used as the stored rate-limit key.
 
 Direct sponsor media is uploaded through the owner Control Center and stored under BMP-owned first-party media IDs. The extension does not render arbitrary advertiser-controlled media URLs. The AdsOnBread production SDK/account remains an external release gate; remote executable JavaScript is not permitted by this integration.
 
