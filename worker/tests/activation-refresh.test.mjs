@@ -311,3 +311,39 @@ test("one-time v2 re-verification can preserve a longer active legacy expiry", a
     0
   );
 });
+
+
+test("refresh never shortens a valid preserved expiry beyond the ordinary cap", async () => {
+  const {env, kv} = await fixture();
+  const userId = 515151;
+  const installId = "01234567-89ab-cdef-01234567";
+  const now = Date.now();
+  const preservedExpiry = now + 75 * 86400000;
+
+  await kv.put("supporter:user:" + userId, JSON.stringify({
+    user_id: String(userId),
+    supporter_until: now + 86400000,
+    activation_until: 0,
+    activation_bonus_pending_days: 0
+  }));
+
+  const token = await issueToken(env, installId, userId, preservedExpiry);
+  const before = decodePayload(token);
+  assert.ok(Number(before.exp) * 1000 >= preservedExpiry - 2000);
+
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = telegramMembershipFetch();
+  try {
+    const refreshed = await refreshActivationToken(env, {
+      token,
+      installId,
+      extensionVersion: "1.1.0"
+    });
+    assert.equal(refreshed.ok, true);
+    const after = decodePayload(refreshed.token);
+    assert.ok(Number(after.exp) >= Number(before.exp));
+    assert.equal(refreshed.changed, false);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
