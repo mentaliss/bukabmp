@@ -128,7 +128,7 @@
   function sanitizeMediaAsset(raw,kind){
     if(!raw||typeof raw!=="object")return null;
     const id=text(raw.id,128);
-    if(!/^[a-zA-Z0-9_-]{16,128}$/.test(id))return null;
+    if(!/^[0-9a-f]{64}$/i.test(id))return null;
     const mime=text(raw.mime,64).toLowerCase();
     const allowed=kind==="video"
       ?new Set(["video/mp4","video/webm"])
@@ -196,8 +196,8 @@
     const headline=text(raw.headline,120);
     const body=text(raw.body,700);
     const imageUrl=httpsUrl(raw.image_url);
-    // 1.1.0 intentionally renders text creative only. imageUrl is reserved
-    // until assets can be served through a first-party/proxied path.
+    // Legacy image_url remains sanitized for schema compatibility, but v1.1.0
+    // media rendering uses only first-party content-hash assets.
     const hasCreative=Boolean(headline||body);
     const active=Boolean(
       raw.active===true&&
