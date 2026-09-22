@@ -51,6 +51,7 @@
         active:false,
         campaignId:"",
         revision:0,
+        creativeVersion:1,
         sponsorLabel:"Sponsor",
         advertiser:"",
         headline:"",
@@ -58,6 +59,8 @@
         disclaimer:"",
         imageUrl:"",
         cta:null,
+        card:{mode:"text",asset:null},
+        network:{adsonbread:false},
         house:{
           sponsorLabel:"Sponsor",
           headline:"Space iklan tersedia",
@@ -70,6 +73,9 @@
         interstitial:{
           enabled:false,
           trigger:"job_started",
+          mode:"text",
+          asset:null,
+          posterAsset:null,
           delayMinMs:2000,
           delayMaxMs:5000
         }
@@ -119,6 +125,25 @@
     return label&&url?{label,url}:null;
   }
 
+  function sanitizeMediaAsset(raw,kind){
+    if(!raw||typeof raw!=="object")return null;
+    const id=text(raw.id,128);
+    if(!/^[a-zA-Z0-9_-]{16,128}$/.test(id))return null;
+    const mime=text(raw.mime,64).toLowerCase();
+    const allowed=kind==="video"
+      ?new Set(["video/mp4","video/webm"])
+      :new Set(["image/jpeg","image/png","image/webp"]);
+    if(!allowed.has(mime))return null;
+    return {
+      id,
+      mime,
+      bytes:boundedInt(raw.bytes,0,0,10*1024*1024),
+      width:boundedInt(raw.width,0,0,8192),
+      height:boundedInt(raw.height,0,0,8192),
+      durationMs:kind==="video"?boundedInt(raw.duration_ms,0,0,15000):0
+    };
+  }
+
   function sanitizeAds(raw){
     const fallback=defaultState().ads;
     if(!raw||typeof raw!=="object")return fallback;
@@ -152,6 +177,20 @@
       cta:sanitizeAdCta(houseRaw.cta)||defaultHouse.cta
     };
 
+    const creativeVersion=Number(raw.creative_version)===2?2:1;
+    const cardRaw=raw.card&&typeof raw.card==="object"?raw.card:{};
+    const cardMode=text(cardRaw.mode,16).toLowerCase()==="banner"?"banner":"text";
+    const cardAsset=cardMode==="banner"?sanitizeMediaAsset(cardRaw.asset,"image"):null;
+    const interstitialModeRaw=text(interstitialRaw.mode,16).toLowerCase();
+    const interstitialMode=["image","video"].includes(interstitialModeRaw)?interstitialModeRaw:"text";
+    const interstitialAsset=interstitialMode==="video"
+      ?sanitizeMediaAsset(interstitialRaw.asset,"video")
+      :(interstitialMode==="image"?sanitizeMediaAsset(interstitialRaw.asset,"image"):null);
+    const posterAsset=interstitialMode==="video"
+      ?sanitizeMediaAsset(interstitialRaw.poster_asset,"image")
+      :null;
+    const networkRaw=raw.network&&typeof raw.network==="object"?raw.network:{};
+
     const enabled=raw.enabled===true;
     const headline=text(raw.headline,120);
     const body=text(raw.body,700);
@@ -176,6 +215,7 @@
       active,
       campaignId,
       revision:boundedInt(raw.revision,0,0,2147483647),
+      creativeVersion,
       sponsorLabel:text(raw.sponsor_label,32)||"Sponsor",
       advertiser:text(raw.advertiser,96),
       headline,
@@ -183,6 +223,8 @@
       disclaimer:text(raw.disclaimer,220),
       imageUrl,
       cta:sanitizeAdCta(raw.cta),
+      card:{mode:cardMode,asset:cardAsset},
+      network:{adsonbread:networkRaw.adsonbread===true},
       house,
       startsAt,
       endsAt,
@@ -190,6 +232,9 @@
       interstitial:{
         enabled:active&&placements.interstitial&&interstitialRaw.enabled===true,
         trigger:"job_started",
+        mode:interstitialMode,
+        asset:interstitialAsset,
+        posterAsset,
         delayMinMs,
         delayMaxMs
       }
@@ -280,6 +325,7 @@
   root.BMP_CLOUD_SURFACE=Object.freeze({
     defaultState,
     sanitizeAction,
+    sanitizeMediaAsset,
     sanitizeAds,
     sanitizeState
   });
