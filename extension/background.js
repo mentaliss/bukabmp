@@ -898,9 +898,13 @@ async function startModule(tabId, state, attempt = 0) {
   }
 }
 
-async function navigateCurrentModule() {
+async function navigateCurrentModule(expectedRunId = "") {
   const state = await getState();
   if (!state.running || !state.tabId) return;
+  if (
+    expectedRunId &&
+    String(state.runId || "") !== String(expectedRunId)
+  ) return;
   const opening = await setStateForRun(state.runId, {
     status: `OPENING_M${state.currentModule}`,
     progress: `Membuka Modul ${state.currentModule}...`,
@@ -1193,12 +1197,19 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== "complete") return;
   const state = await getState();
-  if (!state.running || state.tabId !== tabId) return;
+  if (!state.running || state.tabId !== tabId || !state.runId) return;
   if (!tab.url || !tab.url.startsWith(`${SOURCE_ROOT}/reader/`)) return;
 
+  const expectedRunId = String(state.runId);
+  const expectedModule = Number(state.currentModule);
   setTimeout(async () => {
     const s = await getState();
-    if (s.running && s.tabId === tabId) {
+    if (
+      s.running &&
+      s.tabId === tabId &&
+      String(s.runId || "") === expectedRunId &&
+      Number(s.currentModule) === expectedModule
+    ) {
       startModule(tabId, s).catch(async e => {
         const latest = await getState();
         if (
@@ -1563,7 +1574,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ok: true, stale: true});
         return;
       }
-      await navigateCurrentModule();
+      await navigateCurrentModule(runId);
       sendResponse({
         ok: true,
         resumed: !redownload && currentModule > startModule,
@@ -1760,7 +1771,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           sendResponse({ok: true, stale: true});
           return;
         }
-        setTimeout(navigateCurrentModule, Math.max(1000, state.delayMs));
+        const expectedRunId = String(state.runId || "");
+        setTimeout(
+          () => navigateCurrentModule(expectedRunId),
+          Math.max(1000, state.delayMs)
+        );
         sendResponse({ok: true});
         return;
       }
