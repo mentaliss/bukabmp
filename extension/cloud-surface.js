@@ -44,7 +44,36 @@
       generatedAt:"",
       ttlSeconds:300,
       sections:[],
+      statusBadge:{visible:false,kind:"info",text:""},
       supporter:{active:false,until:null,label:""},
+      ads:{
+        enabled:false,
+        active:false,
+        campaignId:"",
+        revision:0,
+        sponsorLabel:"Sponsor",
+        advertiser:"",
+        headline:"",
+        body:"",
+        disclaimer:"",
+        imageUrl:"",
+        cta:null,
+        house:{
+          sponsorLabel:"Sponsor",
+          headline:"Space iklan tersedia",
+          body:"",
+          cta:{label:"Pasang iklan? Hubungi",url:"https://t.me/bukabmp?direct"}
+        },
+        startsAt:null,
+        endsAt:null,
+        placements:{card:false,interstitial:false},
+        interstitial:{
+          enabled:false,
+          trigger:"job_started",
+          delayMinMs:2000,
+          delayMaxMs:5000
+        }
+      },
       features:{supporterCard:false,communityBanner:false}
     };
   }
@@ -75,6 +104,96 @@
     let action=sanitizeAction(raw.action);
     if(kind==="sponsor"&&action?.type!=="OPEN_URL")action=null;
     return {id,kind,title,text:body,action};
+  }
+
+  function boundedInt(value,fallback,min,max){
+    const parsed=Number(value);
+    if(!Number.isFinite(parsed))return fallback;
+    return Math.max(min,Math.min(max,Math.floor(parsed)));
+  }
+
+  function sanitizeAdCta(raw){
+    if(!raw||typeof raw!=="object")return null;
+    const label=text(raw.label,48);
+    const url=httpsUrl(raw.url);
+    return label&&url?{label,url}:null;
+  }
+
+  function sanitizeAds(raw){
+    const fallback=defaultState().ads;
+    if(!raw||typeof raw!=="object")return fallback;
+
+    const campaignIdRaw=text(raw.campaign_id,64);
+    const campaignId=/^[a-z0-9][a-z0-9_.:-]{0,63}$/i.test(campaignIdRaw)
+      ?campaignIdRaw
+      :"";
+    const startsAt=isoDate(raw.starts_at);
+    const endsAt=isoDate(raw.ends_at);
+    const now=Date.now();
+    const inWindow=
+      (!startsAt||now>=Date.parse(startsAt))&&
+      (!endsAt||now<Date.parse(endsAt));
+
+    const placementsRaw=raw.placements&&typeof raw.placements==="object"
+      ?raw.placements
+      :{};
+    const interstitialRaw=raw.interstitial&&typeof raw.interstitial==="object"
+      ?raw.interstitial
+      :{};
+    const delayMinMs=boundedInt(interstitialRaw.delay_min_ms,2000,2000,5000);
+    const delayMaxMs=boundedInt(interstitialRaw.delay_max_ms,5000,delayMinMs,5000);
+
+    const houseRaw=raw.house&&typeof raw.house==="object"?raw.house:{};
+    const defaultHouse=fallback.house;
+    const house={
+      sponsorLabel:text(houseRaw.sponsor_label,32)||defaultHouse.sponsorLabel,
+      headline:text(houseRaw.headline,120)||defaultHouse.headline,
+      body:text(houseRaw.body,420),
+      cta:sanitizeAdCta(houseRaw.cta)||defaultHouse.cta
+    };
+
+    const enabled=raw.enabled===true;
+    const headline=text(raw.headline,120);
+    const body=text(raw.body,700);
+    const imageUrl=httpsUrl(raw.image_url);
+    // 1.1.0 intentionally renders text creative only. imageUrl is reserved
+    // until assets can be served through a first-party/proxied path.
+    const hasCreative=Boolean(headline||body);
+    const active=Boolean(
+      raw.active===true&&
+      enabled&&
+      campaignId&&
+      hasCreative&&
+      inWindow
+    );
+    const placements={
+      card:active&&placementsRaw.card===true,
+      interstitial:active&&placementsRaw.interstitial===true
+    };
+
+    return {
+      enabled,
+      active,
+      campaignId,
+      revision:boundedInt(raw.revision,0,0,2147483647),
+      sponsorLabel:text(raw.sponsor_label,32)||"Sponsor",
+      advertiser:text(raw.advertiser,96),
+      headline,
+      body,
+      disclaimer:text(raw.disclaimer,220),
+      imageUrl,
+      cta:sanitizeAdCta(raw.cta),
+      house,
+      startsAt,
+      endsAt,
+      placements,
+      interstitial:{
+        enabled:active&&placements.interstitial&&interstitialRaw.enabled===true,
+        trigger:"job_started",
+        delayMinMs,
+        delayMaxMs
+      }
+    };
   }
 
   function sanitizeState(raw){
@@ -126,6 +245,12 @@
       if(section)sections.push(section);
     }
 
+    const badgeRaw=raw.status_badge&&typeof raw.status_badge==="object"?raw.status_badge:{};
+    const badgeKindRaw=text(badgeRaw.kind,24).toLowerCase();
+    const badgeKind=new Set(["info","success","warning","community","supporter"]).has(badgeKindRaw)
+      ? badgeKindRaw
+      : "info";
+    const badgeText=text(badgeRaw.text,160);
     const supporterRaw=raw.supporter&&typeof raw.supporter==="object"?raw.supporter:{};
     const featuresRaw=raw.features&&typeof raw.features==="object"?raw.features:{};
 
@@ -134,11 +259,17 @@
       generatedAt:isoDate(raw.generated_at)||"",
       ttlSeconds,
       sections,
+      statusBadge:{
+        visible:badgeRaw.visible===true&&Boolean(badgeText),
+        kind:badgeKind,
+        text:badgeText
+      },
       supporter:{
         active:supporterRaw.active===true,
         until:isoDate(supporterRaw.until),
         label:text(supporterRaw.label,64)
       },
+      ads:sanitizeAds(raw.ads),
       features:{
         supporterCard:featuresRaw.supporter_card===true,
         communityBanner:featuresRaw.community_banner===true
@@ -149,6 +280,7 @@
   root.BMP_CLOUD_SURFACE=Object.freeze({
     defaultState,
     sanitizeAction,
+    sanitizeAds,
     sanitizeState
   });
 })(typeof self!=="undefined"?self:globalThis);
