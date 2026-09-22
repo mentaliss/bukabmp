@@ -10,6 +10,7 @@ const ACTIVATION_REFRESH_META_KEY = "bmpActivationRefreshMetaV110";
 const ACTIVATION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const ACTIVATION_REFRESH_NO_SUPPORTER_INTERVAL_MS = 60 * 1000;
 const ACTIVATION_REFRESH_FAILURE_BACKOFF_MS = 60 * 1000;
+const JOB_ERROR_MESSAGE_TYPES = new Set(["START_JOB", "OCR_PAGE", "MODULE_RESULT"]);
 const DEFAULT_STATE = {
   running: false,
   tabId: null,
@@ -209,6 +210,28 @@ async function requireAccess() {
   }
   if (!status.active) {
     throw new Error("Aktivasi komunitas diperlukan sebelum menggunakan BMP Terbuka.");
+  }
+}
+
+function safeHttpsUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function safeTelegramUrl(value) {
+  const safe = safeHttpsUrl(value);
+  if (!safe) return "";
+  try {
+    const url = new URL(safe);
+    return url.hostname.toLowerCase() === "t.me" ? url.toString() : "";
+  } catch {
+    return "";
   }
 }
 
@@ -425,7 +448,7 @@ async function versionStatus({force = false} = {}) {
       latestVersion: String(data.latest_version || currentVersion),
       minimumVersion: String(data.minimum_version || ""),
       forceAfter: data.force_after || null,
-      releaseUrl: String(data.release_url || ""),
+      releaseUrl: safeHttpsUrl(data.release_url),
       message: String(data.message || ""),
       lastAttemptAt: now,
       lastSuccessAt: now,
@@ -457,19 +480,28 @@ async function startPairing() {
   await requireSupportedVersion();
   const installId = await getInstallId();
   const version = chrome.runtime.getManifest().version;
+  const stored = await chrome.storage.local.get("bmpCommunityToken");
+  const currentToken = typeof stored.bmpCommunityToken === "string"
+    ? stored.bmpCommunityToken
+    : "";
   const data = await api("/v1/pair/start", {
     method: "POST",
     body: JSON.stringify({
       install_id: installId,
       extension_version: version,
-      distribution_channel: distributionChannel()
+      distribution_channel: distributionChannel(),
+      ...(currentToken ? {current_token: currentToken} : {})
     })
   });
+  const deepLink = safeTelegramUrl(data.deep_link);
+  if (!deepLink) {
+    throw new Error("Tautan verifikasi Telegram dari server tidak valid.");
+  }
   const pending = {
     pairId: data.pair_id,
     pollSecret: data.poll_secret,
     expiresAt: data.expires_at,
-    deepLink: data.deep_link,
+    deepLink,
     startedAt: Date.now(),
     lastCheckedAt: 0
   };
@@ -479,7 +511,10 @@ async function startPairing() {
 }
 
 async function checkPairing() {
-  const x = await chrome.storage.local.get("bmpPendingPair");
+  const x = await chrome.storage.local.get([
+    "bmpPendingPair",
+    "bmpCommunityToken"
+  ]);
   const p = x.bmpPendingPair;
   if (!p) return {status: "none"};
 
@@ -499,9 +534,19 @@ async function checkPairing() {
   if (data.status === "verified" && data.token) {
     const verified = await verifyCommunityToken(data.token);
     if (!verified.ok) throw new Error("Token aktivasi dari server tidak valid.");
+
+    const current = await verifyCommunityToken(x.bmpCommunityToken);
+    const currentExpiry = current.ok ? Number(current.payload?.exp || 0) * 1000 : 0;
+    const nextExpiry = Number(verified.payload?.exp || 0) * 1000;
+    if (currentExpiry > Date.now() && nextExpiry + 1000 < currentExpiry) {
+      throw new Error(
+        "Token verifikasi baru memperpendek aktivasi aktif. Token lama tetap dipakai."
+      );
+    }
+
     await chrome.storage.local.set({bmpCommunityToken: data.token});
     await chrome.storage.local.remove("bmpPendingPair");
-    return {status: "verified", expiresAt: Number(verified.payload.exp) * 1000};
+    return {status: "verified", expiresAt: nextExpiry};
   }
 
   return {status: data.status || "pending"};
@@ -632,13 +677,28 @@ function viewerUrl(code, mod) {
   return `${SOURCE_ROOT}/reader/index.php?subfolder=${encodeURIComponent(code)}/&doc=M${mod}.pdf`;
 }
 
+async function offscreenDocumentExists(url) {
+  if (typeof chrome.runtime.getContexts === "function") {
+    const contexts = await chrome.runtime.getContexts({
+      contextTypes: ["OFFSCREEN_DOCUMENT"],
+      documentUrls: [url]
+    });
+    return contexts.length > 0;
+  }
+
+  if (self.clients && typeof self.clients.matchAll === "function") {
+    const clients = await self.clients.matchAll({
+      type: "window",
+      includeUncontrolled: true
+    });
+    return clients.some(client => client.url === url);
+  }
+  return false;
+}
+
 async function ensureOffscreen() {
   const url = chrome.runtime.getURL("offscreen.html");
-  const contexts = await chrome.runtime.getContexts({
-    contextTypes: ["OFFSCREEN_DOCUMENT"],
-    documentUrls: [url]
-  });
-  if (contexts.length) return;
+  if (await offscreenDocumentExists(url)) return;
 
   if (creatingOffscreen) {
     await creatingOffscreen;
@@ -662,20 +722,29 @@ async function askOffscreen(message) {
 }
 
 async function saveBlobUrl(blobUrl, filename) {
-  const id = await chrome.downloads.download({
-    url: blobUrl,
-    filename,
-    conflictAction: "overwrite",
-    saveAs: false
-  });
-  setTimeout(() => {
+  try {
+    const id = await chrome.downloads.download({
+      url: blobUrl,
+      filename,
+      conflictAction: "overwrite",
+      saveAs: false
+    });
+    setTimeout(() => {
+      chrome.runtime.sendMessage({
+        target: "offscreen",
+        type: "REVOKE_BLOB_URL",
+        blobUrl
+      }).catch(() => {});
+    }, 15000);
+    return id;
+  } catch (error) {
     chrome.runtime.sendMessage({
       target: "offscreen",
       type: "REVOKE_BLOB_URL",
       blobUrl
     }).catch(() => {});
-  }, 15000);
-  return id;
+    throw error;
+  }
 }
 
 async function runReviewerSample() {
@@ -925,6 +994,35 @@ async function maybeBuildRequestedMerge(state, detectedLastModule = null) {
   };
 }
 
+async function recoverStaleRunningState() {
+  const state = await getState();
+  if (!state.running) return state;
+
+  const tabId = Number(state.tabId);
+  if (!Number.isInteger(tabId) || tabId <= 0) {
+    return await setState({
+      running: false,
+      tabId: null,
+      status: "INTERRUPTED",
+      progress: "Proses sebelumnya terputus. Modul yang sudah selesai tetap tersimpan lokal.",
+      ocrProgress: ""
+    });
+  }
+
+  try {
+    await chrome.tabs.get(tabId);
+    return state;
+  } catch {
+    return await setState({
+      running: false,
+      tabId: null,
+      status: "INTERRUPTED",
+      progress: "Proses sebelumnya terputus. Modul yang sudah selesai tetap tersimpan lokal.",
+      ocrProgress: ""
+    });
+  }
+}
+
 function finalSummary(state, mergeMessage = "") {
   const lines = [
     `Diproses: ${formatModuleList(state.processedModules || [])}`,
@@ -934,10 +1032,24 @@ function finalSummary(state, mergeMessage = "") {
   return lines.join("\n");
 }
 
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async details => {
   const x = await chrome.storage.local.get("bmpState");
-  if (!x.bmpState) await chrome.storage.local.set({bmpState: DEFAULT_STATE});
+  if (!x.bmpState) {
+    await chrome.storage.local.set({bmpState: DEFAULT_STATE});
+  } else if (details?.reason === "update" && x.bmpState?.running) {
+    await setState({
+      running: false,
+      tabId: null,
+      status: "INTERRUPTED",
+      progress: "Update extension menghentikan proses sebelumnya. Modul yang sudah selesai tetap tersimpan lokal.",
+      ocrProgress: ""
+    });
+  }
   await getInstallId();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  recoverStaleRunningState().catch(() => {});
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
@@ -982,8 +1094,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === "OPEN_PENDING_TELEGRAM") {
       const x = await chrome.storage.local.get("bmpPendingPair");
       const p = x.bmpPendingPair;
-      if (!p?.deepLink) throw new Error("Sesi verifikasi tidak tersedia.");
-      await chrome.tabs.create({url: p.deepLink});
+      const deepLink = safeTelegramUrl(p?.deepLink);
+      if (!deepLink) throw new Error("Sesi verifikasi tidak tersedia.");
+      await chrome.tabs.create({url: deepLink});
       sendResponse({ok: true});
       return;
     }
@@ -1026,7 +1139,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     if (msg.type === "OPEN_UPDATE") {
       const policy = await versionStatus();
-      const url = String(policy?.releaseUrl || "");
+      const url = safeHttpsUrl(policy?.releaseUrl);
       if (!url && isStoreChannel()) {
         sendResponse({ok: true, managedByStore: true});
         return;
@@ -1036,6 +1149,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
     if (msg.type === "RUN_REVIEW_SAMPLE") {
+      const state = await getState();
+      if (state.running) {
+        sendResponse({ok: false, error: "Selesaikan atau hentikan proses BMP sebelum menjalankan sampel reviewer."});
+        return;
+      }
       sendResponse(await runReviewerSample());
       return;
     }
@@ -1065,8 +1183,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const code = String(msg.code || "").trim().toUpperCase();
       if (!/^[A-Z0-9_-]{3,32}$/.test(code)) throw new Error("Kode BMP tidak valid.");
       const current = await getState();
-      if (current.running && current.code === code) {
-        throw new Error("Penyimpanan BMP yang sedang diproses tidak bisa dibersihkan.");
+      if (current.running) {
+        throw new Error("Penyimpanan lokal tidak bisa dibersihkan saat proses BMP masih berjalan.");
       }
       const out = await askOffscreen({type: "OCR_CLEAR_CODE", code});
       if (!out?.ok) throw new Error(out?.error || "Penyimpanan lokal tidak dapat dibersihkan.");
@@ -1079,10 +1197,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
     if (msg.type === "GET_STATE") {
-      sendResponse({ok: true, state: await getState()});
+      sendResponse({ok: true, state: await recoverStaleRunningState()});
       return;
     }
     if (msg.type === "START_JOB") {
+      const existingJob = await getState();
+      if (existingJob.running) {
+        sendResponse({ok: false, error: "Proses lain masih berjalan."});
+        return;
+      }
+
       await requireAccess();
       await requireSupportedVersion();
 
@@ -1205,6 +1329,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
     if (msg.type === "OCR_PROGRESS") {
+      const state = await getState();
+      const moduleNo = Number(msg.module || 0);
+      if (!state.running || (moduleNo > 0 && moduleNo !== Number(state.currentModule))) {
+        sendResponse({ok: true, stale: true});
+        return;
+      }
       const pct = Number.isFinite(msg.progress)
         ? `${Math.round(msg.progress * 100)}%`
         : "";
@@ -1222,6 +1352,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
     if (msg.type === "PAGE_PROGRESS") {
+      const state = await getState();
+      if (!state.running || Number(msg.module) !== Number(state.currentModule)) {
+        sendResponse({ok: true, stale: true});
+        return;
+      }
       const totalPages = Number(msg.totalPages || 0);
       const pageSuffix = totalPages > 0 ? ` / ${totalPages}` : "";
       await setState({
@@ -1236,6 +1371,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const state = await getState();
       if (!state.running) {
         sendResponse({ok: false, error: "Proses tidak aktif."});
+        return;
+      }
+      if (Number(msg.module) !== Number(state.currentModule)) {
+        sendResponse({ok: false, stale: true, error: "Pesan OCR berasal dari modul lama."});
         return;
       }
       const out = await askOffscreen({
@@ -1257,6 +1396,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
 
       const mod = Number(msg.module);
+      if (mod !== Number(state.currentModule)) {
+        sendResponse({ok: true, stale: true});
+        return;
+      }
 
       if (msg.result === "complete") {
         await setState({
@@ -1418,14 +1561,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
     sendResponse({ok: false, error: "Pesan tidak dikenal."});
   })().catch(async e => {
-    try {
-      await setState({
-        running: false,
-        status: "ERROR",
-        progress: String(e?.message || e),
-        ocrProgress: ""
-      });
-    } catch (_) {}
+    if (JOB_ERROR_MESSAGE_TYPES.has(String(msg?.type || ""))) {
+      try {
+        const state = await getState();
+        if (msg?.type === "START_JOB" || state.running) {
+          await setState({
+            running: false,
+            status: "ERROR",
+            progress: String(e?.message || e),
+            ocrProgress: ""
+          });
+        }
+      } catch (_) {}
+    }
     sendResponse({ok: false, error: String(e?.message || e)});
   });
 
