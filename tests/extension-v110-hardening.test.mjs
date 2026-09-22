@@ -87,7 +87,9 @@ test("v1.0.5 token authority and local storage identity stay frozen", () => {
 });
 
 test("start click and sponsor timer are locally bounded", () => {
-  const block=popup.slice(popup.indexOf('el("start").addEventListener'),popup.indexOf('el("selectAllExport")'));
+  const startAt=popup.indexOf('el("start").addEventListener');
+  const stopAt=popup.indexOf('el("stop").addEventListener',startAt);
+  const block=popup.slice(startAt,stopAt);
   assert.ok(block.indexOf('el("start").disabled=true') < block.indexOf('send("START_JOB"'));
   const delay=popup.slice(popup.indexOf("function randomDelay"),popup.indexOf("async function scheduleJobStartedInterstitial"));
   assert.match(delay,/Math\.max\(2000/);
