@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {assess,columnProbeQueries} from "../scripts/reconcile-d1-migration-ledger.mjs";
+import {assess,baselineStatements,columnProbeQueries} from "../scripts/reconcile-d1-migration-ledger.mjs";
 
 function fixture(){
   const tables = {
@@ -89,4 +89,13 @@ test("missing required table is never auto-repairable",()=>{
   assert.equal(result.ok,false);
   assert.equal(result.safeRepairProblems.includes("missing table users"),false);
   assert.ok(result.unsafeProblems.includes("missing table users"));
+});
+
+
+test("baseline statements avoid unsupported explicit SQL transactions",()=>{
+  const statements=baselineStatements();
+  assert.equal(statements.length,3);
+  assert.equal(statements.some(sql=>/\bBEGIN\b|\bCOMMIT\b/i.test(sql)),false);
+  assert.equal(statements.every(sql=>/INSERT INTO d1_migrations\(name\)/.test(sql)),true);
+  assert.equal(statements.every(sql=>/WHERE NOT EXISTS/.test(sql)),true);
 });
