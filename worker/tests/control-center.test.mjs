@@ -23,6 +23,35 @@ class MemoryKV {
   }
 }
 
+class MemoryControlD1 {
+  constructor(initial = {}) {
+    this.map = new Map(Object.entries(initial).map(([channel, state]) => [
+      String(channel),
+      {state_json: JSON.stringify(state), updated_at: 1}
+    ]));
+  }
+  prepare(sql) {
+    const store = this.map;
+    return {
+      args: [],
+      bind(...args) { this.args = args; return this; },
+      async first() {
+        if (sql.includes("SELECT state_json FROM extension_control_state")) {
+          return store.get(String(this.args[0])) || null;
+        }
+        return null;
+      },
+      async run() {
+        if (sql.includes("INSERT INTO extension_control_state")) {
+          store.set(String(this.args[0]), {state_json: String(this.args[1]), updated_at: Number(this.args[2])});
+          return {success: true, meta: {changes: 1}};
+        }
+        return {success: true, meta: {changes: 0}};
+      }
+    };
+  }
+}
+
 function env(overrides = {}) {
   return {
     ADMIN_SETUP_TOKEN: "owner-secret",
