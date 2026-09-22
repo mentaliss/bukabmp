@@ -149,7 +149,7 @@ button{border:1px solid #d5d5cf;background:#fff;border-radius:8px;padding:8px 11
       <section data-panel="version" class="panel hidden">
         <div class="panelHead"><div><h2>Version</h2><p class="sub">Global latest/minimum. Minimum hanya berlaku pada channel yang ditandai Ready.</p></div></div>
         <div class="card">
-          <div class="row"><label class="field">Latest version<input id="latestVersion" value="1.1.0"></label><label class="field">Minimum supported<input id="minimumGlobal" value="1.1.0"></label></div>
+          <div class="row"><label class="field">Latest version<input id="latestVersion" placeholder="current live"></label><label class="field">Minimum supported<input id="minimumGlobal" placeholder="current live"></label></div>
           <div class="row" style="margin-top:10px"><label class="field">Release URL<input id="releaseUrl" placeholder="https://"></label><label class="field">Message<input id="versionMessage"></label></div>
         </div>
         <div class="card"><div class="sectionTitle">Readiness</div><div class="readiness">
@@ -190,7 +190,7 @@ function all(sel){return Array.prototype.slice.call(document.querySelectorAll(se
 function status(node,text,ok){node.textContent=text||"";node.className="status "+(ok===true?"ok":ok===false?"err":"")}
 function targetValue(id){return el(id).value}
 function number(value){return new Intl.NumberFormat("id-ID").format(Number(value||0))}
-function pct(value){return Number(value||0).toFixed(1)+"%"}
+function pct(value){return value==null?"—":Number(value).toFixed(1)+"%"}
 function isoLocal(value){if(!value)return "";var d=new Date(value);if(!Number.isFinite(d.getTime()))return "";var p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes())}
 function toIso(value){if(!value)return null;var d=new Date(value);return Number.isFinite(d.getTime())?d.toISOString():null}
 async function api(path,options){
@@ -252,6 +252,9 @@ function fillAds(state){
   updateUploadVisibility();
   renderAdPreview();
 }
+function isHttps(value){try{return new URL(String(value||"")).protocol==="https:"}catch(e){return false}}
+function compareVersion(a,b){var x=String(a||"").split(".").map(Number),y=String(b||"").split(".").map(Number),n=Math.max(x.length,y.length,3);for(var i=0;i<n;i++){var xa=Number.isFinite(x[i])?x[i]:0,ya=Number.isFinite(y[i])?y[i]:0;if(xa<ya)return-1;if(xa>ya)return 1}return 0}
+function validVersion(value){return /^\d+\.\d+\.\d+(?:\.\d+)?$/.test(String(value||"").trim())}
 function buildAdsState(){
   var state=baseState();
   var schedule=el("scheduleMode").value;
@@ -263,6 +266,7 @@ function buildAdsState(){
   var interstitialMode=el("interstitialMode").value;
   var cardPlaced=el("placeCard").checked;
   var interstitialPlaced=el("placeInterstitial").checked;
+  if(enabled&&!cardPlaced&&!interstitialPlaced)throw new Error("Pilih minimal satu placement: Card atau Interstitial.");
   if(enabled&&cardPlaced&&cardMode==="banner"&&!cardAsset)throw new Error("Upload banner sebelum publish.");
   if(enabled&&interstitialPlaced&&interstitialMode!=="text"&&!interstitialAsset)throw new Error("Upload media interstitial sebelum publish.");
   if(enabled&&!headline&&!body){
@@ -272,6 +276,16 @@ function buildAdsState(){
   }
   var ctaLabel=el("ctaLabel").value.trim(),ctaUrl=el("ctaUrl").value.trim();
   if((ctaLabel&&!ctaUrl)||(!ctaLabel&&ctaUrl))throw new Error("CTA label dan CTA URL harus diisi berpasangan.");
+  if(ctaUrl&&!isHttps(ctaUrl))throw new Error("CTA URL sponsor wajib HTTPS.");
+  var houseLabel=el("houseCtaLabel").value.trim()||"Pasang iklan? Hubungi";
+  var houseUrl=el("houseCtaUrl").value.trim();
+  if(!houseUrl||!isHttps(houseUrl))throw new Error("CTA URL Fallback Ad wajib HTTPS.");
+  var starts=null,ends=null;
+  if(schedule==="scheduled"){
+    starts=toIso(el("startsAt").value);ends=toIso(el("endsAt").value);
+    if(!starts&&!ends)throw new Error("Scheduled membutuhkan Starts at atau Ends at.");
+    if(starts&&ends&&Date.parse(ends)<=Date.parse(starts))throw new Error("Ends at harus setelah Starts at.");
+  }
   state.ads={
     enabled:enabled,
     campaign_id:el("campaignId").value||nextCampaignId(currentState),
@@ -285,43 +299,46 @@ function buildAdsState(){
     cta:ctaLabel&&ctaUrl?{label:ctaLabel,url:ctaUrl}:null,
     card:{mode:cardMode,asset:cardMode==="banner"?cardAsset:null},
     network:{adsonbread:el("networkFallback").checked},
-    house:{sponsor_label:"Sponsor",headline:el("houseHeadline").value.trim()||"Space iklan tersedia",body:el("houseBody").value.trim(),cta:{label:el("houseCtaLabel").value.trim()||"Pasang iklan? Hubungi",url:el("houseCtaUrl").value.trim()}},
-    starts_at:schedule==="scheduled"?toIso(el("startsAt").value):null,
-    ends_at:schedule==="scheduled"?toIso(el("endsAt").value):null,
+    house:{sponsor_label:"Sponsor",headline:el("houseHeadline").value.trim()||"Space iklan tersedia",body:el("houseBody").value.trim(),cta:{label:houseLabel,url:houseUrl}},
+    starts_at:starts,
+    ends_at:ends,
     placements:{card:cardPlaced,interstitial:interstitialPlaced},
     interstitial:{enabled:interstitialPlaced,trigger:"job_started",mode:interstitialMode,asset:interstitialMode==="text"?null:interstitialAsset,poster_asset:interstitialMode==="video"?posterAsset:null,delay_min_ms:2000,delay_max_ms:5000}
   };
   return state;
 }
 function mediaUrl(asset){return asset&&asset.id?"/v1/media/"+encodeURIComponent(asset.id):""}
-function renderAdPreview(){
-  var state;
-  try{state=buildAdsState()}catch(e){return}
-  var ads=state.ads||{};
+function renderAdPreview(showStatus){
   var host=el("adPreview");host.textContent="";
+  var state;
+  try{state=buildAdsState()}catch(e){if(showStatus)status(el("adsStatus"),e.message,false);return false}
+  var ads=state.ads||{};
   var card=document.createElement("div");card.className="adCard";
   var label=document.createElement("div");label.className="label";label.textContent="Sponsor"+(ads.advertiser?" · "+ads.advertiser:"");card.appendChild(label);
   var mode=ads.card&&ads.card.mode;
   if(mode==="banner"&&ads.card.asset){
     var mh=document.createElement("div");mh.className="adMedia";
-    var img=document.createElement("img");img.src=mediaUrl(ads.card.asset);img.alt="Sponsor preview";mh.appendChild(img);card.appendChild(mh);
+    var img=document.createElement("img");img.src=mediaUrl(ads.card.asset);img.alt="Sponsor preview";img.onerror=function(){status(el("adsStatus"),"Preview banner gagal dimuat.",false)};mh.appendChild(img);card.appendChild(mh);
   }
   var h=document.createElement("div");h.className="headline";h.textContent=ads.headline||"Paid sponsor headline";card.appendChild(h);
   if(ads.body){var b=document.createElement("div");b.className="bodyCopy";b.textContent=ads.body;card.appendChild(b)}
   if(ads.cta){var a=document.createElement("span");a.className="cta";a.textContent=ads.cta.label;card.appendChild(a)}
   if(ads.disclaimer){var d=document.createElement("div");d.className="disclaimer";d.textContent=ads.disclaimer;card.appendChild(d)}
-  host.appendChild(card);
+  if(el("placeCard").checked)host.appendChild(card);
   if(el("placeInterstitial").checked){
     var second=card.cloneNode(true);
     var oldMedia=second.querySelector(".adMedia");if(oldMedia)oldMedia.remove();
     if(ads.interstitial&&ads.interstitial.asset){
       var im=document.createElement("div");im.className="adMedia";
-      if(ads.interstitial.mode==="video"){var v=document.createElement("video");v.src=mediaUrl(ads.interstitial.asset);v.muted=true;v.autoplay=true;v.loop=false;v.playsInline=true;if(ads.interstitial.poster_asset)v.poster=mediaUrl(ads.interstitial.poster_asset);im.appendChild(v)}
-      else{var ii=document.createElement("img");ii.src=mediaUrl(ads.interstitial.asset);ii.alt="Interstitial preview";im.appendChild(ii)}
+      if(ads.interstitial.mode==="video"){var v=document.createElement("video");v.src=mediaUrl(ads.interstitial.asset);v.muted=true;v.autoplay=true;v.loop=false;v.playsInline=true;v.onerror=function(){status(el("adsStatus"),"Preview video gagal dimuat.",false)};if(ads.interstitial.poster_asset)v.poster=mediaUrl(ads.interstitial.poster_asset);im.appendChild(v)}
+      else{var ii=document.createElement("img");ii.src=mediaUrl(ads.interstitial.asset);ii.alt="Interstitial preview";ii.onerror=function(){status(el("adsStatus"),"Preview interstitial gagal dimuat.",false)};im.appendChild(ii)}
       second.insertBefore(im,second.children[1]||null);
     }
     var lock=document.createElement("div");lock.className="disclaimer";lock.textContent="Interstitial · Random 2–5 seconds · LOCKED";second.appendChild(lock);host.appendChild(second);
   }
+  if(!host.children.length){var empty=document.createElement("div");empty.className="muted";empty.textContent="Pilih Card atau Interstitial untuk preview.";host.appendChild(empty)}
+  if(showStatus)status(el("adsStatus"),"Preview siap. Belum ada perubahan yang dipublish.",true);
+  return true;
 }
 function updateUploadVisibility(){
   el("cardUploadWrap").classList.toggle("hidden",el("cardMode").value!=="banner");
@@ -354,8 +371,9 @@ async function uploadFile(file){
 async function posterFromVideo(file){
   var video=document.createElement("video"),url=URL.createObjectURL(file);video.muted=true;video.playsInline=true;video.preload="auto";
   return await new Promise(function(resolve){
-    var finish=function(value){URL.revokeObjectURL(url);resolve(value)};
-    video.onloadeddata=function(){try{video.currentTime=Math.min(.2,Math.max(0,(video.duration||1)/4))}catch(e){}};
+    var settled=false,timer=setTimeout(function(){finish(null)},3000);
+    var finish=function(value){if(settled)return;settled=true;clearTimeout(timer);try{video.pause()}catch(e){}URL.revokeObjectURL(url);resolve(value)};
+    video.onloadeddata=function(){try{video.currentTime=Math.min(.2,Math.max(.01,(video.duration||1)/4))}catch(e){finish(null)}};
     video.onseeked=function(){try{var c=document.createElement("canvas");c.width=video.videoWidth||540;c.height=video.videoHeight||540;c.getContext("2d").drawImage(video,0,0,c.width,c.height);c.toBlob(function(blob){if(!blob)return finish(null);finish(new File([blob],"poster.png",{type:"image/png"}))},"image/png")}catch(e){finish(null)}};
     video.onerror=function(){finish(null)};video.src=url;
   });
@@ -386,7 +404,7 @@ async function loadDemo(){
   var square=await demoImage(1080,1080,"demo-interstitial-1x1.webp");
   cardAsset=await uploadFile(banner);
   interstitialAsset=await uploadFile(square);
-  el("cardMode").value="banner";el("interstitialMode").value="image";el("placeCard").checked=true;el("placeInterstitial").checked=true;el("adsEnabled").checked=true;el("advertiser").value="BMP Terbuka";el("headline").value="DEMO SPONSOR";el("adBody").value="Materi iklan contoh";el("disclaimer").value="Demo creative · bukan pengiklan nyata";
+  el("cardMode").value="banner";el("interstitialMode").value="image";el("placeCard").checked=true;el("placeInterstitial").checked=true;el("adsEnabled").checked=true;el("advertiser").value="BMP Terbuka";el("headline").value="DEMO SPONSOR";el("adBody").value="Materi iklan contoh";el("ctaLabel").value="Buka BMP Terbuka";el("ctaUrl").value="https://t.me/bukabmp";el("disclaimer").value="Demo creative · bukan pengiklan nyata";
   el("cardMeta").textContent=banner.name+" · "+number(banner.size)+" bytes";el("interstitialMeta").textContent=square.name+" · "+number(square.size)+" bytes";
   var video=await demoVideo().catch(function(){return null});
   if(video){
@@ -440,16 +458,33 @@ function drawChart(canvas,series,keys){
   var max=1;dates.forEach(function(d){keys.forEach(function(k){max=Math.max(max,byDate[d][k]||0)})});var patterns=[[0],[5,3],[2,3]];keys.forEach(function(k,ki){c.setLineDash(patterns[ki%patterns.length]);c.strokeStyle="#222";c.lineWidth=1.5;c.beginPath();dates.forEach(function(d,i){var x=30+(dates.length===1?0:(w-45)*i/(dates.length-1));var y=h-24-(h-42)*(byDate[d][k]||0)/max;if(i===0)c.moveTo(x,y);else c.lineTo(x,y)});c.stroke()});c.setLineDash([]);
   c.fillStyle="#777";c.font="9px system-ui";keys.forEach(function(k,i){c.fillText(k,38+i*105,15)});
 }
-function drawCharts(series){drawChart(el("chartEngagement"),series,["extension_open","job_started","job_completed"]);drawChart(el("chartAds"),series,["ad_impression","ad_click"])}
+function drawCharts(series){drawChart(el("chartEngagement"),series,["active_users","extension_open","job_started"]);drawChart(el("chartAds"),series,["ad_reach","ad_impression","ad_click"])}
+function commonEffective(e,key,readyOnly){
+  var values=Object.keys(e||{}).filter(function(k){return !readyOnly||e[k].store_ready===true}).map(function(k){return e[k]&&e[k][key]}).filter(function(v){return v!=null&&String(v)!==""});
+  var unique=Array.from(new Set(values.map(String)));return unique.length===1?unique[0]:"";
+}
 async function loadVersion(){
-  var data=await api("/control/api/version-policy");var p=data.policy||{};
-  el("latestVersion").value=p.latest_version||"1.1.0";el("minimumGlobal").value=p.minimum_global||"1.1.0";el("releaseUrl").value=p.release_url||"";el("versionMessage").value=p.message||"";
-  var r=p.readiness||{};el("readyGithub").checked=r.github===true;el("readyAndroid").checked=r.android===true;el("readyEdge").checked=r.edge===true;el("readyCws").checked=r.cws===true;
-  renderEffective(data.effective||{});return data;
+  var data=await api("/control/api/version-policy");var p=data.policy,e=data.effective||{};
+  if(p){
+    el("latestVersion").value=p.latest_version||"";el("minimumGlobal").value=p.minimum_global||"";el("releaseUrl").value=p.release_url||"";el("versionMessage").value=p.message||"";
+    var r=p.readiness||{};el("readyGithub").checked=r.github===true;el("readyAndroid").checked=r.android===true;el("readyEdge").checked=r.edge===true;el("readyCws").checked=r.cws===true;
+  }else{
+    el("latestVersion").value=commonEffective(e,"latest_version",false);
+    el("minimumGlobal").value=commonEffective(e,"minimum_version",true);
+    el("releaseUrl").value=commonEffective(e,"release_url",false);
+    el("versionMessage").value=commonEffective(e,"message",false);
+    el("readyGithub").checked=e.github&&e.github.store_ready===true;el("readyAndroid").checked=e.android&&e.android.store_ready===true;el("readyEdge").checked=e.edge&&e.edge.store_ready===true;el("readyCws").checked=e.cws&&e.cws.store_ready===true;
+  }
+  renderEffective(e);return data;
 }
 function renderEffective(effective){var host=el("effectiveVersion");host.textContent="";Object.keys(effective).forEach(function(k){var p=effective[k],row=document.createElement("div");row.className="readyRow";var text=document.createElement("span");text.textContent=k+" · latest "+(p.latest_version||"—")+" · minimum "+(p.minimum_version||"not enforced");var badge=document.createElement("span");badge.className="badge "+(p.store_ready?"ready":"wait");badge.textContent=p.store_ready?"Ready":"Waiting";row.appendChild(text);row.appendChild(badge);host.appendChild(row)})}
 async function saveVersion(){
-  var body={latest_version:el("latestVersion").value.trim(),minimum_global:el("minimumGlobal").value.trim(),release_url:el("releaseUrl").value.trim(),message:el("versionMessage").value.trim(),readiness:{github:el("readyGithub").checked,android:el("readyAndroid").checked,edge:el("readyEdge").checked,cws:el("readyCws").checked}};
+  var latest=el("latestVersion").value.trim(),minimum=el("minimumGlobal").value.trim(),release=el("releaseUrl").value.trim();
+  if(!validVersion(latest)||!validVersion(minimum))throw new Error("Latest dan Minimum harus versi valid, contoh 1.0.5.");
+  if(compareVersion(minimum,latest)>0)throw new Error("Minimum tidak boleh lebih tinggi dari Latest.");
+  if(release&&!isHttps(release))throw new Error("Release URL wajib HTTPS.");
+  var body={latest_version:latest,minimum_global:minimum,release_url:release,message:el("versionMessage").value.trim(),readiness:{github:el("readyGithub").checked,android:el("readyAndroid").checked,edge:el("readyEdge").checked,cws:el("readyCws").checked}};
+  if(!confirm("Simpan global version policy? Channel yang Ready dapat mulai menegakkan Minimum."))throw new Error("Dibatalkan.");
   var data=await api("/control/api/version-policy",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});renderEffective(data.effective||{});return data;
 }
 async function loadHistory(){
@@ -468,12 +503,12 @@ all(".nav button").forEach(function(btn){btn.onclick=function(){all(".nav button
 all("#periodOverview button").forEach(function(btn){btn.onclick=async function(){all("#periodOverview button").forEach(function(x){x.classList.remove("active")});btn.classList.add("active");overviewPeriod=btn.dataset.period;try{await loadAnalytics(overviewPeriod,"");status(el("overviewStatus"),"Updated.",true)}catch(e){status(el("overviewStatus"),e.message,false)}}});
 all("#periodAnalytics button").forEach(function(btn){btn.onclick=function(){all("#periodAnalytics button").forEach(function(x){x.classList.remove("active")});btn.classList.add("active");analyticsPeriod=btn.dataset.period}});
 el("refreshAnalytics").onclick=async function(){try{await loadAnalytics(analyticsPeriod,el("analyticsChannel").value);status(el("analyticsStatus"),"Updated.",true)}catch(e){status(el("analyticsStatus"),e.message,false)}};
-["cardMode","interstitialMode","scheduleMode"].forEach(function(id){el(id).onchange=function(){updateUploadVisibility();renderAdPreview()}});
-["advertiser","headline","adBody","ctaLabel","ctaUrl","disclaimer","placeCard","placeInterstitial","networkFallback","adsEnabled","houseHeadline","houseBody","houseCtaLabel","houseCtaUrl"].forEach(function(id){el(id).addEventListener("input",renderAdPreview);el(id).addEventListener("change",renderAdPreview)});
+["cardMode","interstitialMode","scheduleMode"].forEach(function(id){el(id).onchange=function(){updateUploadVisibility();renderAdPreview(false)}});
+["advertiser","headline","adBody","ctaLabel","ctaUrl","disclaimer","placeCard","placeInterstitial","networkFallback","adsEnabled","houseHeadline","houseBody","houseCtaLabel","houseCtaUrl"].forEach(function(id){el(id).addEventListener("input",function(){renderAdPreview(false)});el(id).addEventListener("change",function(){renderAdPreview(false)})});
 el("cardFile").onchange=async function(){var f=this.files[0];if(!f)return;try{cardAsset=await uploadFile(f);el("cardMeta").textContent=f.name+" · "+number(f.size)+" bytes";renderAdPreview();status(el("adsStatus"),"Banner uploaded.",true)}catch(e){status(el("adsStatus"),e.message,false)}};
 el("interstitialFile").onchange=async function(){var f=this.files[0];if(!f)return;try{interstitialAsset=await uploadFile(f);posterAsset=null;if(f.type.indexOf("video/")===0){var poster=await posterFromVideo(f);if(poster)posterAsset=await uploadFile(poster)}el("interstitialMeta").textContent=f.name+" · "+number(f.size)+" bytes";renderAdPreview();status(el("adsStatus"),"Interstitial media uploaded.",true)}catch(e){status(el("adsStatus"),e.message,false)}};
 el("loadDemo").onclick=function(){loadDemo().catch(function(e){status(el("adsStatus"),e.message,false)})};
-el("previewAds").onclick=renderAdPreview;
+el("previewAds").onclick=function(){renderAdPreview(true)};
 el("adsTarget").onchange=function(){loadState(this.value).then(function(){status(el("adsStatus"),"State loaded.",true)}).catch(function(e){status(el("adsStatus"),e.message,false)})};
 el("publishAds").onclick=async function(){try{var target=targetValue("adsTarget"),data=await publishState(target,buildAdsState(),"ads_publish");if(target==="all"){loadedStates=data.states||{};currentState=loadedStates.github}else{currentState=data.state;loadedStates[target]=data.state}fillAds(currentState);status(el("adsStatus"),"Published to "+target+".",true)}catch(e){status(el("adsStatus"),e.message,false)}};
 el("pauseAds").onclick=async function(){var target=targetValue("adsTarget");if(target==="all"){status(el("adsStatus"),"Pause darurat harus per channel supaya eksplisit.",false);return}try{var data=await api("/control/api/pause-ads",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({distribution_channel:target})});currentState=data.state;fillAds(currentState);status(el("adsStatus"),"Campaign OFF. House Ad tetap tersedia.",true)}catch(e){status(el("adsStatus"),e.message,false)}};
