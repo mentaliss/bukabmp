@@ -306,26 +306,54 @@ function renderAdPreview(reportError){
     return false;
   }
   var ads=state.ads||{};
+  var hasDirect=Boolean(
+    ads.headline||ads.body||ads.advertiser||
+    (ads.card&&ads.card.asset)||
+    (ads.interstitial&&ads.interstitial.asset)
+  );
+  var preview=ads;
+  var housePreview=false;
+  if(!hasDirect){
+    var house=ads.house||{};
+    housePreview=true;
+    preview={
+      sponsor_label:house.sponsor_label||"Sponsor",
+      advertiser:"",
+      headline:house.headline||"Space iklan tersedia",
+      body:house.body||"",
+      disclaimer:"",
+      cta:house.cta||null,
+      card:{mode:"text",asset:null},
+      interstitial:{mode:"text",asset:null,poster_asset:null}
+    };
+  }
   var host=el("adPreview");host.textContent="";
   var card=document.createElement("div");card.className="adCard";
-  var label=document.createElement("div");label.className="label";label.textContent="Sponsor"+(ads.advertiser?" · "+ads.advertiser:"");card.appendChild(label);
-  var mode=ads.card&&ads.card.mode;
-  if(mode==="banner"&&ads.card.asset){
+  var label=document.createElement("div");label.className="label";label.textContent=(preview.sponsor_label||"Sponsor")+(preview.advertiser?" · "+preview.advertiser:"");card.appendChild(label);
+  var mode=preview.card&&preview.card.mode;
+  if(mode==="banner"&&preview.card.asset){
     var mh=document.createElement("div");mh.className="adMedia";
-    var img=document.createElement("img");img.src=mediaUrl(ads.card.asset);img.alt="Sponsor preview";mh.appendChild(img);card.appendChild(mh);
+    var img=document.createElement("img");img.src=mediaUrl(preview.card.asset);img.alt="Sponsor preview";mh.appendChild(img);card.appendChild(mh);
   }
-  var h=document.createElement("div");h.className="headline";h.textContent=ads.headline||"Paid sponsor headline";card.appendChild(h);
-  if(ads.body){var b=document.createElement("div");b.className="bodyCopy";b.textContent=ads.body;card.appendChild(b)}
-  if(ads.cta){var a=document.createElement("span");a.className="cta";a.textContent=ads.cta.label;card.appendChild(a)}
-  if(ads.disclaimer){var d=document.createElement("div");d.className="disclaimer";d.textContent=ads.disclaimer;card.appendChild(d)}
+  var h=document.createElement("div");h.className="headline";h.textContent=preview.headline||"Space iklan tersedia";card.appendChild(h);
+  if(preview.body){var b=document.createElement("div");b.className="bodyCopy";b.textContent=preview.body;card.appendChild(b)}
+  if(preview.cta){var a=document.createElement("span");a.className="cta";a.textContent=preview.cta.label;card.appendChild(a)}
+  if(preview.disclaimer){var d=document.createElement("div");d.className="disclaimer";d.textContent=preview.disclaimer;card.appendChild(d)}
+  if(housePreview){
+    var fallbackNote=document.createElement("div");fallbackNote.className="disclaimer";
+    fallbackNote.textContent=ads.network&&ads.network.adsonbread===true
+      ?"Fallback preview · AdsOnBread tidak disimulasikan di Control Center"
+      :"House Ad fallback preview";
+    card.appendChild(fallbackNote);
+  }
   host.appendChild(card);
   if(el("placeInterstitial").checked){
     var second=card.cloneNode(true);
     var oldMedia=second.querySelector(".adMedia");if(oldMedia)oldMedia.remove();
-    if(ads.interstitial&&ads.interstitial.asset){
+    if(preview.interstitial&&preview.interstitial.asset){
       var im=document.createElement("div");im.className="adMedia";
-      if(ads.interstitial.mode==="video"){var v=document.createElement("video");v.src=mediaUrl(ads.interstitial.asset);v.muted=true;v.autoplay=true;v.loop=false;v.playsInline=true;if(ads.interstitial.poster_asset)v.poster=mediaUrl(ads.interstitial.poster_asset);im.appendChild(v)}
-      else{var ii=document.createElement("img");ii.src=mediaUrl(ads.interstitial.asset);ii.alt="Interstitial preview";im.appendChild(ii)}
+      if(preview.interstitial.mode==="video"){var v=document.createElement("video");v.src=mediaUrl(preview.interstitial.asset);v.muted=true;v.autoplay=true;v.loop=false;v.playsInline=true;if(preview.interstitial.poster_asset)v.poster=mediaUrl(preview.interstitial.poster_asset);im.appendChild(v)}
+      else{var ii=document.createElement("img");ii.src=mediaUrl(preview.interstitial.asset);ii.alt="Interstitial preview";im.appendChild(ii)}
       second.insertBefore(im,second.children[1]||null);
     }
     var lock=document.createElement("div");lock.className="disclaimer";lock.textContent="Interstitial · Random 2–5 seconds · LOCKED";second.appendChild(lock);host.appendChild(second);
