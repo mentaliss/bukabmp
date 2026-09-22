@@ -14,16 +14,17 @@ Repository ini mempublikasikan **source Chrome extension BMP Terbuka**, build to
 
 Yang termasuk source terbuka di repo ini:
 - `extension/` — source extension Manifest V3;
+- `worker/` — source Cloudflare Worker untuk aktivasi, version policy, Telegram bot, Supporter, dan realtime extension state/ads;
 - `tools/` — validator dan release builder extension;
 - dokumentasi penggunaan, kontribusi, privasi, keamanan, dan responsible use.
 
-Yang **tidak** termasuk dalam scope repository ini:
-- source activation service;
-- deployment/infrastructure service;
-- website/landing page source;
-- secret management atau private operational configuration.
+Yang **tidak** dipublikasikan di repository:
+- secret produksi, private signing key, Telegram bot token, reviewer secret, atau credential operator;
+- nilai konfigurasi operasional yang bersifat rahasia;
+- private signing pipeline/key untuk jalur Android CRX;
+- dashboard/account provider dan konfigurasi deployment di luar source yang memang ada di repo.
 
-Service eksternal diperlakukan sebagai API yang digunakan extension. Public endpoint, protocol values, dan public verification key yang memang dibutuhkan client dapat terlihat di source extension; private service implementation tidak berada di repository ini.
+Public endpoint, protocol values, public verification key, dan source Worker yang diperlukan untuk audit dapat terlihat di repository. Secret dan authority produksi tetap berada di environment/provider, bukan di package extension.
 
 ## Karakteristik utama
 
