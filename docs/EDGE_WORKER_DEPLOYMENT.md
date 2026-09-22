@@ -1,62 +1,47 @@
-# Edge Store-control Worker V11 Deployment Gate
+# Edge Worker Deployment Gate — v1.1.0
 
-The Edge Store package must not be submitted until the tested V11 Store-control Worker candidate is deployed to the existing community service and smoke-tested.
+Edge 1.1.0 tidak boleh dipublikasikan sampai **exact audited `cloudflare-worker-prod` commit** yang menjadi base candidate sudah live dan smoke-tested.
 
-## Candidate authority
+Source Worker berada di `worker/`. Secret/private authority tetap di provider environment.
 
-Private Worker candidate:
+## Preserve existing production authority
 
-```text
-BMP-Terbuka-community-worker-v1.0.5-SUPPORT-BOT-V11-EDGE-STORE-CONTROL-CANDIDATE.js
-```
+Jangan recreate/rotate hanya demi release 1.1.0:
+- `PAIRINGS` KV;
+- `BOT_DB` D1;
+- signing private JWK;
+- Telegram bot/webhook secrets;
+- admin/reviewer secrets;
+- existing channel/group IDs.
 
-Keep Worker source, signing material, bot token, reviewer secret, and operational secrets private.
+Rotation atau binding replacement adalah perubahan authority terpisah dan bukan bagian release extension.
 
-## Existing bindings/secrets
+## Edge channel before publication
 
-Preserve all current production bindings/secrets. Do not recreate or rotate them merely for the Edge Store change.
-
-The V11 patch is intended to be backward compatible with existing GitHub/Android clients.
-
-## Edge channel variables before certification
-
-Configure:
+Selama candidate/draft/review:
 
 ```text
-EXTENSION_EDGE_LATEST_VERSION=1.0.5
-EXTENSION_EDGE_MINIMUM_VERSION=1.0.5
+EXTENSION_EDGE_LATEST_VERSION=<current actually available Store version>
+EXTENSION_EDGE_MINIMUM_VERSION=<current actually available minimum>
 EXTENSION_EDGE_STORE_READY=false
-EXTENSION_EDGE_RELEASE_URL=
+EXTENSION_EDGE_RELEASE_URL=<current listing URL if known>
 ```
 
-Optional:
-
-```text
-EXTENSION_EDGE_FORCE_AFTER=
-EXTENSION_EDGE_UPDATE_MESSAGE=
-```
-
-Do not set `store_ready=true` merely because a package was uploaded. Keep it false while the submission is Draft, In review, or otherwise unavailable to users.
+Jangan set `store_ready=true` karena package sudah di-upload. Set true hanya ketika version target benar-benar tersedia dari listing Edge.
 
 ## Reviewer secret
-
-Create a strong random secret as the private Worker secret:
 
 ```text
 STORE_REVIEWER_SECRET=<private strong random value>
 ```
 
-Never:
-- commit it;
-- put it in the extension package;
-- put it in screenshots;
-- put it in a public issue/chat/document.
+Secret:
+- tidak boleh committed;
+- tidak boleh masuk package extension;
+- tidak boleh ada di screenshot/public docs;
+- hanya boleh masuk provider secret + private certification notes.
 
-Paste it only into the private Microsoft Partner Center certification notes.
-
-## Required live smoke tests
-
-After deploying V11 and before Store submission:
+## Required live smoke
 
 ### Health
 
@@ -64,63 +49,82 @@ After deploying V11 and before Store submission:
 GET /health
 ```
 
-Confirm service remains healthy and reports Store-control/reviewer capability.
+Pastikan live response melaporkan capability yang dipakai kandidat:
+- token-v2 activation refresh;
+- realtime extension state;
+- realtime ads contract;
+- ad-event ingest + rate limit + campaign validation;
+- reviewer activation.
 
-### Existing activation compatibility
+Version string live harus cocok dengan audited production Worker, bukan commit lama.
 
-Run one normal activation from an existing GitHub/Android build. Confirm:
-- pair start succeeds;
-- Telegram membership verification succeeds;
-- pair status returns a valid existing-format token;
-- no forced Edge/CWS policy leaks into the legacy channel.
+### Activation compatibility
 
-### Edge version policy
+Uji:
+- existing 1.0.5 activation tetap valid;
+- fresh pair 1.1.0;
+- one-time legacy→v2 re-verification;
+- replacement tidak memperpendek sisa token aktif;
+- expiry preservation hanya berlaku untuk Telegram member + install yang sama;
+- token-v2 refresh;
+- membership failure safe;
+- Supporter snapshot/bonus refresh.
 
-```text
-GET /v1/version?extension_version=1.0.5&distribution_channel=edge
-```
+### Realtime ads
 
-Expected before Store publication:
-- channel is `edge`;
-- latest is 1.0.5;
-- minimum is not enforced while `store_ready=false`;
-- `store_ready=false`.
-
-### Edge Cloud Surface
-
-```text
-GET /v1/extension-state?extension_version=1.0.5&distribution_channel=edge
-```
-
-A valid empty/default state is acceptable for initial publication.
+Uji:
+- default/house state;
+- active scheduled campaign;
+- card update saat popup terbuka;
+- interstitial setelah successful START_JOB, 2–5 detik;
+- ads failure tidak menahan OCR;
+- fabricated/stale campaign metric di-ignore;
+- event payload tidak membawa user/document identifier.
 
 ### Reviewer flow
 
-1. Start an Edge pair from the candidate extension.
-2. Open `/review`.
-3. Enter that Pair ID and the private reviewer secret.
-4. Confirm pair status becomes verified.
-5. Confirm the client recognizes the token as `store_review`.
-6. Confirm the reviewer-only local OCR panel appears.
-7. Run the fixture and confirm the searchable PDF is generated.
+1. Start pair dari Store candidate.
+2. Buka `/review`.
+3. Masukkan Pair ID + private reviewer secret.
+4. Confirm signed `store_review` token.
+5. Jalankan local OCR fixture.
+6. Confirm searchable PDF tersimpan.
+7. Confirm normal user tidak mendapat reviewer controls.
 
-## Post-publication switch
+## Same-listing upgrade gate
 
-Only after Microsoft reports the submission **In the store** and the direct listing URL works:
+Sebelum Public rollout:
+1. gunakan listing/identity Edge yang sama dengan live 1.0.5;
+2. lakukan controlled update ke 1.1.0;
+3. buktikan tetap ada:
+   - `bmpCommunityToken`;
+   - `bmpInstallId`;
+   - draft/range state;
+   - IndexedDB `bmp-terbuka-pdf-cache` / `pdfs`;
+   - PDF module cache;
+   - resume behavior;
+4. lakukan token-v2 re-verification dan pastikan sisa expiry tidak berkurang;
+5. lakukan authenticated RBV OCR → PDF → download → resume.
+
+Clean install, unpacked ZIP, atau extension dengan identity berbeda **bukan** bukti gate ini.
+
+## Post-publication
+
+Hanya setelah version 1.1.0 benar-benar tersedia dari Edge Add-ons dan controlled regression lulus:
 
 ```text
-EXTENSION_EDGE_RELEASE_URL=<final Microsoft Edge Add-ons listing URL>
+EXTENSION_EDGE_LATEST_VERSION=1.1.0
+EXTENSION_EDGE_RELEASE_URL=<final Edge listing URL>
 EXTENSION_EDGE_STORE_READY=true
 ```
 
-Keep `EXTENSION_EDGE_MINIMUM_VERSION=1.0.5` until a later Store version is actually published.
-
-Future Edge releases follow the same rule: upload/review first with the old minimum still usable; raise the minimum only after the new package is truly available from the Store.
+Naikkan `EXTENSION_EDGE_MINIMUM_VERSION` hanya sesuai rollout policy yang memang sudah dapat dipenuhi user dari Store.
 
 ## Rollback
 
-If V11 causes production activation/support regression:
-1. restore the immediately previous Worker version;
+Jika backend/store regression gagal:
+1. rollback Worker ke immediately previous known-good deployment bila backend penyebabnya;
 2. keep `EXTENSION_EDGE_STORE_READY=false`;
-3. do not submit or advance the Edge Store package;
-4. preserve the failed V11 candidate/evidence for diagnosis rather than blindly retrying production deploy.
+3. jangan naikkan minimum version;
+4. jangan replace live extension listing;
+5. simpan failed candidate/evidence untuk diagnosis; jangan blind retry produksi.
