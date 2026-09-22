@@ -235,3 +235,21 @@ test("interstitial CTA and content order match preview creative",()=>{
   const disclaimer=html.indexOf('id="adInterstitialDisclaimer"');
   assert.ok(headline>=0&&body>headline&&cta>body&&disclaimer>cta);
 });
+
+
+test("media renderer fetches first-party bytes into blob URLs",()=>{
+  assert.match(adsMedia,/fetch\(url,\{method:"GET",credentials:"omit",cache:"no-store"\}\)/);
+  assert.match(adsMedia,/URL\.createObjectURL\(blob\)/);
+  assert.match(adsMedia,/media_http_/);
+  assert.match(adsMedia,/media_mime_mismatch/);
+  assert.match(adsMedia,/URL\.revokeObjectURL/);
+});
+
+test("extension CSP explicitly permits only the first-party sponsor media origin",async()=>{
+  const manifest=JSON.parse(await readFile(new URL("../extension/manifest.json",import.meta.url),"utf8"));
+  const csp=manifest.content_security_policy?.extension_pages||"";
+  assert.match(csp,/connect-src 'self' https:\/\/community\.bukabmp\.workers\.dev/);
+  assert.match(csp,/img-src 'self' data: blob: https:\/\/community\.bukabmp\.workers\.dev/);
+  assert.match(csp,/media-src 'self' blob: https:\/\/community\.bukabmp\.workers\.dev/);
+  assert.doesNotMatch(csp,/https:\/\/\*/);
+});
