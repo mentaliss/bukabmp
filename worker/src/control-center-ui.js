@@ -149,7 +149,7 @@ button{border:1px solid #d5d5cf;background:#fff;border-radius:8px;padding:8px 11
       <section data-panel="version" class="panel hidden">
         <div class="panelHead"><div><h2>Version</h2><p class="sub">Global latest/minimum. Minimum hanya berlaku pada channel yang ditandai Ready.</p></div></div>
         <div class="card">
-          <div class="row"><label class="field">Latest version<input id="latestVersion" value="1.1.0"></label><label class="field">Minimum supported<input id="minimumGlobal" value="1.1.0"></label></div>
+          <div class="row"><label class="field">Latest version<input id="latestVersion" placeholder="current live"></label><label class="field">Minimum supported<input id="minimumGlobal" placeholder="current live"></label></div>
           <div class="row" style="margin-top:10px"><label class="field">Release URL<input id="releaseUrl" placeholder="https://"></label><label class="field">Message<input id="versionMessage"></label></div>
         </div>
         <div class="card"><div class="sectionTitle">Readiness</div><div class="readiness">
@@ -294,9 +294,13 @@ function buildAdsState(){
   return state;
 }
 function mediaUrl(asset){return asset&&asset.id?"/v1/media/"+encodeURIComponent(asset.id):""}
-function renderAdPreview(){
+function renderAdPreview(reportError){
   var state;
-  try{state=buildAdsState()}catch(e){return}
+  try{state=buildAdsState()}catch(e){
+    el("adPreview").textContent="";
+    if(reportError)status(el("adsStatus"),e.message,false);
+    return false;
+  }
   var ads=state.ads||{};
   var host=el("adPreview");host.textContent="";
   var card=document.createElement("div");card.className="adCard";
@@ -322,6 +326,7 @@ function renderAdPreview(){
     }
     var lock=document.createElement("div");lock.className="disclaimer";lock.textContent="Interstitial · Random 2–5 seconds · LOCKED";second.appendChild(lock);host.appendChild(second);
   }
+  return true;
 }
 function updateUploadVisibility(){
   el("cardUploadWrap").classList.toggle("hidden",el("cardMode").value!=="banner");
@@ -441,15 +446,43 @@ function drawChart(canvas,series,keys){
   c.fillStyle="#777";c.font="9px system-ui";keys.forEach(function(k,i){c.fillText(k,38+i*105,15)});
 }
 function drawCharts(series){drawChart(el("chartEngagement"),series,["extension_open","job_started","job_completed"]);drawChart(el("chartAds"),series,["ad_impression","ad_click"])}
+function uniqueValue(values){
+  var clean=values.filter(function(v){return typeof v==="string"&&v.trim()}).map(function(v){return v.trim()});
+  var uniq=Array.from(new Set(clean));return uniq.length===1?uniq[0]:"";
+}
+function fallbackPolicyFromEffective(effective){
+  var keys=Object.keys(effective||{}), rows=keys.map(function(k){return effective[k]||{}});
+  var readyRows=rows.filter(function(p){return p.store_ready===true});
+  return {
+    latest_version:uniqueValue(rows.map(function(p){return p.latest_version||""})),
+    minimum_global:uniqueValue(readyRows.map(function(p){return p.minimum_version||""})),
+    release_url:uniqueValue(rows.map(function(p){return p.release_url||""})),
+    message:uniqueValue(rows.map(function(p){return p.message||""})),
+    readiness:{
+      github:Boolean(effective&&effective.github&&effective.github.store_ready),
+      android:Boolean(effective&&effective.android&&effective.android.store_ready),
+      edge:Boolean(effective&&effective.edge&&effective.edge.store_ready),
+      cws:Boolean(effective&&effective.cws&&effective.cws.store_ready)
+    }
+  };
+}
 async function loadVersion(){
-  var data=await api("/control/api/version-policy");var p=data.policy||{};
-  el("latestVersion").value=p.latest_version||"1.1.0";el("minimumGlobal").value=p.minimum_global||"1.1.0";el("releaseUrl").value=p.release_url||"";el("versionMessage").value=p.message||"";
+  var data=await api("/control/api/version-policy");
+  var hasOverride=Boolean(data.policy);
+  var p=hasOverride?data.policy:fallbackPolicyFromEffective(data.effective||{});
+  el("latestVersion").value=p.latest_version||"";el("minimumGlobal").value=p.minimum_global||"";el("releaseUrl").value=p.release_url||"";el("versionMessage").value=p.message||"";
   var r=p.readiness||{};el("readyGithub").checked=r.github===true;el("readyAndroid").checked=r.android===true;el("readyEdge").checked=r.edge===true;el("readyCws").checked=r.cws===true;
-  renderEffective(data.effective||{});return data;
+  renderEffective(data.effective||{});
+  status(el("versionStatus"),hasOverride?"Global version policy loaded.":"Belum ada global override. Form menampilkan policy live saat ini; Save baru membuat override.",true);
+  return data;
 }
 function renderEffective(effective){var host=el("effectiveVersion");host.textContent="";Object.keys(effective).forEach(function(k){var p=effective[k],row=document.createElement("div");row.className="readyRow";var text=document.createElement("span");text.textContent=k+" · latest "+(p.latest_version||"—")+" · minimum "+(p.minimum_version||"not enforced");var badge=document.createElement("span");badge.className="badge "+(p.store_ready?"ready":"wait");badge.textContent=p.store_ready?"Ready":"Waiting";row.appendChild(text);row.appendChild(badge);host.appendChild(row)})}
 async function saveVersion(){
   var body={latest_version:el("latestVersion").value.trim(),minimum_global:el("minimumGlobal").value.trim(),release_url:el("releaseUrl").value.trim(),message:el("versionMessage").value.trim(),readiness:{github:el("readyGithub").checked,android:el("readyAndroid").checked,edge:el("readyEdge").checked,cws:el("readyCws").checked}};
+  if(!body.latest_version||!body.minimum_global)throw new Error("Latest dan minimum wajib diisi sebelum Save.");
+  var ready=Object.keys(body.readiness).filter(function(k){return body.readiness[k]});
+  var summary="Simpan policy versi?\nLatest: "+body.latest_version+"\nMinimum: "+body.minimum_global+"\nReady: "+(ready.join(", ")||"tidak ada");
+  if(!window.confirm(summary))throw new Error("Save dibatalkan.");
   var data=await api("/control/api/version-policy",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});renderEffective(data.effective||{});return data;
 }
 async function loadHistory(){
@@ -473,7 +506,7 @@ el("refreshAnalytics").onclick=async function(){try{await loadAnalytics(analytic
 el("cardFile").onchange=async function(){var f=this.files[0];if(!f)return;try{cardAsset=await uploadFile(f);el("cardMeta").textContent=f.name+" · "+number(f.size)+" bytes";renderAdPreview();status(el("adsStatus"),"Banner uploaded.",true)}catch(e){status(el("adsStatus"),e.message,false)}};
 el("interstitialFile").onchange=async function(){var f=this.files[0];if(!f)return;try{interstitialAsset=await uploadFile(f);posterAsset=null;if(f.type.indexOf("video/")===0){var poster=await posterFromVideo(f);if(poster)posterAsset=await uploadFile(poster)}el("interstitialMeta").textContent=f.name+" · "+number(f.size)+" bytes";renderAdPreview();status(el("adsStatus"),"Interstitial media uploaded.",true)}catch(e){status(el("adsStatus"),e.message,false)}};
 el("loadDemo").onclick=function(){loadDemo().catch(function(e){status(el("adsStatus"),e.message,false)})};
-el("previewAds").onclick=renderAdPreview;
+el("previewAds").onclick=function(){if(renderAdPreview(true))status(el("adsStatus"),"Preview updated. Belum ada yang dipublish.",true)};
 el("adsTarget").onchange=function(){loadState(this.value).then(function(){status(el("adsStatus"),"State loaded.",true)}).catch(function(e){status(el("adsStatus"),e.message,false)})};
 el("publishAds").onclick=async function(){try{var target=targetValue("adsTarget"),data=await publishState(target,buildAdsState(),"ads_publish");if(target==="all"){loadedStates=data.states||{};currentState=loadedStates.github}else{currentState=data.state;loadedStates[target]=data.state}fillAds(currentState);status(el("adsStatus"),"Published to "+target+".",true)}catch(e){status(el("adsStatus"),e.message,false)}};
 el("pauseAds").onclick=async function(){var target=targetValue("adsTarget");if(target==="all"){status(el("adsStatus"),"Pause darurat harus per channel supaya eksplisit.",false);return}try{var data=await api("/control/api/pause-ads",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({distribution_channel:target})});currentState=data.state;fillAds(currentState);status(el("adsStatus"),"Campaign OFF. House Ad tetap tersedia.",true)}catch(e){status(el("adsStatus"),e.message,false)}};
