@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   analyticsSummary,
+  ingestTelemetry,
   sanitizeTelemetryEvent,
   telemetryActorHash
 } from "../src/features/telemetry.js";
@@ -48,6 +49,137 @@ class MemoryR2 {
     return {body: bytes};
   }
   async delete(key) { this.map.delete(String(key)); }
+}
+
+
+class MemoryD1Statement {
+  constructor(db, sql, args = []) { this.db = db; this.sql = String(sql); this.args = args; }
+  bind(...args) { return new MemoryD1Statement(this.db, this.sql, args); }
+  async run() { return this.db.run(this.sql, this.args); }
+  async all() { return this.db.all(this.sql, this.args); }
+  async first() { return this.db.first(this.sql, this.args); }
+}
+
+class TelemetryMemoryD1 {
+  constructor() {
+    this.actors = new Map();
+    this.daily = new Map();
+    this.dailyActors = new Map();
+  }
+  prepare(sql) { return new MemoryD1Statement(this, sql); }
+  async batch(statements) { return await Promise.all(statements.map(statement => statement.run())); }
+  dailyKey(date, metric, channel, version) { return [date, metric, channel, version].join("|"); }
+  actorDayKey(date, actor, channel, version) { return [date, actor, channel, version].join("|"); }
+  inRange(date, start, end) { return String(date) >= String(start) && String(date) <= String(end); }
+  async run(sql, args) {
+    if (sql.includes("INSERT OR IGNORE INTO telemetry_actor")) {
+      const [actor, first, last] = args;
+      if (this.actors.has(actor)) return {meta: {changes: 0}};
+      this.actors.set(actor, {first_seen: first, last_seen: last});
+      return {meta: {changes: 1}};
+    }
+    if (sql.includes("UPDATE telemetry_actor SET last_seen")) {
+      const [last, actor] = args;
+      const row = this.actors.get(actor);
+      if (row) row.last_seen = last;
+      return {meta: {changes: row ? 1 : 0}};
+    }
+    if (sql.includes("INSERT INTO telemetry_daily(")) {
+      let date, metric, channel, version;
+      if (sql.includes("'new_actor'")) {
+        [date, channel, version] = args;
+        metric = "new_actor";
+      } else {
+        [date, metric, channel, version] = args;
+      }
+      const key = this.dailyKey(date, metric, channel, version);
+      this.daily.set(key, (this.daily.get(key) || 0) + 1);
+      return {meta: {changes: 1}};
+    }
+    if (sql.includes("INSERT INTO telemetry_daily_actor")) {
+      const [date, actor, channel, version, opened, jobStarted, adSeen] = args;
+      const key = this.actorDayKey(date, actor, channel, version);
+      const current = this.dailyActors.get(key) || {date, actor_hash: actor, channel, extension_version: version, opened: 0, job_started: 0, ad_seen: 0};
+      current.opened = Math.max(current.opened, opened);
+      current.job_started = Math.max(current.job_started, jobStarted);
+      current.ad_seen = Math.max(current.ad_seen, adSeen);
+      this.dailyActors.set(key, current);
+      return {meta: {changes: 1}};
+    }
+    if (sql.includes("DELETE FROM telemetry_daily_actor")) {
+      const [cutoff] = args;
+      for (const [key, row] of this.dailyActors) if (row.date < cutoff) this.dailyActors.delete(key);
+      return {meta: {changes: 0}};
+    }
+    if (sql.includes("DELETE FROM telemetry_daily")) {
+      const [cutoff] = args;
+      for (const key of [...this.daily.keys()]) if (key.split("|")[0] < cutoff) this.daily.delete(key);
+      return {meta: {changes: 0}};
+    }
+    throw new Error("Unhandled D1 run: " + sql);
+  }
+  dailyRows() {
+    return [...this.daily.entries()].map(([key, count]) => {
+      const [date, metric, channel, extension_version] = key.split("|");
+      return {date, metric, channel, extension_version, count};
+    });
+  }
+  filteredActorDays(start, end, channel = "") {
+    return [...this.dailyActors.values()].filter(row => this.inRange(row.date, start, end) && (!channel || row.channel === channel));
+  }
+  async all(sql, args) {
+    const start = args[0], end = args[1], channel = args[2] || "";
+    if (sql.includes("SELECT metric, SUM(count)")) {
+      const sums = new Map();
+      for (const row of this.dailyRows()) {
+        if (!this.inRange(row.date, start, end) || (channel && row.channel !== channel)) continue;
+        sums.set(row.metric, (sums.get(row.metric) || 0) + row.count);
+      }
+      return {results: [...sums].map(([metric, value]) => ({metric, value}))};
+    }
+    if (sql.includes("SELECT date, metric, SUM(count)")) {
+      const sums = new Map();
+      for (const row of this.dailyRows()) {
+        if (!this.inRange(row.date, start, end) || (channel && row.channel !== channel)) continue;
+        const key = row.date + "|" + row.metric;
+        sums.set(key, (sums.get(key) || 0) + row.count);
+      }
+      return {results: [...sums].map(([key, value]) => {
+        const [date, metric] = key.split("|");
+        return {date, metric, value};
+      })};
+    }
+    if (sql.includes("COUNT(DISTINCT CASE WHEN ad_seen")) {
+      const grouped = new Map();
+      for (const row of this.filteredActorDays(start, end, channel)) {
+        const bucket = grouped.get(row.date) || {actors: new Set(), reach: new Set()};
+        bucket.actors.add(row.actor_hash);
+        if (row.ad_seen === 1) bucket.reach.add(row.actor_hash);
+        grouped.set(row.date, bucket);
+      }
+      return {results: [...grouped].map(([date, bucket]) => ({date, active_users: bucket.actors.size, ad_reach: bucket.reach.size}))};
+    }
+    throw new Error("Unhandled D1 all: " + sql);
+  }
+  async first(sql, args) {
+    if (sql.includes("SELECT COUNT(*) AS value FROM telemetry_actor")) return {value: this.actors.size};
+    if (sql.includes("JOIN telemetry_actor")) {
+      const [start, end, startEpoch, channel = ""] = args;
+      const actors = new Set();
+      for (const row of this.filteredActorDays(start, end, channel)) {
+        const actor = this.actors.get(row.actor_hash);
+        if (actor && actor.first_seen < startEpoch) actors.add(row.actor_hash);
+      }
+      return {value: actors.size};
+    }
+    if (sql.includes("COUNT(DISTINCT actor_hash)")) {
+      const [start, end, channel = ""] = args;
+      const rows = this.filteredActorDays(start, end, channel);
+      const actors = new Set(rows.filter(row => !sql.includes("ad_seen = 1") || row.ad_seen === 1).map(row => row.actor_hash));
+      return {value: actors.size};
+    }
+    throw new Error("Unhandled D1 first: " + sql);
+  }
 }
 
 function b64(bytes) {
@@ -389,4 +521,53 @@ test("telemetry request rate limit uses only a hashed ephemeral IP key", async (
   const keys = [...kv.map.keys()];
   assert.equal(keys.length, 1);
   assert.doesNotMatch(keys[0], /203\.0\.113\.44/);
+});
+
+
+test("analytics acceptance matrix counts opens, jobs, returning, reach and CTR correctly", async () => {
+  const db = new TelemetryMemoryD1();
+  const env = {BOT_DB: db, PAIRINGS: new MemoryKV(), TELEMETRY_HASH_KEY: "analytics-acceptance-secret"};
+  const actorA = "9a2e4f26-5ef8-4cff-95c3-55ad55478f52";
+  const actorB = "c0a80121-1234-4abc-8def-1234567890ab";
+  const old = Date.parse("2026-09-01T12:00:00Z");
+  const now = Date.parse("2026-09-22T12:00:00Z");
+  const event = (actor, type, dimensions = {}) => ({
+    actor_id: actor,
+    event: type,
+    extension_version: "1.1.0",
+    distribution_channel: "edge",
+    dimensions
+  });
+
+  assert.equal((await ingestTelemetry(env, event(actorA, "extension_open"), old)).ok, true);
+  assert.equal((await ingestTelemetry(env, event(actorA, "extension_open"), now)).ok, true);
+  assert.equal((await ingestTelemetry(env, event(actorB, "extension_open"), now)).ok, true);
+  assert.equal((await ingestTelemetry(env, event(actorB, "extension_open"), now + 1)).ok, true);
+
+  assert.equal((await ingestTelemetry(env, event(actorA, "job_started"), now + 2)).ok, true);
+  assert.equal((await ingestTelemetry(env, event(actorA, "job_completed"), now + 3)).ok, true);
+  assert.equal((await ingestTelemetry(env, event(actorB, "job_started"), now + 4)).ok, true);
+  assert.equal((await ingestTelemetry(env, event(actorB, "job_failed"), now + 5)).ok, true);
+
+  const paid = (campaign, placement = "card") => ({campaign_id: campaign, placement, revision: 1, paid_direct: true});
+  assert.equal((await ingestTelemetry(env, event(actorA, "ad_impression", paid("campaign-live")), now + 6)).ok, true);
+  assert.equal((await ingestTelemetry(env, event(actorA, "ad_impression", paid("campaign-live")), now + 7)).ok, true);
+  assert.equal((await ingestTelemetry(env, event(actorB, "ad_impression", paid("campaign-live")), now + 8)).ok, true);
+  assert.equal((await ingestTelemetry(env, event(actorA, "ad_click", paid("campaign-live")), now + 9)).ok, true);
+
+  const house = await ingestTelemetry(env, event(actorA, "ad_impression", {placement: "card"}), now + 10);
+  assert.equal(house.ok, false);
+  assert.equal(house.reason, "invalid_event");
+
+  const summary = await analyticsSummary(env, {period: "7d", channel: "edge"}, now + 11);
+  assert.equal(summary.total_users, 2);
+  assert.equal(summary.active_users, 2);
+  assert.equal(summary.opens, 3);
+  assert.equal(summary.jobs, 2);
+  assert.equal(summary.returning_percent, 50);
+  assert.equal(summary.health_percent, 50);
+  assert.equal(summary.impressions, 3);
+  assert.equal(summary.ad_reach, 2);
+  assert.equal(summary.clicks, 1);
+  assert.equal(summary.ctr_percent, 33.33);
 });
