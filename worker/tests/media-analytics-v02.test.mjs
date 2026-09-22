@@ -18,6 +18,7 @@ import {
 } from "../src/features/version-policy.js";
 import {publishAllChannels} from "../src/features/control-bulk.js";
 import {communityStats} from "../src/features/community-stats.js";
+import {checkTelemetryRateLimit} from "../src/security/rate-limit.js";
 
 class MemoryKV {
   constructor(initial = {}) {
@@ -334,4 +335,31 @@ test("analytics has no fake 100% health with zero jobs and includes blueprint ch
   assert.ok(result.series.some(row => row.metric === "ad_reach" && row.value === 1));
   assert.ok(result.series.some(row => row.metric === "extension_open"));
   assert.ok(result.series.some(row => row.metric === "job_started"));
+});
+
+
+test("telemetry reason is allowlisted instead of accepting arbitrary text", () => {
+  const base = {
+    actor_id: "9a2e4f26-5ef8-4cff-95c3-55ad55478f52",
+    event: "media_render_failed",
+    extension_version: "1.1.0",
+    distribution_channel: "edge"
+  };
+  const safe = sanitizeTelemetryEvent({...base, dimensions: {reason: "image_load_failed"}});
+  assert.equal(safe.dimensions.reason, "image_load_failed");
+  const arbitrary = sanitizeTelemetryEvent({...base, dimensions: {reason: "private document title.pdf"}});
+  assert.equal(Object.hasOwn(arbitrary.dimensions, "reason"), false);
+});
+
+test("telemetry request rate limit uses only a hashed ephemeral IP key", async () => {
+  const kv = new MemoryKV();
+  const env = {PAIRINGS: kv, TELEMETRY_HASH_KEY: "test-secret"};
+  const request = new Request("https://worker.test/v1/telemetry", {
+    headers: {"CF-Connecting-IP": "203.0.113.44"}
+  });
+  for (let i = 0; i < 180; i++) assert.equal(await checkTelemetryRateLimit(request, env), true);
+  assert.equal(await checkTelemetryRateLimit(request, env), false);
+  const keys = [...kv.map.keys()];
+  assert.equal(keys.length, 1);
+  assert.doesNotMatch(keys[0], /203\.0\.113\.44/);
 });
