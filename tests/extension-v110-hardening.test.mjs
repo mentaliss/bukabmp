@@ -242,3 +242,12 @@ test("bmpState mutations are serialized so late progress cannot resurrect a comp
   assert.match(scopedBlock, /!current\.running/);
   assert.match(scopedBlock, /String\(current\.runId \|\| ""\) !== id/);
 });
+
+
+test("unknown page-count completion requires a confirmed end sentinel", () => {
+  assert.match(contentScript, /stableReads >= 2/);
+  assert.match(contentScript, /const nextProbe = await fetchPage\(code, module, page \+ 1\)/);
+  assert.match(contentScript, /nextProbe\.kind === "image"/);
+  assert.match(contentScript, /halaman \$\{page \+ 1\} masih ada/);
+  assert.match(contentScript, /Modul tidak disimpan agar PDF tidak terpotong/);
+});
