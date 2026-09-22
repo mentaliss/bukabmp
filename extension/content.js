@@ -159,6 +159,22 @@
       };
     }
 
+    if (resp.status === 401) {
+      return {
+        kind: "login_required",
+        status: resp.status,
+        reason: "HTTP 401"
+      };
+    }
+
+    if (resp.status >= 500 || (resp.status >= 400 && resp.status !== 404)) {
+      return {
+        kind: "network_error",
+        status: resp.status,
+        reason: `HTTP ${resp.status}`
+      };
+    }
+
     if (!contentType.startsWith("image/")) {
       let text = "";
       try {
@@ -292,6 +308,20 @@
       }
 
       if (r.kind !== "image") {
+        if (totalPages) {
+          await chrome.runtime.sendMessage({
+            type: "MODULE_RESULT",
+            module,
+            result: "error",
+            page,
+            reason:
+              `Halaman ${page}/${totalPages} tidak menghasilkan image ` +
+              `(HTTP ${r.status || 0}, ${r.contentType || "no content-type"}). ` +
+              "Modul tidak disimpan agar PDF tidak terpotong."
+          });
+          return;
+        }
+
         if (page === 1 && downloaded === 0) {
           await chrome.runtime.sendMessage({
             type: "MODULE_RESULT",
