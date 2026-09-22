@@ -158,7 +158,8 @@ export async function serveAdMedia(request, env, id) {
     "Cache-Control": "public, max-age=31536000, immutable",
     "X-Content-Type-Options": "nosniff",
     "Accept-Ranges": "bytes",
-    "Cross-Origin-Resource-Policy": "cross-origin"
+    "Cross-Origin-Resource-Policy": "cross-origin",
+    "Access-Control-Allow-Origin": "*"
   };
 
   const rangeHeader = request.headers.get("Range") || "";
