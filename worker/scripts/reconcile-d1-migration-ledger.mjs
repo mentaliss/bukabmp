@@ -95,12 +95,23 @@ export function assess({objects=[],columns=[],ledger=[]}){
   };
 }
 
+export function columnProbeQueries(){
+  return [...REQUIRED_TABLES.keys()].map(name => ({
+    table: name,
+    sql: `SELECT name FROM pragma_table_info('${name}') ORDER BY cid;`
+  }));
+}
+
 function readState(){
   const objects = runSql("SELECT name,type FROM sqlite_schema WHERE type IN ('table','index') ORDER BY type,name;");
-  const union = [...REQUIRED_TABLES.keys()]
-    .map(name => `SELECT '${name}' AS table_name,name FROM pragma_table_info('${name}')`)
-    .join(" UNION ALL ");
-  const columns = runSql(union+" ORDER BY table_name,name;");
+  const columns = [];
+  // D1 rejects a large UNION of pragma_table_info() calls with
+  // "too many terms in compound SELECT". Probe each known table separately.
+  for(const probe of columnProbeQueries()){
+    for(const row of runSql(probe.sql)){
+      columns.push({table_name: probe.table, name: row.name});
+    }
+  }
   const ledger = runSql("SELECT id,name,applied_at FROM d1_migrations ORDER BY id;");
   return {objects,columns,ledger};
 }
