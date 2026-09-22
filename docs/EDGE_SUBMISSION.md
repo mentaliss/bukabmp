@@ -60,7 +60,7 @@ Backend Store-control V11 candidate provides:
 - rate-limited reviewer attempts;
 - no public hard-coded bypass.
 
-The Worker candidate must be deployed and smoke-tested before Partner Center submission. The private reviewer secret belongs only in Partner Center certification notes, never in this repository.
+The exact audited production Worker commit used by the 1.1.0 candidate must be deployed and smoke-tested before Partner Center submission. The private reviewer secret belongs only in Partner Center certification notes, never in this repository.
 
 Exact fields and reviewer instructions are frozen in `docs/EDGE_PARTNER_CENTER_FIELDS.md`.
 
@@ -76,7 +76,15 @@ Automated CI already proves build/package/static compatibility. Before submissio
 - merge;
 - safe-stop;
 - Worker outage;
-- realtime cloud section;
-- Store-channel update behavior.
+- realtime cloud/status + sponsor card;
+- successful START_JOB followed by a 2–5 second sponsor/house interstitial without blocking OCR;
+- sponsor event privacy/integrity;
+- token-v2 refresh + Supporter snapshot;
+- Store-channel update behavior;
+- same-listing 1.0.5 → 1.1.0 preservation of token, draft, IndexedDB cache, and resume state.
 
 Android Edge Canary signed CRX must be regression-tested separately because its private signing path is intentionally outside this public repo.
+
+## Upgrade identity gate
+
+A separately installed candidate cannot prove persistence. Before public rollout, update the **existing Edge Store listing** from 1.0.5 to 1.1.0 in a controlled/hidden path and verify the browser preserves extension storage. Do not raise the Edge minimum version until this same-listing update is available and passes regression.
