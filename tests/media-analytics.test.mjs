@@ -78,6 +78,7 @@ test("telemetry uses a separate anonymous identity and hard event allowlist",()=
     assert.match(telemetry,new RegExp(event));
   }
   assert.match(telemetry,/crypto\.randomUUID\(\)/);
+  assert.match(telemetry,/analyticsIdPromise/);
   assert.match(telemetry,/keepalive:true/);
 });
 
