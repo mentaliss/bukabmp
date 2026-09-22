@@ -35,6 +35,8 @@ OCR, penyusunan PDF, cache modul, resume, ekspor ulang, dan penggabungan PDF dip
 
 BMP Terbuka menggunakan aktivasi komunitas untuk mengelola akses extension. Layanan aktivasi hanya menerima data operasional yang diperlukan untuk pairing, kebijakan versi, dan state/content yang aman. Executable OCR/PDF tetap dibundel di package Store.
 
+Kandidat 1.1.0 juga dapat menampilkan sponsor card/interstitial dari plain realtime state. Sponsor tidak menerima isi dokumen; event pengukuran bersifat coarse dan tidak memuat identitas user, kode BMP, OCR text, atau PDF.
+
 BMP Terbuka adalah proyek komunitas independen dan bukan produk resmi atau perwakilan penyedia materi.
 ```
 
@@ -68,13 +70,13 @@ Support:
 https://github.com/mentaliss/bukabmp/issues
 ```
 
-Privacy policy candidate URL while this branch remains the submission authority:
+Privacy policy:
 
 ```text
-https://github.com/mentaliss/bukabmp/blob/cws-candidate/PRIVACY.md
+https://github.com/mentaliss/bukabmp/blob/main/PRIVACY.md
 ```
 
-Do not submit until the Store-control Worker V11 behavior described by that policy is deployed to the live community service. After a release/merge, replace the privacy URL with the stable canonical branch URL.
+Before submission, merge the audited 1.1.0 privacy text to the canonical public branch and confirm the exact live Worker behavior matches it. Do not point Partner Center at a stale candidate branch.
 
 ## Logo and screenshots
 
@@ -112,7 +114,7 @@ Runs the reader integration only on the authenticated reader and accesses source
 
 ### Host: https://community.bukabmp.workers.dev/*
 
-Used for community pairing/activation, channel-specific version policy, reviewer activation, and validated realtime state/plain content. The service does not receive source passwords/cookies, page images, OCR text, or generated PDFs.
+Used for community pairing/activation, token-v2 refresh, channel-specific version policy, reviewer activation, validated realtime state/plain content, and coarse sponsor events. Sponsor events contain event/placement/campaign/revision/channel/extension-version only; they do not carry Telegram ID, install ID, activation token, BMP code, page images, OCR text, or generated PDFs.
 
 ### tabs
 
@@ -135,12 +137,14 @@ Tesseract.js, Tesseract core WebAssembly variants, pdf-lib, and Indonesian tessd
 - activation pairing: community Worker;
 - version/channel policy: community Worker;
 - Cloud Surface state/plain content: community Worker;
-- no source passwords, NIM, source cookie/session, page images, OCR text, or generated PDFs are sent to the activation service;
+- sponsor events: coarse campaign/event metadata only;
+- durable bot/activation/Supporter/referral/payment records: as documented in `PRIVACY.md`;
+- no source passwords, NIM, source cookie/session, page images, OCR text, or generated PDFs are sent to the backend;
 - no document/OCR content is used for advertising or profiling.
 
 ## Certification notes
 
-Use these notes only after Worker V11 is live and a private reviewer secret has been configured.
+Use these notes only after the exact audited 1.1.0 Worker is live and a private reviewer secret has been configured.
 
 ```text
 BMP Terbuka normally processes material from a third-party authenticated reader that the user is already authorized to access. We do not provide, request, or bypass third-party credentials.
@@ -165,14 +169,15 @@ Reviewer code:
 
 ## Publication sequence
 
-1. Deploy tested Store-control Worker V11.
+1. Deploy the exact tested production Worker commit used by the audited 1.1.0 candidate.
 2. Configure Edge channel with `store_ready=false`.
 3. Configure a private `STORE_REVIEWER_SECRET`.
 4. Verify live pairing, `/review`, reviewer OCR sample, version policy, and Cloud Surface.
-5. Upload the latest green `BMP-Terbuka-v1.0.5-EDGE.zip`.
+5. Upload the latest green `BMP-Terbuka-v1.1.0-EDGE.zip` only after the controlled same-listing upgrade gate is ready.
 6. Paste the listing/privacy/certification fields above.
 7. Submit as **Hidden**.
 8. When status becomes `In the store`, capture the Edge listing URL/Store identity.
 9. Test the Store edition, including Edge Canary Android install-by-ID/listing path where available.
 10. Set `EXTENSION_EDGE_RELEASE_URL` to the final listing URL and then `EXTENSION_EDGE_STORE_READY=true`.
-11. Change visibility to Public only after controlled Store regression passes.
+11. If a 1.0.5 Edge Store listing already exists, prove same-listing 1.0.5 → 1.1.0 preserves activation token, install ID, draft, IndexedDB PDF cache, and resume behavior. If 1.1.0 is the first Edge Store listing, record that it is a new identity and do not claim migration from the manually signed CRX.
+12. Change visibility to Public only after controlled Store + authenticated real-device regression passes.
