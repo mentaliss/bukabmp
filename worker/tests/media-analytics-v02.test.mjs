@@ -13,6 +13,7 @@ import {
 import {
   readGlobalVersionPolicy,
   resolveVersionPolicy,
+  sanitizeGlobalVersionPolicy,
   writeGlobalVersionPolicy
 } from "../src/features/version-policy.js";
 import {publishAllChannels} from "../src/features/control-bulk.js";
@@ -136,6 +137,19 @@ test("first-party media stores immutable content hash IDs and serves video byte 
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   assert.equal(response.headers.get("content-range"), "bytes 4-11/32");
   assert.deepEqual([...new Uint8Array(await response.arrayBuffer())], [...mp4.slice(4, 12)]);
+});
+
+test("global version policy rejects a minimum newer than latest", () => {
+  assert.equal(sanitizeGlobalVersionPolicy({
+    latest_version: "1.0.5",
+    minimum_global: "1.1.0",
+    readiness: {github: true}
+  }), null);
+  assert.ok(sanitizeGlobalVersionPolicy({
+    latest_version: "1.1.0",
+    minimum_global: "1.0.5",
+    readiness: {github: true}
+  }));
 });
 
 test("global version policy enforces minimum only on channels explicitly marked ready", async () => {
