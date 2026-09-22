@@ -23,21 +23,92 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+
       - name: Validate source and tests
         run: npm run validate
+
       - name: Build and validate GitHub/manual
         run: |
           npm run build:release
           npm run validate:github
+
+      - name: Package GitHub/manual candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./extension/manifest.json').version")
+          mkdir -p dist/candidate
+          (
+            cd "dist/BMP-Terbuka-v${VERSION}"
+            zip -qr "../candidate/BMP-Terbuka-v${VERSION}-GITHUB.zip" .
+          )
+          test "$(unzip -Z1 "dist/candidate/BMP-Terbuka-v${VERSION}-GITHUB.zip" | grep -xc 'manifest.json')" -eq 1
+          unzip -t "dist/candidate/BMP-Terbuka-v${VERSION}-GITHUB.zip"
+          sha256sum "dist/candidate/BMP-Terbuka-v${VERSION}-GITHUB.zip" > "dist/candidate/BMP-Terbuka-v${VERSION}-GITHUB.zip.sha256"
+
       - name: Build and validate Android
         run: |
           npm run build:android
           npm run validate:android
+
+      - name: Package Android candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./extension/manifest.json').version")
+          mkdir -p dist/candidate
+          (
+            cd "dist/BMP-Terbuka-v${VERSION}"
+            zip -qr "../candidate/BMP-Terbuka-v${VERSION}-ANDROID.zip" .
+          )
+          test "$(unzip -Z1 "dist/candidate/BMP-Terbuka-v${VERSION}-ANDROID.zip" | grep -xc 'manifest.json')" -eq 1
+          unzip -t "dist/candidate/BMP-Terbuka-v${VERSION}-ANDROID.zip"
+          sha256sum "dist/candidate/BMP-Terbuka-v${VERSION}-ANDROID.zip" > "dist/candidate/BMP-Terbuka-v${VERSION}-ANDROID.zip.sha256"
+
       - name: Build and validate Chrome Web Store
         run: |
           npm run build:cws
           npm run validate:cws
+
+      - name: Package CWS candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./extension/manifest.json').version")
+          mkdir -p dist/candidate
+          (
+            cd "dist/cws/BMP-Terbuka-v${VERSION}"
+            zip -qr "../../candidate/BMP-Terbuka-v${VERSION}-CWS.zip" .
+          )
+          test "$(unzip -Z1 "dist/candidate/BMP-Terbuka-v${VERSION}-CWS.zip" | grep -xc 'manifest.json')" -eq 1
+          unzip -t "dist/candidate/BMP-Terbuka-v${VERSION}-CWS.zip"
+          sha256sum "dist/candidate/BMP-Terbuka-v${VERSION}-CWS.zip" > "dist/candidate/BMP-Terbuka-v${VERSION}-CWS.zip.sha256"
+
       - name: Build and validate Edge Add-ons
         run: |
           npm run build:edge
           npm run validate:edge
+
+      - name: Package Edge candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./extension/manifest.json').version")
+          mkdir -p dist/candidate
+          (
+            cd "dist/edge/BMP-Terbuka-v${VERSION}"
+            zip -qr "../../candidate/BMP-Terbuka-v${VERSION}-EDGE.zip" .
+          )
+          test "$(unzip -Z1 "dist/candidate/BMP-Terbuka-v${VERSION}-EDGE.zip" | grep -xc 'manifest.json')" -eq 1
+          unzip -t "dist/candidate/BMP-Terbuka-v${VERSION}-EDGE.zip"
+          sha256sum "dist/candidate/BMP-Terbuka-v${VERSION}-EDGE.zip" > "dist/candidate/BMP-Terbuka-v${VERSION}-EDGE.zip.sha256"
+
+      - name: Upload candidate packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: bmp-terbuka-v1.1.0-candidate-packages
+          path: |
+            dist/candidate/*.zip
+            dist/candidate/*.sha256
+          if-no-files-found: error
+          retention-days: 14
