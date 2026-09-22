@@ -15,10 +15,23 @@ function httpsUrl(value) {
   if (!raw) return "";
   try {
     const url = new URL(raw);
-    return url.protocol === "https:" ? url.toString() : "";
+    return url.protocol === "https:" ? url.toString() : null;
   } catch {
-    return "";
+    return null;
   }
+}
+
+function compareSemver(a, b) {
+  const left = String(a).split(".").map(Number);
+  const right = String(b).split(".").map(Number);
+  const length = Math.max(left.length, right.length, 3);
+  for (let i = 0; i < length; i++) {
+    const l = Number.isFinite(left[i]) ? left[i] : 0;
+    const r = Number.isFinite(right[i]) ? right[i] : 0;
+    if (l < r) return -1;
+    if (l > r) return 1;
+  }
+  return 0;
 }
 
 export function sanitizeGlobalVersionPolicy(raw) {
@@ -26,21 +39,29 @@ export function sanitizeGlobalVersionPolicy(raw) {
   const latestVersion = semver(raw.latest_version);
   const minimumGlobal = semver(raw.minimum_global);
   if (!latestVersion || !minimumGlobal) return null;
+  if (compareSemver(minimumGlobal, latestVersion) > 0) return null;
 
   const readinessRaw = raw.readiness && typeof raw.readiness === "object" ? raw.readiness : {};
   const readiness = {};
   for (const channel of CHANNELS) readiness[channel] = readinessRaw[channel] === true;
 
   const forceRaw = clean(raw.force_after, 64);
-  const forceAfter = forceRaw && Number.isFinite(Date.parse(forceRaw))
-    ? new Date(Date.parse(forceRaw)).toISOString()
-    : null;
+  let forceAfter = null;
+  if (forceRaw) {
+    const parsedForce = Date.parse(forceRaw);
+    if (!Number.isFinite(parsedForce)) return null;
+    forceAfter = new Date(parsedForce).toISOString();
+  }
+
+  const releaseRaw = clean(raw.release_url, 2048);
+  const releaseUrl = httpsUrl(releaseRaw);
+  if (releaseRaw && !releaseUrl) return null;
 
   return {
     latest_version: latestVersion,
     minimum_global: minimumGlobal,
     force_after: forceAfter,
-    release_url: httpsUrl(raw.release_url),
+    release_url: releaseUrl || "",
     message: clean(raw.message, 300),
     readiness
   };
