@@ -123,7 +123,10 @@ Sebelum 1.1.0 dinyatakan siap:
 - event ads tidak mengirim Telegram ID, install ID, token aktivasi, kode BMP, atau data dokumen;
 - GitHub/manual, Android, CWS, dan Edge package semuanya lolos build + validator kandidat;
 - Edge Canary hanya fallback/testing;
-- store listing 1.1.0 harus sudah tersedia sebelum minimum-version policy memaksa user update.
+- store listing 1.1.0 harus sudah tersedia sebelum minimum-version policy memaksa user update;
+- listing Store + privacy disclosure harus menyebut sponsor card/interstitial secara akurat;
+- campaign Store harus contextual/non-personalized dan tidak boleh memakai identitas pengguna, histori penggunaan, kode BMP, atau isi dokumen untuk targeting;
+- creative/CTA campaign harus ditinjau terhadap kebijakan advertising/content channel distribusinya sebelum diaktifkan; primary purpose extension tetap OCR/PDF, bukan advertising.
 
 ## Manual smoke test
 
