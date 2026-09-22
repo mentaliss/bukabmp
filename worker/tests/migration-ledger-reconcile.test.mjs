@@ -14,7 +14,8 @@ function fixture(){
     telemetry_actor:["actor_hash","first_seen","last_seen"],
     telemetry_daily:["date","metric","channel","extension_version","count"],
     telemetry_daily_actor:["date","actor_hash","channel","extension_version","opened","job_started","ad_seen"],
-    community_daily:["date","subscribers","members","captured_at"]
+    community_daily:["date","subscribers","members","captured_at"],
+    extension_control_state:["channel","state_json","updated_at"]
   };
   const indexes=[
     "idx_referrals_referrer","idx_referrals_status","idx_supporter_events_user","idx_payments_user",
@@ -35,7 +36,7 @@ test("empty ledger can be baselined only when all migration effects exist",()=>{
   const result=assess(fixture());
   assert.equal(result.ok,true);
   assert.equal(result.canBaseline,true);
-  assert.deepEqual(result.missingLedger,["0001_bot_v2.sql","0002_activation_ledger.sql","0003_media_analytics.sql"]);
+  assert.deepEqual(result.missingLedger,["0001_bot_v2.sql","0002_activation_ledger.sql","0003_media_analytics.sql","0004_extension_control_state.sql"]);
 });
 
 test("extra live columns such as member_ref do not block reconciliation",()=>{
@@ -64,8 +65,8 @@ test("unknown ledger entry refuses automatic baseline",()=>{
 
 test("column probes avoid compound SELECT limits on D1",()=>{
   const probes=columnProbeQueries();
-  assert.equal(probes.length,11);
-  assert.equal(new Set(probes.map(x=>x.table)).size,11);
+  assert.equal(probes.length,12);
+  assert.equal(new Set(probes.map(x=>x.table)).size,12);
   for(const probe of probes){
     assert.ok(probe.sql.includes("pragma_table_info"));
     assert.equal(probe.sql.includes("UNION ALL"),false);
@@ -94,7 +95,7 @@ test("missing required table is never auto-repairable",()=>{
 
 test("baseline statements avoid unsupported explicit SQL transactions",()=>{
   const statements=baselineStatements();
-  assert.equal(statements.length,3);
+  assert.equal(statements.length,4);
   assert.equal(statements.some(sql=>/\bBEGIN\b|\bCOMMIT\b/i.test(sql)),false);
   assert.equal(statements.every(sql=>/INSERT INTO d1_migrations\(name\)/.test(sql)),true);
   assert.equal(statements.every(sql=>/WHERE NOT EXISTS/.test(sql)),true);
