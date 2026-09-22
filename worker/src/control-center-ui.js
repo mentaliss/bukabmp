@@ -526,7 +526,7 @@ async function saveVersion(){
   if(!body.latest_version||!body.minimum_global)throw new Error("Latest dan minimum wajib diisi sebelum Save.");
   if(body.release_url&&!validHttps(body.release_url))throw new Error("Release URL harus HTTPS.");
   var ready=Object.keys(body.readiness).filter(function(k){return body.readiness[k]});
-  var summary="Simpan policy versi?\nLatest: "+body.latest_version+"\nMinimum: "+body.minimum_global+"\nReady: "+(ready.join(", ")||"tidak ada");
+  var summary="Simpan policy versi?\\nLatest: "+body.latest_version+"\\nMinimum: "+body.minimum_global+"\\nReady: "+(ready.join(", ")||"tidak ada");
   if(!window.confirm(summary))throw new Error("Save dibatalkan.");
   var data=await api("/control/api/version-policy",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});renderEffective(data.effective||{});return data;
 }
