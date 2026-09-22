@@ -97,8 +97,10 @@
         ].join(" ");
       }
 
-      let score = 90;
-      if (/page|halaman|viewer|toolbar|pager/i.test(context)) score += 15;
+      // Ignore generic fractions outside an actual page/viewer control.
+      // A false low total would silently truncate a module.
+      if (!/page|halaman|viewer|toolbar|pager/i.test(context)) continue;
+      let score = 105;
       if (current === 1) score += 5;
       addCandidate(total, score, "visible-page-counter");
     }
@@ -108,11 +110,26 @@
   }
 
   async function detectTotalPagesWithRetry(maxPages) {
+    let previousPages = null;
+    let stableReads = 0;
     for (let attempt = 0; attempt < 8; attempt++) {
       const found = detectTotalPages(maxPages);
-      if (found) return found;
+      if (found) {
+        if (found.pages === previousPages) {
+          stableReads++;
+          if (stableReads >= 1) return found;
+        } else {
+          previousPages = found.pages;
+          stableReads = 0;
+        }
+      } else {
+        previousPages = null;
+        stableReads = 0;
+      }
       await sleep(250);
     }
+    // No stable count: use safe sentinel probing instead of trusting a
+    // transient toolbar value such as an initial "1 / 1".
     return null;
   }
 
@@ -237,12 +254,17 @@
     };
   }
 
+  let activeRunId = "";
+
   async function runModule(cfg) {
-    const {code, module, delayMs, maxPages} = cfg;
+    const {runId, code, module, delayMs, maxPages} = cfg;
+    const stillActive = () => Boolean(runId) && activeRunId === runId;
+    if (!stillActive()) return;
 
     if (pageRejected()) {
       await chrome.runtime.sendMessage({
         type: "MODULE_RESULT",
+        runId,
         module,
         result: "blocked",
         page: 0,
@@ -254,6 +276,7 @@
     if (passwordVisible()) {
       await chrome.runtime.sendMessage({
         type: "MODULE_RESULT",
+        runId,
         module,
         result: "login_required"
       });
@@ -266,18 +289,22 @@
     const pageLimit = totalPages || maxPages;
 
     for (let page = 1; page <= pageLimit; page++) {
+      if (!stillActive()) return;
       await chrome.runtime.sendMessage({
         type: "PAGE_PROGRESS",
+        runId,
         module,
         page,
         totalPages
       });
 
       const r = await fetchPage(code, module, page);
+      if (!stillActive()) return;
 
       if (r.kind === "blocked") {
         await chrome.runtime.sendMessage({
           type: "MODULE_RESULT",
+          runId,
           module,
           result: "blocked",
           page,
@@ -289,6 +316,7 @@
       if (r.kind === "login_required") {
         await chrome.runtime.sendMessage({
           type: "MODULE_RESULT",
+          runId,
           module,
           result: "login_required",
           page
@@ -299,6 +327,7 @@
       if (r.kind === "network_error") {
         await chrome.runtime.sendMessage({
           type: "MODULE_RESULT",
+          runId,
           module,
           result: "error",
           page,
@@ -311,6 +340,7 @@
         if (totalPages) {
           await chrome.runtime.sendMessage({
             type: "MODULE_RESULT",
+            runId,
             module,
             result: "error",
             page,
@@ -325,6 +355,7 @@
         if (page === 1 && downloaded === 0) {
           await chrome.runtime.sendMessage({
             type: "MODULE_RESULT",
+            runId,
             module,
             result: "missing_module",
             page: 1,
@@ -337,6 +368,7 @@
 
         await chrome.runtime.sendMessage({
           type: "MODULE_RESULT",
+          runId,
           module,
           result: "complete",
           pages: downloaded
@@ -348,6 +380,7 @@
       // no giant in-memory queue, no request burst to BMP.
       const ocr = await chrome.runtime.sendMessage({
         type: "OCR_PAGE",
+        runId,
         module,
         page,
         dataUrl: r.dataUrl
@@ -356,6 +389,7 @@
       if (!ocr?.ok) {
         await chrome.runtime.sendMessage({
           type: "MODULE_RESULT",
+          runId,
           module,
           result: "error",
           page,
@@ -364,11 +398,13 @@
         return;
       }
 
+      if (!stillActive()) return;
       downloaded++;
 
       if (totalPages && page === pageLimit) {
         await chrome.runtime.sendMessage({
           type: "MODULE_RESULT",
+          runId,
           module,
           result: "complete",
           pages: downloaded,
@@ -380,8 +416,10 @@
       await sleep(Math.max(700, delayMs));
     }
 
+    if (!stillActive()) return;
     await chrome.runtime.sendMessage({
       type: "MODULE_RESULT",
+      runId,
       module,
       result: "error",
       page: maxPages,
@@ -393,20 +431,41 @@
   let activeRunKey = "";
 
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.type === "STOP_MODULE") {
+      const runId = String(msg.runId || "");
+      if (!runId || activeRunId === runId) {
+        activeRunId = "";
+        activeRunKey = "";
+      }
+      sendResponse({ok: true});
+      return;
+    }
+
     if (msg.type === "START_MODULE") {
-      const runKey = `${String(msg.code || "")}:M${Number(msg.module || 0)}`;
-      if (activeRunKey === runKey) {
+      const runId = String(msg.runId || "");
+      if (!runId) {
+        sendResponse({ok: false, error: "runId proses tidak tersedia."});
+        return;
+      }
+      const runKey = `${runId}:${String(msg.code || "")}:M${Number(msg.module || 0)}`;
+      if (activeRunKey === runKey && activeRunId === runId) {
         sendResponse({ok: true, alreadyRunning: true});
         return;
       }
 
+      // A newer generation supersedes any unfinished module loop from an
+      // earlier STOP/restart. Old messages carry the old runId and are ignored
+      // by the background/offscreen layers as a second line of defense.
+      activeRunId = runId;
       activeRunKey = runKey;
       sendResponse({ok: true});
       runModule(msg)
         .catch(async e => {
+          if (activeRunId !== runId) return;
           try {
             await chrome.runtime.sendMessage({
               type: "MODULE_RESULT",
+              runId,
               module: msg.module,
               result: "error",
               reason: String(e)
@@ -414,7 +473,10 @@
           } catch (_) {}
         })
         .finally(() => {
-          if (activeRunKey === runKey) activeRunKey = "";
+          if (activeRunKey === runKey && activeRunId === runId) {
+            activeRunKey = "";
+            activeRunId = "";
+          }
         });
     }
   });
