@@ -2,7 +2,7 @@
 "use strict";
 const IMAGE_MIME=new Set(["image/jpeg","image/png","image/webp"]);
 const VIDEO_MIME=new Set(["video/mp4","video/webm"]);
-function safeId(value){const id=String(value||"").trim();return /^[a-zA-Z0-9_-]{16,128}$/.test(id)?id:"";}
+function safeId(value){const id=String(value||"").trim();return /^[0-9a-f]{64}$/i.test(id)?id:"";}
 function safeBase(value){try{const url=new URL(String(value||""));return url.protocol==="https:"?url.toString().replace(/\/$/,""):"";}catch(_){return "";}}
 function mediaUrl(apiBase,asset){const base=safeBase(apiBase),id=safeId(asset?.id);return base&&id?`${base}/v1/media/${encodeURIComponent(id)}`:"";}
 function clear(container){if(!container)return;for(const node of [...container.querySelectorAll("video")]){try{node.pause();node.removeAttribute("src");node.load();}catch(_){}}container.textContent="";}
