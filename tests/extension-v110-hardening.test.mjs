@@ -224,3 +224,21 @@ test("delayed module navigation cannot escape its owning job generation", () => 
   assert.match(background, /await navigateCurrentModule\(runId\)/);
   assert.doesNotMatch(background, /setTimeout\(navigateCurrentModule,/);
 });
+
+
+test("bmpState mutations are serialized so late progress cannot resurrect a completed run", () => {
+  assert.match(background, /let stateMutationQueue = Promise\.resolve\(\)/);
+  assert.match(background, /function serializeStateMutation\(fn\)/);
+
+  const setStateStart = background.indexOf("async function setState(patch)");
+  const activeRunStart = background.indexOf("async function activeRunState", setStateStart);
+  const setStateBlock = background.slice(setStateStart, activeRunStart);
+  assert.match(setStateBlock, /serializeStateMutation/);
+
+  const scopedStart = background.indexOf("async function setStateForRun");
+  const scopedEnd = background.indexOf("async function requireActiveRun", scopedStart);
+  const scopedBlock = background.slice(scopedStart, scopedEnd);
+  assert.match(scopedBlock, /serializeStateMutation/);
+  assert.match(scopedBlock, /!current\.running/);
+  assert.match(scopedBlock, /String\(current\.runId \|\| ""\) !== id/);
+});
