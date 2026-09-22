@@ -99,7 +99,7 @@ Jika fitur sponsor/ads ditambahkan pada release masa depan, privacy disclosure d
 
 ## v1.1.0 candidate: anonymous product analytics and sponsor media
 
-The candidate adds compact anonymous product telemetry for extension opens, job lifecycle health, and paid-direct sponsor delivery. A random per-installation `bmpAnalyticsIdV1` is separate from `bmpInstallId`, activation credentials, Telegram identity, and Supporter/payment state. The Worker transforms the incoming analytics ID with an independent server-side HMAC key (`TELEMETRY_HASH_KEY`) before analytics storage; the raw analytics ID is not used as the stored actor identifier.
+The candidate adds compact anonymous product telemetry for extension opens, job lifecycle health, and paid-direct sponsor delivery. A random per-installation `bmpAnalyticsIdV1` is separate from `bmpInstallId`, activation credentials, Telegram identity, and Supporter/payment state. The Worker transforms the incoming analytics ID with an independent server-side HMAC key (`TELEMETRY_HASH_KEY`) before analytics storage; the raw analytics ID is not used as the stored actor identifier. Per-day pseudonymous activity is bounded to roughly 180 days and daily aggregate metrics to roughly 13 months; the minimal actor-hash index supports unique-install and returning-user definitions without retaining the raw analytics UUID.
 
 Telemetry is strictly product-usage data. It must not include Telegram IDs or usernames, member references, activation or pairing credentials, `bmpInstallId`, BMP codes, module names/numbers, RBV URLs, PDF names/content, OCR text, document titles/content, or browsing history. Telemetry delivery is failure-tolerant and BMP processing does not depend on it.
 
