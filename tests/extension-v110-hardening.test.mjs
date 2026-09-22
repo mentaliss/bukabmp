@@ -30,6 +30,13 @@ test("remote navigation is validated before tabs are opened", () => {
   assert.match(background, /function safeTelegramUrl/);
   assert.match(background, /hostname\.toLowerCase\(\) === "t\.me"/);
   assert.match(background, /releaseUrl: safeHttpsUrl\(data\.release_url\)/);
+  const start = background.slice(
+    background.indexOf("async function startPairing"),
+    background.indexOf("async function checkPairing")
+  );
+  assert.match(start, /const deepLink = safeTelegramUrl\(data\.deep_link\)/);
+  assert.match(start, /chrome\.tabs\.create\(\{url: deepLink\}\)/);
+  assert.doesNotMatch(start, /chrome\.tabs\.create\(\{url: data\.deep_link\}\)/);
 });
 
 test("Chrome 109 offscreen path feature detects getContexts", () => {
@@ -39,8 +46,13 @@ test("Chrome 109 offscreen path feature detects getContexts", () => {
 });
 
 test("job orchestration rejects concurrent starts and stale module traffic", () => {
+  assert.match(background, /startJobClaimRunId/);
+  assert.match(background, /Proses lain sedang disiapkan/);
   assert.match(background, /existingJob\.running/);
   assert.match(background, /Proses lain masih berjalan/);
+  assert.match(background, /status: "PREPARING"/);
+  assert.match(background, /assertCurrentRun/);
+  assert.match(background, /Tab proses bukan halaman reader BMP yang didukung/);
   assert.match(background, /mod !== Number\(state\.currentModule\)/);
   assert.match(background, /Pesan OCR berasal dari modul lama/);
   assert.match(background, /JOB_ERROR_MESSAGE_TYPES/);
@@ -62,16 +74,21 @@ test("OCR generation IDs isolate stop/restart races across all layers", () => {
   assert.match(background, /runId: state\.runId/);
   assert.match(background, /String\(msg\.runId \|\| ""\) !== String\(state\.runId \|\| ""\)/);
   assert.match(contentScript, /activeRunId/);
-  assert.match(contentScript, /type: "STOP_MODULE"/);
+  assert.match(background, /type: "STOP_MODULE"/);
+  assert.match(contentScript, /msg\.type === "STOP_MODULE"/);
   assert.match(contentScript, /const stillActive = \(\) => Boolean\(runId\) && activeRunId === runId/);
   assert.match(offscreen, /activeJobRunId/);
-  assert.match(offscreen, /runId !== activeJobRunId/);
+  assert.match(offscreen, /currentPdfRunId/);
+  assert.match(offscreen, /ownsActivePdf/);
+  assert.match(offscreen, /OCR_CANCEL_JOB/);
 });
 
 test("cache and reviewer operations are isolated from active OCR", () => {
   assert.match(background, /Penyimpanan lokal tidak bisa dibersihkan saat proses BMP masih berjalan/);
   assert.match(background, /Selesaikan atau hentikan proses BMP sebelum menjalankan sampel reviewer/);
   assert.match(offscreen, /currentModuleKey\.startsWith\(code \+ ":M"\)/);
+  assert.match(offscreen, /clearPdfOwnedBy/);
+  assert.match(offscreen, /currentPdf === pdf/);
 });
 
 test("download failure still revokes temporary blob URL", () => {
@@ -84,8 +101,9 @@ test("download failure still revokes temporary blob URL", () => {
 });
 
 test("stale persisted jobs have a safe recovery path", () => {
-  assert.match(background, /async function recoverStaleRunningState/);
-  assert.match(background, /chrome\.runtime\.onStartup\.addListener/);
+  assert.match(background, /async function recoverStaleRunningState\(\{forceInterrupt = false\}/);
+  assert.match(background, /recoverStaleRunningState\(\{forceInterrupt: true\}\)/);
+  assert.match(background, /runId: ""/);
   assert.match(background, /status: "INTERRUPTED"/);
 });
 
@@ -110,4 +128,20 @@ test("start click and sponsor timer are locally bounded", () => {
   const delay=popup.slice(popup.indexOf("function randomDelay"),popup.indexOf("async function scheduleJobStartedInterstitial"));
   assert.match(delay,/Math\.max\(2000/);
   assert.match(delay,/Math\.min\(5000/);
+});
+
+
+test("finalization and merge use the validated job snapshot rather than mutable global state", () => {
+  assert.match(background, /async function finishModule\(state, mod, pages\)/);
+  assert.match(background, /finishModule\(state, mod, msg\.pages\)/);
+  assert.match(background, /async function buildMergedPdf\(state, firstModule, lastModule/);
+  assert.match(background, /buildMergedPdf\(state, target\.first, target\.last/);
+});
+
+test("START_JOB error cleanup cannot kill a later generation", () => {
+  const catchAt = background.lastIndexOf("})().catch(async e =>");
+  const block = background.slice(catchAt);
+  assert.match(block, /messageRunId/);
+  assert.match(block, /sameRun/);
+  assert.doesNotMatch(block, /msg\?\.type === "START_JOB" \|\| sameRun/);
 });
