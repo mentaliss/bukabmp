@@ -30,8 +30,10 @@ export async function publishAllChannels({
   try {
     // Phase 3: write all intended states.
     for (const channel of channels) {
-      await write(channel, candidates.get(channel));
+      // Mark the channel before the write. A backing store can mutate and then
+      // throw, so rollback must include the attempted channel too.
       written.push(channel);
+      await write(channel, candidates.get(channel));
     }
     // Phase 4: verify all.
     for (const channel of channels) {
@@ -44,7 +46,12 @@ export async function publishAllChannels({
     const rollbackErrors = [];
     for (const channel of [...written].reverse()) {
       try {
-        await write(channel, previous.get(channel));
+        const prior = previous.get(channel);
+        await write(channel, prior);
+        const restored = await verify(channel, prior);
+        if (!restored) {
+          rollbackErrors.push({channel, error: "rollback_verify_failed"});
+        }
       } catch (rollbackError) {
         rollbackErrors.push({channel, error: String(rollbackError?.message || rollbackError)});
       }
