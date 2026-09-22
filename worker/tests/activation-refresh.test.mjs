@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {sha256Hex} from "../src/security/crypto.js";
 
 import {
   activationTokenExpiryFloor,
@@ -50,7 +51,8 @@ function decodePayload(token) {
 async function signLegacyToken(privateKey, {
   installId,
   userId,
-  expiresAt
+  expiresAt,
+  memberRef = "legacy-fixture-" + userId
 }) {
   const header = {alg: "RS256", typ: "JWT"};
   const payload = {
@@ -60,7 +62,7 @@ async function signLegacyToken(privateKey, {
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(expiresAt / 1000),
     scope: ["community_access"],
-    member_ref: "legacy-fixture-" + userId
+    member_ref: memberRef
   };
   const h = b64urlJson(header);
   const p = b64urlJson(payload);
@@ -259,10 +261,14 @@ test("one-time v2 re-verification can preserve a longer active legacy expiry", a
   const {env, keyPair} = await fixture();
   const installId = "01234567-89ab-cdef-01234567";
   const legacyExpiry = Date.now() + 31 * 86400000;
+  const legacyMemberRef = await sha256Hex(
+    "tg:424242:fixture-salt"
+  );
   const legacy = await signLegacyToken(keyPair.privateKey, {
     installId,
     userId: 424242,
-    expiresAt: legacyExpiry
+    expiresAt: legacyExpiry,
+    memberRef: legacyMemberRef
   });
 
   const reauthFloor = await activationTokenReauthFloor(env, legacy, installId);
