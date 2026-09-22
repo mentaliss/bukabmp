@@ -7,7 +7,8 @@ const DATABASE = "bmp-terbuka-bot-v2";
 const EXPECTED_MIGRATIONS = [
   "0001_bot_v2.sql",
   "0002_activation_ledger.sql",
-  "0003_media_analytics.sql"
+  "0003_media_analytics.sql",
+  "0004_extension_control_state.sql"
 ];
 
 const REQUIRED_TABLES = new Map([
@@ -21,7 +22,8 @@ const REQUIRED_TABLES = new Map([
   ["telemetry_actor", ["actor_hash","first_seen","last_seen"]],
   ["telemetry_daily", ["date","metric","channel","extension_version","count"]],
   ["telemetry_daily_actor", ["date","actor_hash","channel","extension_version","opened","job_started","ad_seen"]],
-  ["community_daily", ["date","subscribers","members","captured_at"]]
+  ["community_daily", ["date","subscribers","members","captured_at"]],
+  ["extension_control_state", ["channel","state_json","updated_at"]]
 ]);
 
 const REQUIRED_INDEXES = new Set([
@@ -172,7 +174,7 @@ if(process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.ar
       }
       Object.assign(result,repaired);
     }else{
-      console.error("REFUSE: live schema does not prove that 0001/0002/0003 effects are present.");
+      console.error("REFUSE: live schema does not prove that 0001/0002/0003/0004 effects are present.");
       for(const problem of result.problems) console.error(" - "+problem);
       if(result.safeRepairProblems.length && result.unsafeProblems.length === 0){
         console.error("This gap is safe and additive. Re-run with --write to create it, re-check schema, then baseline.");
@@ -189,7 +191,7 @@ if(process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.ar
     process.exit(0);
   }
 
-  console.log("Schema matches the effects of 0001/0002/0003.");
+  console.log("Schema matches the effects of 0001/0002/0003/0004.");
   console.log("Missing ledger entries: "+result.missingLedger.join(", "));
   if(!write){
     console.log("READ-ONLY PASS. Re-run with --write to baseline only the missing ledger rows.");
