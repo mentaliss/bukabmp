@@ -53,3 +53,24 @@ export async function checkAdEventRateLimit(request, env) {
   );
   return true;
 }
+
+
+export async function checkTelemetryRateLimit(request, env) {
+  if (!env?.PAIRINGS || !env.TELEMETRY_HASH_KEY) return true;
+  const ip = request.headers.get("CF-Connecting-IP") || "";
+  if (!ip) return true;
+
+  const fingerprint = await sha256Hex(
+    "telemetry:" + ip + ":" + String(env.TELEMETRY_HASH_KEY)
+  );
+  const key = "telemetry-ip-rate:" + fingerprint;
+  const count = Number(await env.PAIRINGS.get(key) || 0);
+  if (count >= 180) return false;
+
+  await env.PAIRINGS.put(
+    key,
+    String(count + 1),
+    {expirationTtl: 60}
+  );
+  return true;
+}
