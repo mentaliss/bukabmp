@@ -266,3 +266,110 @@ test("Control Center rollback restores a snapshot and snapshots the state being 
   assert.equal(result.body.history.length, 2);
   assert.equal(result.body.history[0].reason, "before_rollback");
 });
+
+test("Control Center v0.2 shell exposes human-facing sections and locks interstitial timing", async () => {
+  const enabled = await worker.fetch(new Request("https://worker.test/control"), env());
+  assert.equal(enabled.status, 200);
+  const html = await enabled.text();
+  for (const label of ["Overview", "Analytics", "Ads", "Extension", "Version", "History"]) {
+    assert.match(html, new RegExp(">" + label + "<"));
+  }
+  assert.match(html, /Random 2–5 seconds/);
+  assert.match(html, /LOCKED/);
+  assert.doesNotMatch(html, /delay_min_ms[^:]/);
+  assert.match(html, /Load Demo Creative/);
+  assert.match(html, /AdsOnBread when direct card unavailable/);
+  assert.match(html, /object-fit:contain/);
+  assert.match(enabled.headers.get("content-security-policy") || "", /media-src 'self' blob:/);
+});
+
+test("Control Center ALL target writes the same intended state to every channel", async () => {
+  const environment = env();
+  const {response, body} = await jsonResponse(
+    "/control/api/state?distribution_channel=all",
+    {
+      method: "POST",
+      headers: auth({"content-type": "application/json"}),
+      body: JSON.stringify({
+        reason: "all_publish",
+        state: {
+          schema_version: 1,
+          status_badge: {visible: true, kind: "success", text: "All channels"},
+          ads: {
+            enabled: true,
+            campaign_id: "all-campaign",
+            revision: 1,
+            creative_version: 2,
+            headline: "Text fallback",
+            placements: {card: true, interstitial: false},
+            card: {mode: "text"},
+            network: {adsonbread: true}
+          }
+        }
+      })
+    },
+    environment
+  );
+  assert.equal(response.status, 200);
+  assert.equal(body.channel, "all");
+  for (const channel of ["github", "android", "cws", "edge"]) {
+    assert.equal(body.states[channel].status_badge.text, "All channels");
+    assert.equal(body.states[channel].ads.campaign_id, "all-campaign");
+    assert.equal(body.states[channel].ads.network.adsonbread, true);
+    assert.equal(body.histories[channel].length, 1);
+  }
+});
+
+test("global version policy keeps an unready Store channel unenforced", async () => {
+  const environment = env();
+  let result = await jsonResponse(
+    "/control/api/version-policy",
+    {
+      method: "POST",
+      headers: auth({"content-type": "application/json"}),
+      body: JSON.stringify({
+        latest_version: "1.1.0",
+        minimum_global: "1.1.0",
+        release_url: "https://example.com/release",
+        readiness: {github: true, android: true, edge: true, cws: false}
+      })
+    },
+    environment
+  );
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.effective.edge.minimum_version, "1.1.0");
+  assert.equal(result.body.effective.edge.store_ready, true);
+  assert.equal(result.body.effective.cws.minimum_version, null);
+  assert.equal(result.body.effective.cws.store_ready, false);
+
+  result = await jsonResponse(
+    "/v1/version?distribution_channel=cws&extension_version=1.0.5",
+    {},
+    environment
+  );
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.minimum_version, null);
+  assert.equal(result.body.store_ready, false);
+});
+
+test("public telemetry endpoint fails closed without HMAC secret and never requires product success", async () => {
+  const environment = env();
+  const result = await jsonResponse(
+    "/v1/telemetry",
+    {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({
+        actor_id: "9a2e4f26-5ef8-4cff-95c3-55ad55478f52",
+        event: "extension_open",
+        extension_version: "1.1.0",
+        distribution_channel: "edge",
+        dimensions: {}
+      })
+    },
+    environment
+  );
+  assert.equal(result.response.status, 503);
+  assert.equal(result.body.error, "telemetry_not_configured");
+});
+
