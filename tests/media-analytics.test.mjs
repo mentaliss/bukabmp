@@ -256,3 +256,12 @@ test("extension CSP explicitly permits only the first-party sponsor media origin
   assert.match(csp,/media-src 'self' blob: https:\/\/community\.bukabmp\.workers\.dev/);
   assert.doesNotMatch(csp,/https:\/\/\*/);
 });
+
+
+test("popup loads generated config before sponsor media renderer",()=>{
+  const config=html.indexOf('<script src="config.js"></script>');
+  const media=html.indexOf('<script src="ads-media.js"></script>');
+  const popupScript=html.indexOf('<script src="popup.js"></script>');
+  assert.ok(config>=0&&media>config&&popupScript>media);
+  assert.match(popup,/self\.BMP_CONFIG\?\.API_BASE_URL/);
+});
