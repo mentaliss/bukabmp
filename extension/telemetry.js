@@ -12,7 +12,7 @@ async function ensureAnalyticsId(){
  analyticsIdPromise=(async()=>{
   const data=await chrome.storage.local.get(STORAGE_KEY);
   const current=clean(data?.[STORAGE_KEY],80);
-  if(/^[0-9a-f-]{36}$/i.test(current))return current;
+  if(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(current))return current;
   const id=crypto.randomUUID();
   await chrome.storage.local.set({[STORAGE_KEY]:id});
   return id;
