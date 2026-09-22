@@ -10,6 +10,7 @@ const EVENTS = new Set([
 ]);
 const CHANNELS = new Set(["github", "android", "cws", "edge"]);
 const PLACEMENTS = new Set(["card", "interstitial"]);
+const SAFE_REASONS = new Set(["image_load_failed", "video_load_failed"]);
 const FORBIDDEN_KEYS = [
   "telegram", "member_ref", "username", "activation", "pair", "bmpinstallid",
   "bmp_code", "bmpcode", "module", "rbv", "pdf", "ocr", "document", "history"
@@ -58,8 +59,8 @@ export function sanitizeTelemetryEvent(raw) {
     dimensions.revision = Math.max(0, Math.min(2147483647, Math.floor(Number(source.revision))));
   }
   if (source.paid_direct === true) dimensions.paid_direct = true;
-  const reason = clean(source.reason, 48);
-  if (reason) dimensions.reason = reason;
+  const reason = clean(source.reason, 48).toLowerCase();
+  if (SAFE_REASONS.has(reason)) dimensions.reason = reason;
 
   if (event.startsWith("ad_") && event !== "ad_dismiss" && dimensions.paid_direct !== true) {
     return null;
