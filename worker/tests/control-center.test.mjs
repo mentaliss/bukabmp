@@ -281,6 +281,11 @@ test("Control Center v0.2 shell exposes human-facing sections and locks intersti
   assert.match(html, /AdsOnBread when direct card unavailable/);
   assert.match(html, /object-fit:contain/);
   assert.match(enabled.headers.get("content-security-policy") || "", /media-src 'self' blob:/);
+  assert.doesNotMatch(html, /id="latestVersion" value="1\.1\.0"/);
+  assert.doesNotMatch(html, /id="minimumGlobal" value="1\.1\.0"/);
+  assert.match(html, /fallbackPolicyFromEffective/);
+  assert.match(html, /Preview updated\. Belum ada yang dipublish\./);
+  assert.match(html, /window\.confirm\(summary\)/);
 });
 
 test("Control Center ALL target writes the same intended state to every channel", async () => {
