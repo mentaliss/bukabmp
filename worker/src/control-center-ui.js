@@ -267,6 +267,7 @@ function buildAdsState(){
   var interstitialMode=el("interstitialMode").value;
   var cardPlaced=el("placeCard").checked;
   var interstitialPlaced=el("placeInterstitial").checked;
+  if(enabled&&!cardPlaced&&!interstitialPlaced)throw new Error("Campaign ON butuh minimal satu placement.");
   if(enabled&&cardPlaced&&cardMode==="banner"&&!cardAsset)throw new Error("Upload banner sebelum publish.");
   if(enabled&&interstitialPlaced&&interstitialMode!=="text"&&!interstitialAsset)throw new Error("Upload media interstitial sebelum publish.");
   if(enabled&&!headline&&!body){
