@@ -117,7 +117,7 @@
       if (found) {
         if (found.pages === previousPages) {
           stableReads++;
-          if (stableReads >= 1) return found;
+          if (stableReads >= 2) return found;
         } else {
           previousPages = found.pages;
           stableReads = 0;
@@ -362,6 +362,59 @@
             reason:
               `Page 1 bukan image (HTTP ${r.status}, ` +
               `${r.contentType || "no content-type"})`
+          });
+          return;
+        }
+
+        // With no trusted page count, one missing/non-image response is not
+        // enough to declare end-of-module: a single missing page in the middle
+        // would silently produce a truncated PDF. Confirm the sentinel with the
+        // following page. Known page-count modules never need this extra probe.
+        const nextProbe = await fetchPage(code, module, page + 1);
+        if (!stillActive()) return;
+
+        if (nextProbe.kind === "blocked") {
+          await chrome.runtime.sendMessage({
+            type: "MODULE_RESULT",
+            runId,
+            module,
+            result: "blocked",
+            page: page + 1,
+            reason: nextProbe.reason || `HTTP ${nextProbe.status}`
+          });
+          return;
+        }
+        if (nextProbe.kind === "login_required") {
+          await chrome.runtime.sendMessage({
+            type: "MODULE_RESULT",
+            runId,
+            module,
+            result: "login_required",
+            page: page + 1
+          });
+          return;
+        }
+        if (nextProbe.kind === "network_error") {
+          await chrome.runtime.sendMessage({
+            type: "MODULE_RESULT",
+            runId,
+            module,
+            result: "error",
+            page: page + 1,
+            reason: nextProbe.reason
+          });
+          return;
+        }
+        if (nextProbe.kind === "image") {
+          await chrome.runtime.sendMessage({
+            type: "MODULE_RESULT",
+            runId,
+            module,
+            result: "error",
+            page,
+            reason:
+              `Halaman ${page} tidak tersedia tetapi halaman ${page + 1} masih ada. ` +
+              "Modul tidak disimpan agar PDF tidak terpotong."
           });
           return;
         }
