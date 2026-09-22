@@ -267,7 +267,7 @@ test("Control Center rollback restores a snapshot and snapshots the state being 
   assert.equal(result.body.history[0].reason, "before_rollback");
 });
 
-test("Control Center v0.2 shell exposes human-facing sections and locks interstitial timing", async () => {
+test("Control Center v0.2 shell exposes safe preview and honest live version UX", async () => {
   const enabled = await worker.fetch(new Request("https://worker.test/control"), env());
   assert.equal(enabled.status, 200);
   const html = await enabled.text();
@@ -280,6 +280,16 @@ test("Control Center v0.2 shell exposes human-facing sections and locks intersti
   assert.match(html, /Load Demo Creative/);
   assert.match(html, /AdsOnBread when direct card unavailable/);
   assert.match(html, /object-fit:contain/);
+  assert.match(html, /id="latestVersion" placeholder="current live"/);
+  assert.match(html, /id="minimumGlobal" placeholder="current live"/);
+  assert.doesNotMatch(html, /id="latestVersion" value="1\.1\.0"/);
+  assert.match(html, /Preview siap\. Belum ada perubahan yang dipublish\./);
+  assert.match(html, /Preview banner gagal dimuat\./);
+  assert.match(html, /Pilih minimal satu placement/);
+  assert.match(html, /CTA URL sponsor wajib HTTPS/);
+  assert.match(html, /active_users/);
+  assert.match(html, /ad_reach/);
+  assert.match(html, /Simpan global version policy\?/);
   assert.match(enabled.headers.get("content-security-policy") || "", /media-src 'self' blob:/);
 });
 
@@ -373,3 +383,25 @@ test("public telemetry endpoint fails closed without HMAC secret and never requi
   assert.equal(result.body.error, "telemetry_not_configured");
 });
 
+
+
+test("version-policy GET without a KV override reports the actual live fallback", async () => {
+  const environment = env({
+    EXTENSION_LATEST_VERSION: "1.0.5",
+    EXTENSION_MINIMUM_VERSION: "1.0.4",
+    EDGE_STORE_READY: "false",
+    CWS_STORE_READY: "false"
+  });
+  const result = await jsonResponse(
+    "/control/api/version-policy",
+    {headers: auth()},
+    environment
+  );
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.policy, null);
+  assert.equal(result.body.effective.github.latest_version, "1.0.5");
+  assert.equal(result.body.effective.github.minimum_version, "1.0.4");
+  assert.equal(result.body.effective.android.minimum_version, "1.0.4");
+  assert.equal(result.body.effective.edge.minimum_version, null);
+  assert.equal(result.body.effective.cws.minimum_version, null);
+});
