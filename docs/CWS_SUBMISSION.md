@@ -14,6 +14,10 @@ Short description candidate:
 
 > Ubah materi BMP yang sudah dapat Anda akses menjadi searchable PDF dengan OCR lokal, resume, dan penyimpanan lokal.
 
+Full-description disclosure yang **wajib ada sebelum submission 1.1.0**:
+
+> BMP Terbuka dapat menampilkan sponsor card dan sponsor interstitial non-personalized di dalam popup extension. Sponsor tidak memblokir proses OCR/PDF dan tidak menggunakan isi dokumen, histori BMP, atau identitas pengguna untuk targeting.
+
 Category candidate: **Productivity** — confirm against the current CWS dashboard categories at submission time.
 
 Homepage/source URL:
@@ -25,7 +29,7 @@ Support URL candidate:
 Privacy policy:
 - `PRIVACY.md` contains the candidate policy.
 - Before submission, expose the final policy at a stable public HTTPS URL.
-- Backend retention/deletion language must be completed from actual Worker/KV behavior before publication.
+- Privacy policy is aligned with the current Worker/D1/KV behavior, including durable activation/Supporter/referral state and v1.1.0 sponsor metrics. Re-check it against the exact live deployment before submission.
 
 ## Permission justifications
 
@@ -66,17 +70,18 @@ The client:
 - processes document/page content locally;
 - stores per-BMP module PDFs locally in extension IndexedDB;
 - exports user-requested PDF copies through Chrome Downloads;
-- sends activation/version requests to the community Worker;
-- does not send page images, OCR text, or generated PDF content to the activation service;
+- sends activation/version/realtime-state requests to the community Worker;
+- can send coarse sponsor events containing only event/placement/campaign/revision/channel/extension-version;
+- does not send page images, OCR text, generated PDF content, Telegram ID, install ID, activation token, or BMP code in sponsor events;
 - does not use document/OCR content for advertising or profiling.
 
-Do not claim a backend retention period until current backend evidence is available.
+Backend retention/record classes are documented in `PRIVACY.md`; verify the live deployment matches that source before submission.
 
 ## Reviewer test instructions — blocker before submission
 
 The submitted extension requires community activation before starting OCR. Store reviewers need a deterministic test path that does **not** depend on an undocumented manual exception.
 
-Before submission, backend/operator must provide a temporary/revocable reviewer activation mechanism compatible with the normal signed-token flow. Record its exact steps/credentials only in the private CWS Test instructions field.
+The Worker includes a temporary/revocable reviewer activation mechanism compatible with the normal signed-token flow. The reviewer secret must stay server-side and be provided only in the private CWS Test instructions field. Before submission, smoke-test the exact live reviewer flow.
 
 Do not:
 - hard-code a universal bypass in the public extension;
@@ -92,7 +97,9 @@ Reviewer flow must cover:
 6. confirm searchable PDF download;
 7. reopen popup and confirm resume/cache behavior;
 8. optionally export cached PDF without OCR repeat;
-9. confirm network failure/blocked response safe-stops.
+9. confirm network failure/blocked response safe-stops;
+10. confirm v1.1.0 sponsor card/house fallback and delayed interstitial do not block OCR;
+11. confirm no document/user identifier appears in sponsor event payloads.
 
 ## Screenshots still required
 
@@ -103,6 +110,17 @@ Capture from the tested CWS candidate, not mockups:
 - optional export/merge state.
 
 Avoid exposing personal account data or source credentials in screenshots.
+
+## v1.1.0 upgrade gate
+
+If a live 1.0.5 CWS listing/identity already exists, use that **same Store listing/identity** to prove an in-place 1.0.5 → 1.1.0 update preserves:
+- signed activation token;
+- random install ID;
+- draft/range state;
+- IndexedDB `bmp-terbuka-pdf-cache` / `pdfs`;
+- completed module PDFs and resume behavior.
+
+A clean install or unpacked candidate is not proof of this gate. If no 1.0.5 CWS listing exists, the first CWS install is a new identity and cannot prove preservation of storage from a manual/other-channel install.
 
 ## Update-policy rule
 
