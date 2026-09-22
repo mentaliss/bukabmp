@@ -10,6 +10,23 @@ function semver(value) {
   return /^\d+\.\d+\.\d+(?:\.\d+)?$/.test(v) ? v : "";
 }
 
+function versionParts(value) {
+  return String(value || "").split(".").map(part => Number.parseInt(part, 10) || 0);
+}
+
+function compareVersion(a, b) {
+  const left = versionParts(a);
+  const right = versionParts(b);
+  const length = Math.max(left.length, right.length);
+  for (let i = 0; i < length; i++) {
+    const x = left[i] || 0;
+    const y = right[i] || 0;
+    if (x < y) return -1;
+    if (x > y) return 1;
+  }
+  return 0;
+}
+
 function httpsUrl(value) {
   const raw = clean(value, 2048);
   if (!raw) return "";
@@ -26,6 +43,7 @@ export function sanitizeGlobalVersionPolicy(raw) {
   const latestVersion = semver(raw.latest_version);
   const minimumGlobal = semver(raw.minimum_global);
   if (!latestVersion || !minimumGlobal) return null;
+  if (compareVersion(minimumGlobal, latestVersion) > 0) return null;
 
   const readinessRaw = raw.readiness && typeof raw.readiness === "object" ? raw.readiness : {};
   const readiness = {};
