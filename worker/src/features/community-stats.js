@@ -35,13 +35,25 @@ export async function communityStats(env, {force = false} = {}, now = Date.now()
   let members = null;
   let error = "";
 
-  try {
-    [subscribers, members] = await Promise.all([
-      telegramCount(env, channelId),
-      telegramCount(env, groupId)
-    ]);
-  } catch (e) {
-    error = String(e?.message || e).slice(0, 120);
+  const results = await Promise.allSettled([
+    telegramCount(env, channelId),
+    telegramCount(env, groupId)
+  ]);
+  const errors = [];
+  if (results[0].status === "fulfilled") subscribers = results[0].value;
+  else errors.push("subscribers:" + String(results[0].reason?.message || results[0].reason || "telegram_unavailable"));
+  if (results[1].status === "fulfilled") members = results[1].value;
+  else errors.push("members:" + String(results[1].reason?.message || results[1].reason || "telegram_unavailable"));
+  error = errors.join(" | ").slice(0, 240);
+
+  const staleFields = [];
+  if (subscribers == null && cached?.subscribers != null) {
+    subscribers = validCount(cached.subscribers);
+    if (subscribers != null) staleFields.push("subscribers");
+  }
+  if (members == null && cached?.members != null) {
+    members = validCount(cached.members);
+    if (members != null) staleFields.push("members");
   }
 
   if (subscribers == null && members == null && cached) {
@@ -54,6 +66,7 @@ export async function communityStats(env, {force = false} = {}, now = Date.now()
     captured_at: now,
     cache_seconds: CACHE_MS / 1000,
     overlap_unknown: true,
+    ...(staleFields.length ? {stale: true, stale_fields: staleFields} : {}),
     ...(error ? {error} : {})
   };
   if (env?.PAIRINGS) {
