@@ -37,6 +37,7 @@ const DEFAULT_STATE = {
 };
 
 let creatingOffscreen = null;
+let installIdPromise = null;
 let startJobClaimRunId = "";
 let offscreenMaintenanceClaim = "";
 let stateMutationQueue = Promise.resolve();
@@ -170,11 +171,26 @@ async function clearCodeMeta(code) {
 }
 
 async function getInstallId() {
-  const x = await chrome.storage.local.get("bmpInstallId");
-  if (x.bmpInstallId) return x.bmpInstallId;
-  const id = crypto.randomUUID();
-  await chrome.storage.local.set({bmpInstallId: id});
-  return id;
+  if (installIdPromise) return await installIdPromise;
+
+  installIdPromise = (async () => {
+    const x = await chrome.storage.local.get("bmpInstallId");
+    if (x.bmpInstallId) return x.bmpInstallId;
+
+    const id = crypto.randomUUID();
+    await chrome.storage.local.set({bmpInstallId: id});
+
+    // Read back the persisted authority so every concurrent caller observes
+    // exactly the installation ID that survived storage.
+    const persisted = await chrome.storage.local.get("bmpInstallId");
+    return persisted.bmpInstallId || id;
+  })();
+
+  try {
+    return await installIdPromise;
+  } finally {
+    installIdPromise = null;
+  }
 }
 
 function b64urlToBytes(value) {
