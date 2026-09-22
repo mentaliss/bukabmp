@@ -405,3 +405,47 @@ test("version-policy GET without a KV override reports the actual live fallback"
   assert.equal(result.body.effective.edge.minimum_version, null);
   assert.equal(result.body.effective.cws.minimum_version, null);
 });
+
+
+test("paid telemetry ignores stale or inactive campaigns before analytics storage", async () => {
+  const environment = env({
+    TELEMETRY_HASH_KEY: "telemetry-test-secret",
+    PAIRINGS: new MemoryKV({
+      "extension-state:edge": JSON.stringify({
+        schema_version: 1,
+        ads: {
+          enabled: true,
+          active: true,
+          campaign_id: "live-campaign",
+          revision: 2,
+          headline: "Sponsor",
+          placements: {card: true, interstitial: false},
+          interstitial: {enabled: false}
+        }
+      })
+    })
+  });
+  const result = await jsonResponse(
+    "/v1/telemetry",
+    {
+      method: "POST",
+      headers: {"content-type": "application/json", "CF-Connecting-IP": "203.0.113.11"},
+      body: JSON.stringify({
+        actor_id: "9a2e4f26-5ef8-4cff-95c3-55ad55478f52",
+        event: "ad_impression",
+        extension_version: "1.1.0",
+        distribution_channel: "edge",
+        dimensions: {
+          paid_direct: true,
+          placement: "card",
+          campaign_id: "old-campaign",
+          revision: 1
+        }
+      })
+    },
+    environment
+  );
+  assert.equal(result.response.status, 202);
+  assert.equal(result.body.ignored, true);
+  assert.equal(result.body.reason, "stale_or_inactive_campaign");
+});
