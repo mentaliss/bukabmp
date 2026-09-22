@@ -190,7 +190,7 @@ function all(sel){return Array.prototype.slice.call(document.querySelectorAll(se
 function status(node,text,ok){node.textContent=text||"";node.className="status "+(ok===true?"ok":ok===false?"err":"")}
 function targetValue(id){return el(id).value}
 function number(value){return new Intl.NumberFormat("id-ID").format(Number(value||0))}
-function pct(value){return Number(value||0).toFixed(1)+"%"}
+function pct(value){return value==null?"—":Number(value).toFixed(1)+"%"}
 function isoLocal(value){if(!value)return "";var d=new Date(value);if(!Number.isFinite(d.getTime()))return "";var p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes())}
 function toIso(value){if(!value)return null;var d=new Date(value);return Number.isFinite(d.getTime())?d.toISOString():null}
 async function api(path,options){
@@ -272,6 +272,10 @@ function buildAdsState(){
   }
   var ctaLabel=el("ctaLabel").value.trim(),ctaUrl=el("ctaUrl").value.trim();
   if((ctaLabel&&!ctaUrl)||(!ctaLabel&&ctaUrl))throw new Error("CTA label dan CTA URL harus diisi berpasangan.");
+  var starts=schedule==="scheduled"?toIso(el("startsAt").value):null;
+  var ends=schedule==="scheduled"?toIso(el("endsAt").value):null;
+  if(schedule==="scheduled"&&!starts&&!ends)throw new Error("Scheduled butuh Starts at atau Ends at.");
+  if(starts&&ends&&Date.parse(ends)<=Date.parse(starts))throw new Error("Ends at harus setelah Starts at.");
   state.ads={
     enabled:enabled,
     campaign_id:el("campaignId").value||nextCampaignId(currentState),
@@ -286,8 +290,8 @@ function buildAdsState(){
     card:{mode:cardMode,asset:cardMode==="banner"?cardAsset:null},
     network:{adsonbread:el("networkFallback").checked},
     house:{sponsor_label:"Sponsor",headline:el("houseHeadline").value.trim()||"Space iklan tersedia",body:el("houseBody").value.trim(),cta:{label:el("houseCtaLabel").value.trim()||"Pasang iklan? Hubungi",url:el("houseCtaUrl").value.trim()}},
-    starts_at:schedule==="scheduled"?toIso(el("startsAt").value):null,
-    ends_at:schedule==="scheduled"?toIso(el("endsAt").value):null,
+    starts_at:starts,
+    ends_at:ends,
     placements:{card:cardPlaced,interstitial:interstitialPlaced},
     interstitial:{enabled:interstitialPlaced,trigger:"job_started",mode:interstitialMode,asset:interstitialMode==="text"?null:interstitialAsset,poster_asset:interstitialMode==="video"?posterAsset:null,delay_min_ms:2000,delay_max_ms:5000}
   };
