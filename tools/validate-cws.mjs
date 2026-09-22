@@ -68,7 +68,7 @@ const tessdataRel=channel==="edge"
   : "vendor/lang/ind.traineddata.gz";
 
 for(const rel of [
-  "background.js","cloud-surface.js","content.js","popup.js","offscreen.js",
+  "background.js","cloud-surface.js","telemetry.js","ads-media.js","ad-network.js","content.js","popup.js","offscreen.js",
   "vendor/tesseract.min.js","vendor/worker.min.js","vendor/pdf-lib.min.js",
   "vendor/core/tesseract-core.wasm.js",
   "vendor/core/tesseract-core-simd.wasm.js",
@@ -99,7 +99,7 @@ if(channel==="edge"){
   if(!edgeOffscreen.includes("gzip: false"))fail("Edge Tesseract loader must use gzip:false.");
 }
 
-for(const rel of ["background.js","cloud-surface.js","content.js","popup.js","offscreen.js"]){
+for(const rel of ["background.js","cloud-surface.js","telemetry.js","ads-media.js","ad-network.js","content.js","popup.js","offscreen.js"]){
   const code=fs.readFileSync(mustFile(rel),"utf8");
   if(/\beval\s*\(/.test(code))fail(`eval() found in ${rel}`);
   if(/\bnew\s+Function\s*\(/.test(code))fail(`new Function() found in ${rel}`);
