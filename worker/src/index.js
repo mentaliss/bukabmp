@@ -15,7 +15,7 @@ import {SUPPORT_KB} from "./knowledge.generated.js";
 import {supportPrivilegedUserIds} from "./security/permissions.js";
 import {v21UiCanaryCount, v21UiCanaryEnabled, v21UiCanaryUser, v21UiGlobalEnabled} from "./features/ui-canary.js";
 import {b64url, b64urlJson, importSigningKey, randomToken, sha256Hex} from "./security/crypto.js";
-import {checkActivationRefreshRateLimit, checkAdEventRateLimit, checkPairRateLimit} from "./security/rate-limit.js";
+import {checkActivationRefreshRateLimit, checkAdEventRateLimit, checkPairRateLimit, checkTelemetryRateLimit} from "./security/rate-limit.js";
 import {telegramWebhookAuthorized} from "./security/webhook-auth.js";
 import {claimTelegramUpdate} from "./security/idempotency.js";
 import {d1ActivationLedgerEnabled, d1MigrationEnabled, d1PaymentEnabled, d1ReadProbe, d1ReferralEnabled, d1ReferralSelfTestEnabled, d1ReplayEnabled, d1SupporterEnabled, d1WritesEnabled} from "./data/d1/mode.js";
@@ -113,7 +113,7 @@ import {
 import {parseReferralStartArg} from "./features/referral.js";
 import {attributeReferralFromCode} from "./features/referral-service.js";
 import {recordAdEvent, sanitizeAdEvent, sanitizeAdsState} from "./features/ads.js";
-import {analyticsSummary, ingestTelemetry} from "./features/telemetry.js";
+import {analyticsSummary, ingestTelemetry, sanitizeTelemetryEvent} from "./features/telemetry.js";
 import {MEDIA_LIMITS, revokeAdMedia, serveAdMedia, storeAdMedia} from "./features/ad-media.js";
 import {communityStats} from "./features/community-stats.js";
 import {readGlobalVersionPolicy, resolveVersionPolicy, writeGlobalVersionPolicy} from "./features/version-policy.js";
@@ -1807,8 +1807,37 @@ async function telemetryApi(request, env) {
   if (Number.isFinite(contentLength) && contentLength > 16384) {
     return json({error: "payload_too_large"}, 413, corsHeaders(request));
   }
+  if (!(await checkTelemetryRateLimit(request, env))) {
+    return json({error: "rate_limited"}, 429, corsHeaders(request));
+  }
   const body = await request.json().catch(() => null);
-  const result = await ingestTelemetry(env, body);
+  const event = sanitizeTelemetryEvent(body);
+  if (!event) {
+    return json({error: "invalid_event"}, 400, corsHeaders(request));
+  }
+
+  if (event.event === "ad_impression" || event.event === "ad_click") {
+    const state = await readExtensionState(env, event.distribution_channel);
+    const ads = state.ads || {};
+    const placement = event.dimensions?.placement || "";
+    const placementEnabled = placement === "card"
+      ? ads.placements?.card === true
+      : placement === "interstitial"
+        ? ads.placements?.interstitial === true && ads.interstitial?.enabled === true
+        : false;
+    const currentCampaign = Boolean(
+      event.dimensions?.paid_direct === true &&
+      ads.active === true &&
+      placementEnabled &&
+      String(ads.campaign_id || "") === String(event.dimensions?.campaign_id || "") &&
+      Number(ads.revision || 0) === Number(event.dimensions?.revision || 0)
+    );
+    if (!currentCampaign) {
+      return json({ok: true, ignored: true, reason: "stale_or_inactive_campaign"}, 202, corsHeaders(request));
+    }
+  }
+
+  const result = await ingestTelemetry(env, event);
   if (!result.ok) {
     const status = result.reason === "rate_limited" ? 429 : result.reason === "telemetry_not_configured" ? 503 : 400;
     return json({error: result.reason}, status, corsHeaders(request));
