@@ -357,7 +357,13 @@ function inject(content) {
 
 function page(lang, slug, md) {
   const title = titleFrom(md);
-  const body = inject(markdown(md, lang, slug));
+  let body = inject(markdown(md, lang, slug));
+  if (lang === "id" && slug === "") {
+    body = body.replace(
+      /<p>(<a class="button secondary"[^>]*>Mulai Menggunakan<\/a>\s*<a class="button"[^>]*>Download<\/a>\s*<a class="button"[^>]*>Contact<\/a>)<\/p>/,
+      '<div class="home-cta-row">$1</div>'
+    );
+  }
   const isDocs = lang === "id" && (slug === "docs" || slug.startsWith("docs/"));
   const toc = isDocs ? docsTableOfContents(md, lang, slug) : "";
   const mainBody = isDocs
