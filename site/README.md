@@ -11,6 +11,10 @@ Output directory: dist-site
 Optional build-time values:
 - BMP_EDGE_ADDONS_URL
 - BMP_BUSINESS_CONTACT_URL
+- BMP_GITHUB_ZIP_URL
+
+BMP_GITHUB_ZIP_URL defaults to the currently verified stable asset:
+BMP-Terbuka-v1.0.5.zip from GitHub Release v1.0.5.
 
 If either value is missing, the generated site shows a disabled, clearly marked pending-verification CTA instead of inventing a URL.
 
