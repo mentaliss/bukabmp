@@ -1,6 +1,6 @@
 # Privacy Policy
 
-BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku source kandidat **v1.1.0 yang masih Unreleased**. Public release v1.1.0 belum dinyatakan tersedia sampai ada otorisasi release final.
+BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku **BMP Terbuka v1.1.0**, release stabil saat ini.
 
 ## Ringkasan
 
