@@ -18,7 +18,7 @@ Jalur utama juga Microsoft Edge Add-ons melalui Microsoft Edge Stable.
 
 Gunakan asset ZIP extension hasil build dari GitHub Releases. Jangan gunakan asset otomatis Source code (zip) sebagai paket instalasi pengguna.
 
-v1.1.0 masih **Unreleased**, jadi stable v1.1.0 ZIP belum boleh diklaim tersedia.
+Release manual stabil saat ini adalah **v1.1.0**.
 
 ## Catatan
 
