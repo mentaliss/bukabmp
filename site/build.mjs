@@ -50,6 +50,15 @@ const enRoutes = {
   "download": "content/en/download.md",
   "features": "content/en/features.md",
   "how-it-works": "content/en/how-it-works.md",
+  "docs": "content/en/getting-started.md",
+  "docs/install": "content/en/install.md",
+  "docs/activation": "content/en/activation.md",
+  "docs/usage": "content/en/usage.md",
+  "docs/files": "content/en/files.md",
+  "docs/troubleshooting": "content/en/troubleshooting.md",
+  "docs/bot": "content/en/bot.md",
+  "docs/supporter": "content/en/supporter.md",
+  "status": "content/en/status.md",
   "faq": "content/en/faq.md",
   "sponsor": "content/en/sponsor.md",
   "investors": "content/en/investors.md",
@@ -127,7 +136,6 @@ function resolveLink(url, lang, slug = "") {
   }
 
   if (
-    lang === "id" &&
     slug.startsWith("docs") &&
     !normalized.includes("/") &&
     Object.prototype.hasOwnProperty.call(routes, "docs/" + normalized)
@@ -189,8 +197,9 @@ function docsTableOfContents(md, lang, slug) {
 
   if (!items.length) return "";
 
-  return '<aside class="docs-toc" aria-label="Daftar isi">' +
-    '<div class="docs-toc-title">Daftar isi</div>' +
+  const tocLabel = lang === "id" ? "Daftar isi" : "On this page";
+  return '<aside class="docs-toc" aria-label="' + tocLabel + '">' +
+    '<div class="docs-toc-title">' + tocLabel + '</div>' +
     '<div class="docs-toc-links">' +
     items.map(item =>
       '<a class="docs-toc-link level-' + item.level + '" href="#' + esc(item.id) + '">' +
@@ -277,11 +286,10 @@ function titleFrom(md) {
 function nav(lang) {
   const home = sitePath(lang);
   const investor = lang === "id" ? sitePath("id/investor") : sitePath("en/investors");
-  const helpLinks = lang === "id"
-    ? '<a href="' + sitePath("id/docs") + '">Panduan</a>' +
-      '<a href="' + sitePath("id/status") + '">Status</a>' +
-      '<a href="' + sitePath("id/faq") + '">FAQ</a>'
-    : "";
+  const helpLinks =
+    '<a href="' + sitePath(lang + "/docs") + '">' + (lang === "id" ? "Panduan" : "Guides") + "</a>" +
+    '<a href="' + sitePath(lang + "/status") + '">Status</a>' +
+    '<a href="' + sitePath(lang + "/faq") + '">FAQ</a>';
   return '<nav><a class="brand" href="' + home + '">BMP TERBUKA</a><div class="navlinks">' +
     '<a href="' + home + '">' + (lang === "id" ? "Beranda" : "Home") + "</a>" +
     '<a href="' + sitePath(lang + "/download") + '">Download</a>' +
@@ -302,19 +310,27 @@ function footer(lang) {
     ["DEVELOPERS", [["GitHub", "https://github.com/mentaliss/bukabmp"], ["Architecture", "architecture"], ["Release Notes", "release-notes"], ["Contributing", "https://github.com/mentaliss/bukabmp/blob/main/CONTRIBUTING.md"]]]
   ];
 
-  if (lang === "id") {
-    groups.splice(1, 0, ["PANDUAN", [
-      ["Mulai", "docs"],
-      ["Instalasi & Update", "docs/install"],
-      ["Aktivasi", "docs/activation"],
-      ["Cara Menggunakan", "docs/usage"],
-      ["PDF, Resume & Penyimpanan", "docs/files"],
-      ["Mengatasi Masalah", "docs/troubleshooting"],
-      ["Bot & Komunitas", "docs/bot"],
-      ["Supporter Pass", "docs/supporter"],
-      ["Status & Versi", "status"]
-    ]]);
-  }
+  groups.splice(1, 0, [lang === "id" ? "PANDUAN" : "GUIDES", lang === "id" ? [
+    ["Mulai", "docs"],
+    ["Instalasi & Update", "docs/install"],
+    ["Aktivasi", "docs/activation"],
+    ["Cara Menggunakan", "docs/usage"],
+    ["PDF, Resume & Penyimpanan", "docs/files"],
+    ["Mengatasi Masalah", "docs/troubleshooting"],
+    ["Bot & Komunitas", "docs/bot"],
+    ["Supporter Pass", "docs/supporter"],
+    ["Status & Versi", "status"]
+  ] : [
+    ["Getting Started", "docs"],
+    ["Installation & Updates", "docs/install"],
+    ["Activation", "docs/activation"],
+    ["Using BMP Terbuka", "docs/usage"],
+    ["PDF, Resume & Storage", "docs/files"],
+    ["Troubleshooting", "docs/troubleshooting"],
+    ["Bot & Community", "docs/bot"],
+    ["Supporter Pass", "docs/supporter"],
+    ["Status & Version", "status"]
+  ]]);
 
   let html = "<footer>";
   for (const [name, items] of groups) {
@@ -330,7 +346,7 @@ function footer(lang) {
   return html + "</footer>";
 }
 
-function inject(content) {
+function inject(content, lang) {
   const edge = EDGE_URL
     ? '<a class="button" href="' + esc(EDGE_URL) + '">Microsoft Edge Add-ons</a>'
     : '<span class="button disabled">Microsoft Edge Add-ons — link pending verification</span>';
@@ -339,9 +355,10 @@ function inject(content) {
     ? '<a class="button" href="' + esc(BUSINESS_URL) + '">Contact</a>'
     : '<span class="button disabled">Contact — pending owner verification</span>';
 
-  const docs = '<a class="button secondary" href="' + sitePath("id/docs") + '">Mulai Menggunakan</a>';
+  const docs = '<a class="button secondary" href="' + sitePath(lang + "/docs") + '">' +
+    (lang === "id" ? "Mulai Menggunakan" : "Get Started") + "</a>";
 
-  const download = '<a class="button" href="' + sitePath("id/download") + '">Download</a>';
+  const download = '<a class="button" href="' + sitePath(lang + "/download") + '">Download</a>';
 
   const zip = GITHUB_ZIP_URL
     ? '<a class="button" href="' + esc(GITHUB_ZIP_URL) + '">GitHub ZIP — current stable v1.1.0</a>'
@@ -357,14 +374,15 @@ function inject(content) {
 
 function page(lang, slug, md) {
   const title = titleFrom(md);
-  let body = inject(markdown(md, lang, slug));
-  if (lang === "id" && slug === "") {
-    body = body.replace(
-      /<p>(<a class="button secondary"[^>]*>Mulai Menggunakan<\/a>\s*<a class="button"[^>]*>Download<\/a>\s*<a class="button"[^>]*>Contact<\/a>)<\/p>/,
-      '<div class="home-cta-row">$1</div>'
+  let body = inject(markdown(md, lang, slug), lang);
+  if (slug === "") {
+    const primaryLabel = lang === "id" ? "Mulai Menggunakan" : "Get Started";
+    const pattern = new RegExp(
+      '<p>(<a class="button secondary"[^>]*>' + primaryLabel + '<\\/a>\\s*<a class="button"[^>]*>Download<\\/a>\\s*<a class="button"[^>]*>Contact<\\/a>)<\\/p>'
     );
+    body = body.replace(pattern, '<div class="home-cta-row">$1</div>');
   }
-  const isDocs = lang === "id" && (slug === "docs" || slug.startsWith("docs/"));
+  const isDocs = slug === "docs" || slug.startsWith("docs/");
   const toc = isDocs ? docsTableOfContents(md, lang, slug) : "";
   const mainBody = isDocs
     ? '<div class="docs-layout">' + toc + '<article class="docs-article">' + body + "</article></div>"
