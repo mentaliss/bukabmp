@@ -55,6 +55,9 @@ const enDocs = fs.readFileSync(path.join("dist-site", "en", "docs", "index.html"
 const enStatus = fs.readFileSync(path.join("dist-site", "en", "status", "index.html"), "utf8");
 const enInstall = fs.readFileSync(path.join("dist-site", "en", "docs", "install", "index.html"), "utf8");
 const enPrivacy = fs.readFileSync(path.join("dist-site", "en", "privacy", "index.html"), "utf8");
+const aiCorpusPath = path.join("dist-site", "id", "ai-support.json");
+if (!fs.existsSync(aiCorpusPath)) throw new Error("missing " + aiCorpusPath);
+const aiCorpus = JSON.parse(fs.readFileSync(aiCorpusPath, "utf8"));
 
 for (const required of [
   "/bukabmp/assets/styles.css",
@@ -158,6 +161,36 @@ for (const required of [
   "/bukabmp/en/docs/activation/"
 ]) {
   if (!enInstall.includes(required)) throw new Error("English install guide missing expected value: " + required);
+}
+
+if (aiCorpus.schema_version !== 1 || aiCorpus.language !== "id") {
+  throw new Error("invalid AI support corpus schema/language");
+}
+if (!Array.isArray(aiCorpus.pages) || aiCorpus.pages.length < 20) {
+  throw new Error("AI support corpus is unexpectedly small");
+}
+const corpusText = JSON.stringify(aiCorpus);
+for (const required of [
+  "docs/install",
+  "docs/troubleshooting",
+  "docs/supporter",
+  "status",
+  "privacy",
+  "Chrome Web Store",
+  "Microsoft Edge Stable",
+  "v1.1.0",
+  "https://mentaliss.github.io/bukabmp/id/docs/install/"
+]) {
+  if (!corpusText.includes(required)) {
+    throw new Error("AI support corpus missing expected value: " + required);
+  }
+}
+const sections = aiCorpus.pages.flatMap(page => Array.isArray(page.sections) ? page.sections : []);
+if (sections.length < 60) {
+  throw new Error("AI support corpus has too few sections");
+}
+if (!sections.every(section => section.url && section.text && section.search_text)) {
+  throw new Error("AI support corpus contains incomplete sections");
 }
 
 console.log("site validation PASS");
