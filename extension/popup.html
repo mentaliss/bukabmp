@@ -17,7 +17,7 @@
     button.primary{background:#181818;color:#fff;border-color:#181818} button:disabled{opacity:.45;cursor:default}.small{font-size:10.5px;color:#666;line-height:1.45;margin-top:10px}
     .status{margin-top:14px;padding:11px 12px;border-radius:9px;background:#f5f5f5}.status strong{display:block;font-size:12px;margin-bottom:3px}#statusText,#activationText{font-size:12px;line-height:1.45;white-space:pre-wrap}.pairbox{display:none;margin-top:10px;padding:10px;border:1px dashed #bbb;border-radius:8px;background:#fafafa}.pairlabel{font-size:11px;color:#666;margin-bottom:4px}.paircode{font:700 16px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.7px;word-break:break-all}
     #completed{font-size:10.5px;color:#666;margin-top:5px}.ocr{display:none;margin-top:9px}.ocrLabel{font-size:10.5px;color:#555;margin-bottom:5px}.bar{height:6px;background:#ddd;border-radius:99px;overflow:hidden}.fill{height:100%;width:0;background:#333;transition:width .15s}
-    .links{display:flex;gap:10px;margin-top:12px;border-top:1px solid #eee;padding-top:10px}.link{width:auto;border:0;padding:0;margin:0;background:transparent;text-decoration:underline;font-size:10.5px;font-weight:600;color:#444}
+    .links{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:12px;border-top:1px solid #eee;padding-top:10px}.link{width:auto;border:0;padding:0;margin:0;background:transparent;text-decoration:underline;font-size:10.5px;font-weight:600;color:#444}
     .ok{color:#176c37}.warn{color:#8a5a00}
     .activationWait{display:none;margin-top:11px;padding:10px;border-radius:8px;background:#fff;border:1px solid #e3e3e3}
     .waitRow{display:flex;align-items:center;gap:9px}.spinner{width:16px;height:16px;border:2px solid #d4d4d4;border-top-color:#181818;border-radius:50%;animation:spin .8s linear infinite;flex:0 0 auto}
@@ -161,8 +161,11 @@
 
   </section>
 
-  <div class="links">
-    <button class="link" id="about">Keamanan & hak cipta</button>
+  <div class="links" aria-label="Informasi dan tautan">
+    <button class="link" id="securityLink">Keamanan</button>
+    <button class="link" id="privacyLink">Privasi</button>
+    <button class="link" id="responsibleUseLink">Hak cipta & penggunaan</button>
+    <button class="link" id="termsLink">Syarat</button>
     <button class="link" id="channelLink">Buka BMP</button>
     <button class="link" id="groupLink">Group Terbuka</button>
     <button class="link" id="share">Bagikan</button>
