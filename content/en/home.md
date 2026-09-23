@@ -22,4 +22,4 @@ BMP Terbuka may be supported by Supporter contributions, sponsorship, advertisin
 
 ## Status
 
-v1.1.0 is **Unreleased** until final Owner authorization.
+**v1.1.0** is the current stable release.
