@@ -9,7 +9,7 @@ const BASE_PATH = (process.env.BMP_SITE_BASE_PATH || "/bukabmp").trim().replace(
 const SITE_URL = (process.env.BMP_SITE_URL || "https://mentaliss.github.io/bukabmp").trim().replace(/\/$/, "");
 const EDGE_URL = (process.env.BMP_EDGE_ADDONS_URL || "https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm").trim();
 const BUSINESS_URL = (process.env.BMP_BUSINESS_CONTACT_URL || "https://t.me/bukabmp").trim();
-const GITHUB_ZIP_URL = (process.env.BMP_GITHUB_ZIP_URL || "https://github.com/mentaliss/bukabmp/releases/download/v1.0.5/BMP-Terbuka-v1.0.5.zip").trim();
+const GITHUB_ZIP_URL = (process.env.BMP_GITHUB_ZIP_URL || "https://github.com/mentaliss/bukabmp/releases/download/v1.1.0/BMP-Terbuka-v1.1.0.zip").trim();
 
 const idRoutes = {
   "": "content/id/home.md",
@@ -241,7 +241,7 @@ function inject(content) {
     : '<span class="button secondary disabled">Business contact — pending owner verification</span>';
 
   const zip = GITHUB_ZIP_URL
-    ? '<a class="button" href="' + esc(GITHUB_ZIP_URL) + '">GitHub ZIP — current stable v1.0.5</a>'
+    ? '<a class="button" href="' + esc(GITHUB_ZIP_URL) + '">GitHub ZIP — current stable v1.1.0</a>'
     : '<span class="button disabled">GitHub ZIP — unavailable</span>';
 
   return content
