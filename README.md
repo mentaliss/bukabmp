@@ -10,14 +10,16 @@ BMP Terbuka adalah browser extension open-source yang membantu mengubah materi y
 
 > **Status rilis:** v1.1.0 masih **Unreleased**. Source di main bukan pernyataan bahwa v1.1.0 sudah dipublikasikan.
 
-## Arah publik
+## Website resmi
 
-Website resmi sedang disiapkan sebagai pintu utama untuk pengguna, sponsor, partner, dan investor. Sampai URL resminya ditetapkan dan dipublikasikan, repository ini tetap menjadi sumber untuk source code, release, dan dokumentasi publik.
+**[Buka website BMP Terbuka](https://mentaliss.github.io/bukabmp/)**
+
+Website adalah pintu utama untuk pengguna, sponsor, partner, dan investor. Repository ini tetap menjadi sumber untuk source code, release, dan dokumentasi publik.
 
 ## Download
 
-- **Microsoft Edge — Desktop:** melalui Microsoft Edge Add-ons setelah URL listing resmi terverifikasi.
-- **Microsoft Edge — Android:** melalui Microsoft Edge Add-ons setelah URL listing resmi terverifikasi.
+- **Microsoft Edge — Desktop:** melalui [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm).
+- **Microsoft Edge — Android:** melalui [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm).
 - **Manual / supported Chromium:** gunakan asset ZIP hasil build di GitHub Releases, bukan asset otomatis Source code (zip).
 
 Karena v1.1.0 belum dirilis, jangan menganggap ZIP v1.1.0 sebagai stable release.
