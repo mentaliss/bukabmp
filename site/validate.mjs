@@ -30,7 +30,16 @@ for (const file of [
   path.join("dist-site", "id", "docs", "troubleshooting", "index.html"),
   path.join("dist-site", "id", "docs", "bot", "index.html"),
   path.join("dist-site", "id", "docs", "supporter", "index.html"),
-  path.join("dist-site", "id", "status", "index.html")
+  path.join("dist-site", "id", "status", "index.html"),
+  path.join("dist-site", "en", "docs", "index.html"),
+  path.join("dist-site", "en", "docs", "install", "index.html"),
+  path.join("dist-site", "en", "docs", "activation", "index.html"),
+  path.join("dist-site", "en", "docs", "usage", "index.html"),
+  path.join("dist-site", "en", "docs", "files", "index.html"),
+  path.join("dist-site", "en", "docs", "troubleshooting", "index.html"),
+  path.join("dist-site", "en", "docs", "bot", "index.html"),
+  path.join("dist-site", "en", "docs", "supporter", "index.html"),
+  path.join("dist-site", "en", "status", "index.html")
 ]) {
   if (!fs.existsSync(file)) throw new Error("missing " + file);
 }
@@ -40,6 +49,12 @@ const idDownload = fs.readFileSync(path.join("dist-site", "id", "download", "ind
 const idDocs = fs.readFileSync(path.join("dist-site", "id", "docs", "index.html"), "utf8");
 const idStatus = fs.readFileSync(path.join("dist-site", "id", "status", "index.html"), "utf8");
 const idInstall = fs.readFileSync(path.join("dist-site", "id", "docs", "install", "index.html"), "utf8");
+const enHome = fs.readFileSync(path.join("dist-site", "en", "index.html"), "utf8");
+const enDownload = fs.readFileSync(path.join("dist-site", "en", "download", "index.html"), "utf8");
+const enDocs = fs.readFileSync(path.join("dist-site", "en", "docs", "index.html"), "utf8");
+const enStatus = fs.readFileSync(path.join("dist-site", "en", "status", "index.html"), "utf8");
+const enInstall = fs.readFileSync(path.join("dist-site", "en", "docs", "install", "index.html"), "utf8");
+const enPrivacy = fs.readFileSync(path.join("dist-site", "en", "privacy", "index.html"), "utf8");
 
 for (const required of [
   "/bukabmp/assets/styles.css",
@@ -59,12 +74,36 @@ if (idHome.includes(">Microsoft Edge Add-ons<")) {
   throw new Error("homepage must link to Download page instead of exposing Edge Add-ons CTA");
 }
 
+for (const required of [
+  "Get Started",
+  ">Download<",
+  ">Contact<",
+  'class="home-cta-row"',
+  "/bukabmp/en/docs/",
+  "/bukabmp/en/download/",
+  "/bukabmp/en/status/"
+]) {
+  if (!enHome.includes(required)) throw new Error("English homepage missing expected value: " + required);
+}
+
+if (enHome.includes(">Microsoft Edge Add-ons<")) {
+  throw new Error("English homepage must link to Download page instead of exposing Edge Add-ons CTA");
+}
+
 if (!idDownload.includes("BMP-Terbuka-v1.1.0.zip")) {
   throw new Error("download page missing stable v1.1.0 asset");
 }
 
 if (/Unreleased/i.test(idDownload)) {
   throw new Error("download page must not describe v1.1.0 as unreleased");
+}
+
+if (!enDownload.includes("BMP-Terbuka-v1.1.0.zip")) {
+  throw new Error("English download page missing stable v1.1.0 asset");
+}
+
+if (/Unreleased/i.test(enDownload) || /Unreleased/i.test(enPrivacy)) {
+  throw new Error("English public pages must not describe v1.1.0 as unreleased");
 }
 
 for (const required of [
@@ -75,6 +114,16 @@ for (const required of [
   'id="sebelum-mulai"'
 ]) {
   if (!idDocs.includes(required)) throw new Error("docs page missing expected TOC value: " + required);
+}
+
+for (const required of [
+  'class="docs-layout"',
+  'class="docs-toc"',
+  'class="docs-toc-title">On this page',
+  'href="#before-you-start"',
+  'id="before-you-start"'
+]) {
+  if (!enDocs.includes(required)) throw new Error("English docs page missing expected TOC value: " + required);
 }
 
 for (const required of [
@@ -92,6 +141,23 @@ for (const required of [
   "/bukabmp/id/docs/activation/"
 ]) {
   if (!idInstall.includes(required)) throw new Error("install guide missing expected value: " + required);
+}
+
+for (const required of [
+  "BMP Terbuka v1.1.0",
+  "Not available as an active installation path yet",
+  "/bukabmp/en/docs/install/"
+]) {
+  if (!enStatus.includes(required)) throw new Error("English status page missing expected value: " + required);
+}
+
+for (const required of [
+  "chrome://extensions",
+  "Load unpacked",
+  "Microsoft Edge Stable",
+  "/bukabmp/en/docs/activation/"
+]) {
+  if (!enInstall.includes(required)) throw new Error("English install guide missing expected value: " + required);
 }
 
 console.log("site validation PASS");
