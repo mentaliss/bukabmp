@@ -34,7 +34,7 @@ Baca [Privacy](PRIVACY.md), [Security](SECURITY.md), dan [Responsible Use](RESPO
 
 ## Open source dan batasnya
 
-Repository publik ini berisi source extension Manifest V3, public tooling, dokumentasi publik, release metadata, dan source website publik saat ditambahkan.
+Repository publik ini berisi source extension Manifest V3, public tooling, source website publik, dokumentasi publik, dan release metadata.
 
 Repository publik ini tidak memuat implementation Worker produksi, bot/backend Telegram, Control Center, D1 migration/schema privat, secret produksi, private signing key, atau material deployment privat.
 
