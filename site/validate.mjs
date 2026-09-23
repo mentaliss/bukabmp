@@ -44,13 +44,19 @@ const idInstall = fs.readFileSync(path.join("dist-site", "id", "docs", "install"
 for (const required of [
   "/bukabmp/assets/styles.css",
   "https://mentaliss.github.io/bukabmp/id/",
-  "https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm",
   "https://t.me/bukabmp",
   "Mulai Menggunakan",
+  ">Download<",
   ">Contact<",
-  "/bukabmp/id/docs/"
+  'class="home-cta-row"',
+  "/bukabmp/id/docs/",
+  "/bukabmp/id/download/"
 ]) {
   if (!idHome.includes(required)) throw new Error("homepage missing expected value: " + required);
+}
+
+if (idHome.includes(">Microsoft Edge Add-ons<")) {
+  throw new Error("homepage must link to Download page instead of exposing Edge Add-ons CTA");
 }
 
 if (!idDownload.includes("BMP-Terbuka-v1.1.0.zip")) {

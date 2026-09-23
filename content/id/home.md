@@ -4,11 +4,7 @@ BMP Terbuka membantu mengubah materi yang sudah dapat kamu akses menjadi searcha
 
 **Open source · Local-first · Privacy-conscious**
 
-[[DOCS_CTA]]
-
-[[EDGE_CTA]]
-
-[[BUSINESS_CTA]]
+[[DOCS_CTA]] [[DOWNLOAD_CTA]] [[BUSINESS_CTA]]
 
 ## Apa itu BMP Terbuka
 

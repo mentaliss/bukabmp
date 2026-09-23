@@ -341,6 +341,8 @@ function inject(content) {
 
   const docs = '<a class="button secondary" href="' + sitePath("id/docs") + '">Mulai Menggunakan</a>';
 
+  const download = '<a class="button" href="' + sitePath("id/download") + '">Download</a>';
+
   const zip = GITHUB_ZIP_URL
     ? '<a class="button" href="' + esc(GITHUB_ZIP_URL) + '">GitHub ZIP — current stable v1.1.0</a>'
     : '<span class="button disabled">GitHub ZIP — unavailable</span>';
@@ -348,13 +350,20 @@ function inject(content) {
   return content
     .replaceAll("[[EDGE_CTA]]", edge)
     .replaceAll("[[DOCS_CTA]]", docs)
+    .replaceAll("[[DOWNLOAD_CTA]]", download)
     .replaceAll("[[BUSINESS_CTA]]", business)
     .replaceAll("[[GITHUB_ZIP_CTA]]", zip);
 }
 
 function page(lang, slug, md) {
   const title = titleFrom(md);
-  const body = inject(markdown(md, lang, slug));
+  let body = inject(markdown(md, lang, slug));
+  if (lang === "id" && slug === "") {
+    body = body.replace(
+      /<p>(<a class="button secondary"[^>]*>Mulai Menggunakan<\/a>\s*<a class="button"[^>]*>Download<\/a>\s*<a class="button"[^>]*>Contact<\/a>)<\/p>/,
+      '<div class="home-cta-row">$1</div>'
+    );
+  }
   const isDocs = lang === "id" && (slug === "docs" || slug.startsWith("docs/"));
   const toc = isDocs ? docsTableOfContents(md, lang, slug) : "";
   const mainBody = isDocs
