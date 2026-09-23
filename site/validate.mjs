@@ -38,12 +38,12 @@ for (const required of [
   if (!idHome.includes(required)) throw new Error("homepage missing expected value: " + required);
 }
 
-if (!idDownload.includes("BMP-Terbuka-v1.0.5.zip")) {
-  throw new Error("download page missing verified stable v1.0.5 asset");
+if (!idDownload.includes("BMP-Terbuka-v1.1.0.zip")) {
+  throw new Error("download page missing stable v1.1.0 asset");
 }
 
-if (idDownload.includes("v1.1.0.zip")) {
-  throw new Error("download page must not claim a released v1.1.0 ZIP");
+if (/Unreleased/i.test(idDownload)) {
+  throw new Error("download page must not describe v1.1.0 as unreleased");
 }
 
 console.log("site validation PASS");
