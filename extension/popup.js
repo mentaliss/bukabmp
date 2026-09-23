@@ -1285,7 +1285,10 @@ el("code").addEventListener("blur",()=>{
 });
 
 el("stop").addEventListener("click",async()=>{await send("STOP_JOB");await refreshState()});
-el("about").addEventListener("click",()=>chrome.tabs.create({url:chrome.runtime.getURL("about.html")}));
+el("securityLink").addEventListener("click",()=>chrome.tabs.create({url:"https://mentaliss.github.io/bukabmp/id/security/"}));
+el("privacyLink").addEventListener("click",()=>chrome.tabs.create({url:"https://mentaliss.github.io/bukabmp/id/privacy/"}));
+el("responsibleUseLink").addEventListener("click",()=>chrome.tabs.create({url:"https://mentaliss.github.io/bukabmp/id/responsible-use/"}));
+el("termsLink").addEventListener("click",()=>chrome.tabs.create({url:"https://mentaliss.github.io/bukabmp/id/terms/"}));
 
 (async()=>{
   reportTelemetry("extension_open");
