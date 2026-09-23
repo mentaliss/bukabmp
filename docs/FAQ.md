@@ -1,34 +1,31 @@
 # FAQ
 
-## Apakah perlu Python atau Tesseract desktop?
+## Apakah perlu Python, BAT, atau Tesseract desktop?
 Tidak. Release resmi membawa OCR runtime di dalam extension.
 
-## Apakah perlu menjalankan BAT?
-Tidak untuk end-user.
-
-## Kenapa harus join Telegram?
-V1 memakai community gate agar pengguna berada di kanal update kompatibilitas, security notice, support, dan diskusi.
-
-## Apakah Telegram atau activation service menerima materi saya?
-Activation flow tidak digunakan untuk mengunggah gambar halaman, teks OCR, atau PDF hasil.
-
-## Apakah password/NIM dikirim ke developer?
+## Apakah password/NIM dikirim ke BMP Terbuka?
 Tidak. Extension tidak meminta password/NIM portal sumber.
 
+## Apakah materi, OCR, atau PDF saya diunggah ke backend?
+Tidak untuk flow OCR/PDF. Extension tetap melakukan request jaringan untuk aktivasi, version/realtime state, telemetry pseudonymous, dan sponsor metrics yang terbatas. Lihat [PRIVACY.md](../PRIVACY.md).
+
+## Kenapa harus join Telegram?
+Community gate dipakai untuk kanal update kompatibilitas, security notice, support, dan diskusi.
+
 ## Apakah watermark dihapus?
-Tidak. BMP Terbuka sengaja mempertahankan watermark dari sumber.
+Tidak. BMP Terbuka mempertahankan watermark dari sumber.
 
 ## Extension berhenti pada Request Rejected/403. Kenapa tidak retry?
-Karena BMP Terbuka tidak dirancang untuk memaksa melewati penolakan server. Selesaikan login/akses melalui mekanisme normal sumber.
+Karena BMP Terbuka tidak dirancang untuk memaksa melewati penolakan server.
 
-## Kenapa output disebut FULL_CANDIDATE pada kondisi tertentu?
-Jika extension menyimpulkan akhir karena modul berikutnya tidak tersedia, itu indikator, bukan bukti absolut. Bila user sendiri menentukan modul terakhir pada UI, hasil gabungan menggunakan nama `FULL_Searchable.pdf`.
+## Di mana download resminya?
+Edge Desktop dan Edge Android akan diarahkan ke Microsoft Edge Add-ons setelah listing resmi terverifikasi. Jalur manual memakai asset ZIP hasil build di GitHub Releases, bukan Source code (zip). v1.1.0 masih **Unreleased**.
 
 ## Apa yang open-source?
-Chrome extension BMP Terbuka, build tooling extension, dan dokumentasi publik di repository ini menggunakan GPL-3.0. Activation service, infrastructure, dan website source tidak termasuk dalam repository open-source ini.
+Browser extension, public tooling, dokumentasi publik, dan source website publik berada/akan berada di repository ini. Worker produksi, bot/backend, Control Center, private database/deployment material, dan secret tidak dipublikasikan.
 
-## Apakah community gate bisa diubah pada fork?
-Source client bersifat open-source, jadi fork dapat mengubah perilaku client. Community gate bukan klaim DRM absolut.
+## Apakah sponsor bisa melihat data pengguna?
+Tidak. Sponsorship/advertising tidak memberi akses ke identitas pribadi, activation identity, isi BMP/OCR/PDF, atau arbitrary third-party tracking. Campaign kandidat saat ini contextual/non-personalized.
 
 ## Apakah ini produk resmi institusi?
 Tidak. BMP Terbuka adalah proyek komunitas independen.
