@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import {createHash} from "node:crypto";
 
 const root = process.cwd();
 const out = path.join(root, "dist-site");
@@ -413,10 +414,17 @@ function buildAiSupportCorpus() {
     pages.push(aiSupportSections(md, "id", slug));
   }
 
+  const digestInput = JSON.stringify({
+    language: "id",
+    generated_from_routes: AI_SUPPORT_ROUTE_KEYS,
+    pages
+  });
   return {
     schema_version: 1,
     language: "id",
     source: "BMP Terbuka public documentation",
+    source_revision: String(process.env.GITHUB_SHA || "local"),
+    content_sha256: createHash("sha256").update(digestInput).digest("hex"),
     canonical_base_url: SITE_URL + "/id/",
     generated_from_routes: AI_SUPPORT_ROUTE_KEYS,
     pages
