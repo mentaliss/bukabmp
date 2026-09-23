@@ -1,16 +1,18 @@
 # Security Policy
 
-## Scope repository
+## Scope publik
 
-Repository ini mempublikasikan source **Chrome extension BMP Terbuka** dan tooling build/release extension. Source activation service dan infrastructure operasional tidak berada di repository publik ini.
+Repository ini mempublikasikan source **browser extension BMP Terbuka**, public website source, public build/release tooling, dan dokumentasi publik.
+
+Production Worker, Telegram bot/backend, Control Center, D1 migrations/private operational schema, deployment secrets, dan private signing material tidak berada di repository publik.
 
 ## Melaporkan kerentanan
 
 Jangan membuka detail kerentanan sensitif sebagai public GitHub Issue. Gunakan **GitHub Private Vulnerability Reporting / Security Advisories** bila tersedia.
 
 Sertakan:
-- versi BMP Terbuka;
-- browser/OS;
+- versi/build atau halaman yang terdampak;
+- browser/OS bila relevan;
 - langkah reproduksi minimum;
 - dampak;
 - proof-of-concept yang tidak menyertakan credential atau materi berhak cipta.
@@ -18,13 +20,15 @@ Sertakan:
 ## Contoh isu in-scope
 
 - extension mengirim materi atau credential ke endpoint yang tidak semestinya;
-- XSS/injection pada halaman extension;
-- verifikasi signed activation token pada client dapat dibypass karena bug implementasi;
+- XSS/injection pada extension atau public website;
+- signed activation token verification dapat dibypass karena bug client;
 - penyimpanan credential sumber yang tidak disengaja;
-- permission Chrome lebih luas daripada yang diperlukan;
-- dependency/build artifact extension telah dimodifikasi tanpa terdeteksi.
+- permission extension lebih luas daripada yang diperlukan;
+- dependency/build artifact telah dimodifikasi tanpa terdeteksi;
+- website membocorkan secret/private operational URL;
+- unsafe external navigation.
 
-Masalah yang terlihat melalui API aktivasi juga boleh dilaporkan secara privat bila berdampak pada keamanan pengguna, meskipun implementasi service tersebut tidak open-source di repository ini.
+Masalah yang terlihat melalui public activation/API surface juga boleh dilaporkan secara privat bila berdampak pada keamanan pengguna, meskipun implementation service tidak open-source di repository ini.
 
 ## Out of scope
 
