@@ -2,7 +2,7 @@
 
 Semua perubahan penting pada source extension publik dicatat di sini.
 
-## [1.1.0] - Unreleased
+## [1.1.0] - 2026-09-23
 
 ### Added
 - Activation token schema v2 dengan subject Telegram tervalidasi, refresh endpoint, dan signed Supporter snapshot.
@@ -15,6 +15,7 @@ Semua perubahan penting pada source extension publik dicatat di sini.
 
 ### Changed
 - Jalur Android utama diarahkan ke Microsoft Edge Stable + Edge Add-ons; Canary tetap fallback/testing.
+- Footer informasi extension sekarang membuka Security, Privacy, Responsible Use/Hak Cipta, dan Terms langsung di website resmi BMP Terbuka.
 - Token-v2 yang sudah tersinkron tidak lagi menampilkan card manajemen Aktivasi komunitas; badge status akses hijau tetap tampil.
 - Realtime sponsor state di-refresh ketika popup terbuka dan saat job dimulai.
 - Interstitial delay dikunci pada jendela 2–5 detik dan tidak boleh menahan OCR/job.
@@ -40,7 +41,7 @@ Semua perubahan penting pada source extension publik dicatat di sini.
 - Edge Add-ons package build + validation.
 - Worker characterization/security/activation/Supporter/referral/payment tests.
 - Worker bundle dry-run.
-- Same-listing 1.0.5 → 1.1.0 Store upgrade dan authenticated real-device RBV smoke test tetap menjadi release gate eksternal sebelum publikasi.
+- Automated source/package validation untuk candidate final lulus sebelum release. Authenticated real-device/store upgrade tetap merupakan regression eksternal di luar CI.
 
 ## [1.0.5] - 2026-09-18
 
