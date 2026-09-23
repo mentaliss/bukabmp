@@ -1,41 +1,41 @@
-# Extension Architecture
+# Public Architecture
 
-Dokumen ini hanya menjelaskan architecture **client extension yang open-source**.
+Repository ini menjelaskan komponen **publik** BMP Terbuka tanpa membuka implementation backend private.
 
-```text
-Chrome
-  │
-  ├── authenticated reader tab
-  │     └── content.js
-  │           └── membaca konteks halaman dan mengambil resource yang dapat diakses user
-  │
-  ├── background.js
-  │     ├── job/state orchestration
-  │     ├── safe-stop handling
-  │     └── activation API client
-  │
-  ├── offscreen document
-  │     ├── Tesseract.js/WASM (bundled in release)
-  │     ├── Indonesian traineddata (bundled in release)
-  │     └── pdf-lib (bundled in release)
-  │
-  └── Chrome Downloads
-        └── searchable PDF
-```
+## Public surface
 
-## Trust boundaries
+- browser extension Manifest V3;
+- local OCR/PDF runtime yang dibundel pada release;
+- public build/validation tooling;
+- public website source;
+- public documentation/release metadata.
 
-### Source credentials
-Credential/session sumber tetap dikelola browser dan situs sumber. Extension tidak meminta pengguna menyalin password, cookie, HAR, atau session token ke BMP Terbuka.
+## Private production surface
 
-### Document contents
-Halaman, OCR, dan PDF diproses lokal oleh extension/offscreen document. Activation API tidak digunakan untuk mengunggah document contents.
+Tidak dipublikasikan di repository ini:
+- production Cloudflare Worker implementation;
+- Telegram bot/backend implementation;
+- Control Center;
+- D1 migrations/private operational schema;
+- deployment secrets;
+- private signing material.
 
-### Community activation
-Extension membuat pairing melalui API eksternal, menerima signed activation token, lalu memverifikasi signature token secara lokal menggunakan public key yang terdapat di client.
+## Extension flow
 
-Implementation, hosting, deployment, dan secret management activation service berada di luar scope repository ini.
+1. User login ke reader melalui mekanisme normal sumber.
+2. Extension menggunakan sesi browser yang sudah terautentikasi.
+3. Halaman yang tersedia pada sesi user diproses lokal.
+4. Offscreen document menjalankan Tesseract.js/WASM + Indonesian traineddata + pdf-lib yang dibundel.
+5. PDF disimpan di cache lokal dan dapat diekspor melalui browser Downloads.
+
+## Network boundary
+
+Extension memakai public backend endpoints untuk activation, version/realtime state, pseudonymous telemetry, dan sponsor state/metrics.
+
+Document pages, OCR text, dan generated PDF tidak dikirim ke backend BMP Terbuka sebagai bagian dari OCR/PDF workflow.
+
+Remote state melewati client allowlist dan tidak dapat mengirim arbitrary executable JavaScript/WASM baru ke extension.
 
 ## Failure behavior
 
-Saat sumber mengembalikan kondisi seperti 403, 429, login response, Request Rejected, atau network error yang tidak aman untuk dilanjutkan, extension berhenti. Tidak ada blind retry/request storm.
+Saat sumber mengembalikan 403, 429, login/re-authentication response, Request Rejected, atau kondisi jaringan yang tidak aman untuk dilanjutkan, extension berhenti. Tidak ada blind retry/request storm.
