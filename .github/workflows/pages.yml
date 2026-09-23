@@ -1,0 +1,59 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "site/**"
+      - "content/**"
+      - "docs/**"
+      - "*.md"
+      - "package.json"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      BMP_SITE_BASE_PATH: /bukabmp
+      BMP_SITE_URL: https://mentaliss.github.io/bukabmp
+      BMP_EDGE_ADDONS_URL: https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
+      BMP_BUSINESS_CONTACT_URL: https://t.me/bukabmp?direct
+      BMP_GITHUB_ZIP_URL: https://github.com/mentaliss/bukabmp/releases/download/v1.0.5/BMP-Terbuka-v1.0.5.zip
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build website
+        run: npm run build:site
+      - name: Validate website
+        run: npm run validate:site
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist-site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
