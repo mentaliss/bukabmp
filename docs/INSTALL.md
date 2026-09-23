@@ -20,7 +20,7 @@ Jalur utama adalah **Microsoft Edge Add-ons**.
 4. Buka popup BMP Terbuka dan selesaikan aktivasi komunitas.
 5. Login ke portal reader dengan akun Anda sendiri dan gunakan extension.
 
-Listing di atas adalah jalur Store yang digunakan saat ini. Versi yang tersedia di Store tidak boleh dianggap sebagai v1.1.0 sampai v1.1.0 benar-benar dirilis.
+Listing di atas adalah jalur Microsoft Edge Add-ons yang digunakan BMP Terbuka. Release stabil saat ini adalah v1.1.0; ketersediaan versi Store mengikuti proses review/update Microsoft.
 
 ## Microsoft Edge — Android
 
@@ -45,7 +45,7 @@ Untuk browser desktop yang didukung tetapi tidak memakai Edge Add-ons:
 5. Buka halaman extensions browser dan aktifkan Developer mode.
 6. Load unpacked folder yang berisi manifest.json.
 
-Karena v1.1.0 masih **Unreleased**, jangan menganggap asset stable v1.1.0 sudah tersedia.
+Release manual stabil saat ini adalah **v1.1.0**. Gunakan asset build `BMP-Terbuka-v1.1.0.zip` dari GitHub Release, bukan Source code (zip).
 
 ## Update
 
