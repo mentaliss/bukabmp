@@ -33,6 +33,12 @@ BMP Terbuka dapat didukung lewat Supporter, sponsorship, advertising, partnershi
 
 Source extension dan website publik tersedia di GitHub. Backend produksi dan operational secrets tetap private.
 
+## Panduan Pengguna
+
+Baru mulai? Buka [Panduan BMP Terbuka](docs) untuk instalasi, aktivasi, penggunaan, PDF/resume, dan troubleshooting langkah demi langkah.
+
+Kalau hanya ingin mengecek versi, browser, atau ketersediaan Store, buka [Status & Versi](status).
+
 ## Status
 
-**v1.1.0** adalah release stabil saat ini.
+**v1.1.0** adalah release stabil saat ini. Detail jalur instalasi dan status Store ada di [Status & Versi](status).
