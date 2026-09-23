@@ -13,4 +13,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: node tools/validate.mjs
+      - name: Validate extension source
+        run: npm run validate
+      - name: Build public website
+        run: npm run build:site
+      - name: Validate public website routes
+        run: npm run validate:site
