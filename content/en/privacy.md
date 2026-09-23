@@ -1,6 +1,6 @@
 # Privacy Policy
 
-BMP Terbuka is designed to be **local-first**. This page describes the current v1.1.0 candidate, which remains **Unreleased**.
+BMP Terbuka is designed to be **local-first**. This page describes the current stable **BMP Terbuka v1.1.0** release.
 
 ## Local document processing
 
