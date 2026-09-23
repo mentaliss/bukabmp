@@ -1,20 +1,25 @@
 # Community
 
 ## Buka BMP
-Channel resmi untuk:
-- release baru;
-- status kompatibilitas;
-- security notice;
-- panduan penggunaan.
+
+Channel resmi untuk release baru, status kompatibilitas, security notice, dan panduan penggunaan:
+
+https://t.me/bukabmp
 
 ## Group Terbuka
-Tempat untuk:
-- troubleshooting;
-- feedback;
-- diskusi fitur;
-- kontribusi komunitas.
+
+Tempat untuk troubleshooting, feedback, diskusi fitur, dan kontribusi komunitas:
+
+https://t.me/+0pAg9ymEhWdkZmNl
+
+## Bot aktivasi
+
+@bukabmp_bot
+
+https://t.me/bukabmp_bot
 
 ## Aturan utama
+
 Jangan membagikan:
 - password/NIM;
 - cookie/session token;
