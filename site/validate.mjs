@@ -58,6 +58,12 @@ const enPrivacy = fs.readFileSync(path.join("dist-site", "en", "privacy", "index
 const aiCorpusPath = path.join("dist-site", "id", "ai-support.json");
 if (!fs.existsSync(aiCorpusPath)) throw new Error("missing " + aiCorpusPath);
 const aiCorpus = JSON.parse(fs.readFileSync(aiCorpusPath, "utf8"));
+if (!/^[0-9a-f]{64}$/i.test(String(aiCorpus.content_sha256 || ""))) {
+  throw new Error("AI support corpus missing valid content_sha256");
+}
+if (!String(aiCorpus.source_revision || "").trim()) {
+  throw new Error("AI support corpus missing source_revision");
+}
 
 for (const required of [
   "/bukabmp/assets/styles.css",
