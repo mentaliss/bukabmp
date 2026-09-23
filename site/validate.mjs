@@ -37,6 +37,7 @@ for (const file of [
 
 const idHome = fs.readFileSync(path.join("dist-site", "id", "index.html"), "utf8");
 const idDownload = fs.readFileSync(path.join("dist-site", "id", "download", "index.html"), "utf8");
+const idDocs = fs.readFileSync(path.join("dist-site", "id", "docs", "index.html"), "utf8");
 const idStatus = fs.readFileSync(path.join("dist-site", "id", "status", "index.html"), "utf8");
 const idInstall = fs.readFileSync(path.join("dist-site", "id", "docs", "install", "index.html"), "utf8");
 
@@ -44,7 +45,10 @@ for (const required of [
   "/bukabmp/assets/styles.css",
   "https://mentaliss.github.io/bukabmp/id/",
   "https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm",
-  "https://t.me/bukabmp"
+  "https://t.me/bukabmp",
+  "Mulai Menggunakan",
+  ">Contact<",
+  "/bukabmp/id/docs/"
 ]) {
   if (!idHome.includes(required)) throw new Error("homepage missing expected value: " + required);
 }
@@ -55,6 +59,16 @@ if (!idDownload.includes("BMP-Terbuka-v1.1.0.zip")) {
 
 if (/Unreleased/i.test(idDownload)) {
   throw new Error("download page must not describe v1.1.0 as unreleased");
+}
+
+for (const required of [
+  'class="docs-layout"',
+  'class="docs-toc"',
+  'class="docs-toc-title">Daftar isi',
+  'href="#sebelum-mulai"',
+  'id="sebelum-mulai"'
+]) {
+  if (!idDocs.includes(required)) throw new Error("docs page missing expected TOC value: " + required);
 }
 
 for (const required of [
