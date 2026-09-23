@@ -19,12 +19,14 @@ Website adalah pintu utama untuk pengguna, sponsor, partner, dan investor. Repos
 ## Download
 
 - **Microsoft Edge — Desktop:** melalui [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm).
-- **Microsoft Edge — Android:** melalui [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm).
-- **Manual / supported Chromium:** gunakan asset ZIP hasil build di GitHub Releases, bukan asset otomatis Source code (zip).
+- **Microsoft Edge — Android:** Microsoft Edge Stable + [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm).
+- **Google Chrome — Desktop:** Chrome Web Store belum menjadi jalur instalasi aktif; gunakan asset ZIP hasil build di GitHub Releases dan pasang dengan Developer mode + Load unpacked.
 
-Untuk instalasi manual, gunakan asset resmi `BMP-Terbuka-v1.1.0.zip` dari GitHub Release v1.1.0.
+Untuk instalasi manual, gunakan asset resmi `BMP-Terbuka-v1.1.0.zip` dari GitHub Release v1.1.0, bukan asset otomatis Source code (zip).
 
-Lihat [Panduan Instalasi](docs/INSTALL.md), [Compatibility](docs/COMPATIBILITY.md), dan [Release Process](docs/RELEASE.md).
+Panduan pengguna: [Instalasi & Update](https://mentaliss.github.io/bukabmp/id/docs/install/) · [Status & Versi](https://mentaliss.github.io/bukabmp/id/status/)
+
+Dokumentasi repository: [Panduan Instalasi](docs/INSTALL.md), [Compatibility](docs/COMPATIBILITY.md), dan [Release Process](docs/RELEASE.md).
 
 ## Local-first, bukan zero-network
 

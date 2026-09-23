@@ -16,6 +16,15 @@ const idRoutes = {
   "download": "content/id/download.md",
   "features": "content/id/features.md",
   "how-it-works": "content/id/how-it-works.md",
+  "docs": "content/id/getting-started.md",
+  "docs/install": "content/id/install.md",
+  "docs/activation": "content/id/activation.md",
+  "docs/usage": "content/id/usage.md",
+  "docs/files": "content/id/files.md",
+  "docs/troubleshooting": "content/id/troubleshooting.md",
+  "docs/bot": "content/id/bot.md",
+  "docs/supporter": "content/id/supporter.md",
+  "status": "content/id/status.md",
   "faq": "docs/FAQ.md",
   "sponsor": "SPONSORSHIP.md",
   "investor": "content/id/investor.md",
@@ -77,7 +86,7 @@ const repoDocRoutes = new Map([
   ["docs/COMPATIBILITY.md", "compatibility"],
   ["docs/COMMUNITY.md", "community"],
   ["docs/ARCHITECTURE.md", "architecture"],
-  ["docs/INSTALL.md", "download"],
+  ["docs/INSTALL.md", "docs/install"],
   ["docs/RELEASE.md", "release-notes"]
 ]);
 
@@ -100,29 +109,46 @@ function normalizeRepoPath(url) {
   return String(url).replace(/^\.\.\//, "").replace(/^\.\//, "").replace(/^\//, "");
 }
 
-function resolveLink(url, lang) {
+function resolveLink(url, lang, slug = "") {
   const raw = String(url);
   if (/^https?:\/\//i.test(raw) || /^mailto:/i.test(raw)) return raw;
+  if (raw.startsWith("#")) return raw;
+
   const normalized = normalizeRepoPath(raw);
   if (normalized === "CONTRIBUTING.md") return "https://github.com/mentaliss/bukabmp/blob/main/CONTRIBUTING.md";
   if (normalized === "LICENSE") return sitePath(lang + "/license");
+
   const route = repoDocRoutes.get(normalized);
   if (route) return sitePath(lang + "/" + route);
-  if (raw.startsWith("#")) return raw;
+
+  const routes = lang === "id" ? idRoutes : enRoutes;
+  if (Object.prototype.hasOwnProperty.call(routes, normalized)) {
+    return sitePath(lang + "/" + normalized);
+  }
+
+  if (
+    lang === "id" &&
+    slug.startsWith("docs") &&
+    !normalized.includes("/") &&
+    Object.prototype.hasOwnProperty.call(routes, "docs/" + normalized)
+  ) {
+    return sitePath(lang + "/docs/" + normalized);
+  }
+
   return sitePath(lang);
 }
 
-function inline(value, lang) {
+function inline(value, lang, slug = "") {
   let x = esc(value);
   x = x.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   x = x.replace(/\`(.+?)\`/g, "<code>$1</code>");
   x = x.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, label, url) => {
-    return '<a href="' + esc(resolveLink(url, lang)) + '">' + label + "</a>";
+    return '<a href="' + esc(resolveLink(url, lang, slug)) + '">' + label + "</a>";
   });
   return x;
 }
 
-function markdown(md, lang) {
+function markdown(md, lang, slug = "") {
   const lines = md.replace(/\r/g, "").split("\n");
   let html = "";
   let list = null;
@@ -145,13 +171,13 @@ function markdown(md, lang) {
     if (heading) {
       closeList();
       const level = heading[1].length;
-      html += "<h" + level + ">" + inline(heading[2], lang) + "</h" + level + ">";
+      html += "<h" + level + ">" + inline(heading[2], lang, slug) + "</h" + level + ">";
       continue;
     }
 
     if (/^>\s?/.test(line)) {
       closeList();
-      html += "<blockquote>" + inline(line.replace(/^>\s?/, ""), lang) + "</blockquote>";
+      html += "<blockquote>" + inline(line.replace(/^>\s?/, ""), lang, slug) + "</blockquote>";
       continue;
     }
 
@@ -162,7 +188,7 @@ function markdown(md, lang) {
         list = "ul";
         html += "<ul>";
       }
-      html += "<li>" + inline(unordered[1], lang) + "</li>";
+      html += "<li>" + inline(unordered[1], lang, slug) + "</li>";
       continue;
     }
 
@@ -173,7 +199,7 @@ function markdown(md, lang) {
         list = "ol";
         html += "<ol>";
       }
-      html += "<li>" + inline(ordered[1], lang) + "</li>";
+      html += "<li>" + inline(ordered[1], lang, slug) + "</li>";
       continue;
     }
 
@@ -182,7 +208,7 @@ function markdown(md, lang) {
       const url = line.trim();
       html += '<p><a href="' + esc(url) + '">' + esc(url) + "</a></p>";
     } else {
-      html += "<p>" + inline(line, lang) + "</p>";
+      html += "<p>" + inline(line, lang, slug) + "</p>";
     }
   }
 
@@ -198,9 +224,15 @@ function titleFrom(md) {
 function nav(lang) {
   const home = sitePath(lang);
   const investor = lang === "id" ? sitePath("id/investor") : sitePath("en/investors");
+  const helpLinks = lang === "id"
+    ? '<a href="' + sitePath("id/docs") + '">Panduan</a>' +
+      '<a href="' + sitePath("id/status") + '">Status</a>' +
+      '<a href="' + sitePath("id/faq") + '">FAQ</a>'
+    : "";
   return '<nav><a class="brand" href="' + home + '">BMP TERBUKA</a><div class="navlinks">' +
     '<a href="' + home + '">' + (lang === "id" ? "Beranda" : "Home") + "</a>" +
     '<a href="' + sitePath(lang + "/download") + '">Download</a>' +
+    helpLinks +
     '<a href="' + sitePath(lang + "/features") + '">' + (lang === "id" ? "Fitur" : "Features") + "</a>" +
     '<a href="' + sitePath(lang + "/sponsor") + '">Sponsor</a>' +
     '<a href="' + investor + '">' + (lang === "id" ? "Investor / Partnership" : "Investors / Partnership") + "</a>" +
@@ -216,6 +248,20 @@ function footer(lang) {
     ["LEGAL", [["Open-source License", "license"], ["Trademark", "trademark"], ["Third-party Licenses", "third-party-licenses"]]],
     ["DEVELOPERS", [["GitHub", "https://github.com/mentaliss/bukabmp"], ["Architecture", "architecture"], ["Release Notes", "release-notes"], ["Contributing", "https://github.com/mentaliss/bukabmp/blob/main/CONTRIBUTING.md"]]]
   ];
+
+  if (lang === "id") {
+    groups.splice(1, 0, ["PANDUAN", [
+      ["Mulai", "docs"],
+      ["Instalasi & Update", "docs/install"],
+      ["Aktivasi", "docs/activation"],
+      ["Cara Menggunakan", "docs/usage"],
+      ["PDF, Resume & Penyimpanan", "docs/files"],
+      ["Mengatasi Masalah", "docs/troubleshooting"],
+      ["Bot & Komunitas", "docs/bot"],
+      ["Supporter Pass", "docs/supporter"],
+      ["Status & Versi", "status"]
+    ]]);
+  }
 
   let html = "<footer>";
   for (const [name, items] of groups) {
@@ -252,7 +298,7 @@ function inject(content) {
 
 function page(lang, slug, md) {
   const title = titleFrom(md);
-  const body = inject(markdown(md, lang));
+  const body = inject(markdown(md, lang, slug));
   const canonicalPath = slug ? "/" + lang + "/" + slug + "/" : "/" + lang + "/";
   const canonical = SITE_URL + canonicalPath;
 
