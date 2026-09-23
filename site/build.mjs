@@ -99,6 +99,35 @@ const repoDocRoutes = new Map([
   ["docs/RELEASE.md", "release-notes"]
 ]);
 
+const AI_SUPPORT_ROUTE_KEYS = Object.freeze([
+  "docs",
+  "docs/install",
+  "docs/activation",
+  "docs/usage",
+  "docs/files",
+  "docs/troubleshooting",
+  "docs/bot",
+  "docs/supporter",
+  "status",
+  "faq",
+  "download",
+  "features",
+  "how-it-works",
+  "privacy",
+  "terms",
+  "security",
+  "responsible-use",
+  "community",
+  "sponsor",
+  "advertiser-terms",
+  "ethics",
+  "funding",
+  "trademark",
+  "compatibility",
+  "license",
+  "release-notes"
+]);
+
 function esc(value) {
   return String(value).replace(/[&<>"']/g, char => ({
     "&": "&amp;",
@@ -283,6 +312,117 @@ function titleFrom(md) {
   return match ? match[1] : "BMP Terbuka";
 }
 
+function plainSearchText(value) {
+  return String(value || "")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 $2")
+    .replace(/[`*_>#]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function aiSupportSections(md, lang, slug) {
+  const lines = String(md || "").replace(/\r/g, "").split("\n");
+  const seen = new Map();
+  const sections = [];
+  let pageTitle = titleFrom(md);
+  let currentH2 = "";
+  let currentH3 = "";
+  let current = null;
+
+  const pageUrl = SITE_URL + "/" + lang + "/" + (slug ? slug + "/" : "");
+
+  const flush = () => {
+    if (!current) return;
+    const text = current.lines.join("\n").trim();
+    if (text) {
+      sections.push({
+        heading: current.heading,
+        heading_path: current.headingPath,
+        anchor: current.anchor || "",
+        url: current.anchor ? pageUrl + "#" + current.anchor : pageUrl,
+        text,
+        search_text: plainSearchText([
+          pageTitle,
+          current.headingPath.join(" "),
+          text
+        ].join(" "))
+      });
+    }
+    current = null;
+  };
+
+  for (const raw of lines) {
+    const heading = raw.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      const level = heading[1].length;
+      const label = headingText(heading[2]);
+      const anchor = headingSlug(heading[2], seen);
+
+      if (level === 1) {
+        pageTitle = label || pageTitle;
+        continue;
+      }
+
+      flush();
+      if (level === 2) {
+        currentH2 = label;
+        currentH3 = "";
+      } else if (level === 3) {
+        currentH3 = label;
+      }
+
+      const headingPath = [currentH2, currentH3].filter(Boolean);
+      current = {
+        heading: label,
+        headingPath,
+        anchor,
+        lines: []
+      };
+      continue;
+    }
+
+    if (!current) {
+      current = {
+        heading: "Ringkasan",
+        headingPath: ["Ringkasan"],
+        anchor: "",
+        lines: []
+      };
+    }
+    current.lines.push(raw);
+  }
+
+  flush();
+
+  return {
+    slug,
+    title: pageTitle,
+    url: pageUrl,
+    sections
+  };
+}
+
+function buildAiSupportCorpus() {
+  const pages = [];
+  for (const slug of AI_SUPPORT_ROUTE_KEYS) {
+    const source = idRoutes[slug];
+    if (!source) throw new Error("AI support route missing source: " + slug);
+    const src = path.join(root, source);
+    if (!fs.existsSync(src)) throw new Error("AI support source missing: " + source);
+    const md = fs.readFileSync(src, "utf8");
+    pages.push(aiSupportSections(md, "id", slug));
+  }
+
+  return {
+    schema_version: 1,
+    language: "id",
+    source: "BMP Terbuka public documentation",
+    canonical_base_url: SITE_URL + "/id/",
+    generated_from_routes: AI_SUPPORT_ROUTE_KEYS,
+    pages
+  };
+}
+
 function nav(lang) {
   const home = sitePath(lang);
   const investor = lang === "id" ? sitePath("id/investor") : sitePath("en/investors");
@@ -423,6 +563,11 @@ fs.writeFileSync(
 fs.writeFileSync(
   path.join(out, "_headers"),
   "/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n  X-Frame-Options: DENY\n"
+);
+
+fs.writeFileSync(
+  path.join(out, "id", "ai-support.json"),
+  JSON.stringify(buildAiSupportCorpus(), null, 2)
 );
 
 console.log("Built", Object.keys(idRoutes).length + Object.keys(enRoutes).length, "routes to dist-site with base", BASE_PATH || "/");
