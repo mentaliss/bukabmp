@@ -7,6 +7,7 @@ const siteDir=path.join(root,"site");
 
 const EDGE_URL=(process.env.BMP_EDGE_ADDONS_URL||"").trim();
 const BUSINESS_URL=(process.env.BMP_BUSINESS_CONTACT_URL||"").trim();
+const GITHUB_ZIP_URL=(process.env.BMP_GITHUB_ZIP_URL||"https://github.com/mentaliss/bukabmp/releases/download/v1.0.5/BMP-Terbuka-v1.0.5.zip").trim();
 
 const idRoutes={
   "":"content/id/home.md","download":"content/id/download.md","features":"content/id/features.md","how-it-works":"content/id/how-it-works.md",
@@ -83,7 +84,8 @@ function inject(content){
   let x=content;
   const edge=EDGE_URL?'<a class="button" href="'+esc(EDGE_URL)+'">Microsoft Edge Add-ons</a>':'<span class="button disabled">Microsoft Edge Add-ons — link pending verification</span>';
   const biz=BUSINESS_URL?'<a class="button secondary" href="'+esc(BUSINESS_URL)+'">Chat about advertising / partnership</a>':'<span class="button secondary disabled">Business contact — pending owner verification</span>';
-  x=x.replaceAll("[[EDGE_CTA]]",edge).replaceAll("[[BUSINESS_CTA]]",biz);
+  const zip=GITHUB_ZIP_URL?'<a class="button" href="'+esc(GITHUB_ZIP_URL)+'">GitHub ZIP — current stable</a>':'<span class="button disabled">GitHub ZIP — unavailable</span>';
+  x=x.replaceAll("[[EDGE_CTA]]",edge).replaceAll("[[BUSINESS_CTA]]",biz).replaceAll("[[GITHUB_ZIP_CTA]]",zip);
   return x;
 }
 function page(lang,md){
