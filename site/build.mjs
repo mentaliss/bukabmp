@@ -148,10 +148,62 @@ function inline(value, lang, slug = "") {
   return x;
 }
 
+function headingText(value) {
+  return String(value)
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\`(.+?)\`/g, "$1")
+    .trim();
+}
+
+function headingSlug(value, seen) {
+  const base = headingText(value)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/&/g, " dan ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "bagian";
+  const count = (seen.get(base) || 0) + 1;
+  seen.set(base, count);
+  return count === 1 ? base : base + "-" + count;
+}
+
+function docsTableOfContents(md, lang, slug) {
+  const seen = new Map();
+  const items = [];
+
+  for (const raw of md.replace(/\r/g, "").split("\n")) {
+    const heading = raw.trimEnd().match(/^(#{1,3})\s+(.+)$/);
+    if (!heading) continue;
+    const level = heading[1].length;
+    const id = headingSlug(heading[2], seen);
+    if (level === 2 || level === 3) {
+      items.push({
+        level,
+        id,
+        label: inline(headingText(heading[2]), lang, slug)
+      });
+    }
+  }
+
+  if (!items.length) return "";
+
+  return '<aside class="docs-toc" aria-label="Daftar isi">' +
+    '<div class="docs-toc-title">Daftar isi</div>' +
+    '<div class="docs-toc-links">' +
+    items.map(item =>
+      '<a class="docs-toc-link level-' + item.level + '" href="#' + esc(item.id) + '">' +
+      item.label + "</a>"
+    ).join("") +
+    "</div></aside>";
+}
+
 function markdown(md, lang, slug = "") {
   const lines = md.replace(/\r/g, "").split("\n");
   let html = "";
   let list = null;
+  const headingIds = new Map();
 
   const closeList = () => {
     if (list) {
@@ -171,7 +223,8 @@ function markdown(md, lang, slug = "") {
     if (heading) {
       closeList();
       const level = heading[1].length;
-      html += "<h" + level + ">" + inline(heading[2], lang, slug) + "</h" + level + ">";
+      const id = headingSlug(heading[2], headingIds);
+      html += "<h" + level + ' id="' + esc(id) + '">' + inline(heading[2], lang, slug) + "</h" + level + ">";
       continue;
     }
 
@@ -283,8 +336,10 @@ function inject(content) {
     : '<span class="button disabled">Microsoft Edge Add-ons — link pending verification</span>';
 
   const business = BUSINESS_URL
-    ? '<a class="button secondary" href="' + esc(BUSINESS_URL) + '">Telegram Buka BMP</a>'
-    : '<span class="button secondary disabled">Business contact — pending owner verification</span>';
+    ? '<a class="button" href="' + esc(BUSINESS_URL) + '">Contact</a>'
+    : '<span class="button disabled">Contact — pending owner verification</span>';
+
+  const docs = '<a class="button secondary" href="' + sitePath("id/docs") + '">Mulai Menggunakan</a>';
 
   const zip = GITHUB_ZIP_URL
     ? '<a class="button" href="' + esc(GITHUB_ZIP_URL) + '">GitHub ZIP — current stable v1.1.0</a>'
@@ -292,6 +347,7 @@ function inject(content) {
 
   return content
     .replaceAll("[[EDGE_CTA]]", edge)
+    .replaceAll("[[DOCS_CTA]]", docs)
     .replaceAll("[[BUSINESS_CTA]]", business)
     .replaceAll("[[GITHUB_ZIP_CTA]]", zip);
 }
@@ -299,6 +355,12 @@ function inject(content) {
 function page(lang, slug, md) {
   const title = titleFrom(md);
   const body = inject(markdown(md, lang, slug));
+  const isDocs = lang === "id" && (slug === "docs" || slug.startsWith("docs/"));
+  const toc = isDocs ? docsTableOfContents(md, lang, slug) : "";
+  const mainBody = isDocs
+    ? '<div class="docs-layout">' + toc + '<article class="docs-article">' + body + "</article></div>"
+    : body;
+  const mainClass = isDocs ? ' class="docs-main"' : "";
   const canonicalPath = slug ? "/" + lang + "/" + slug + "/" : "/" + lang + "/";
   const canonical = SITE_URL + canonicalPath;
 
@@ -308,7 +370,7 @@ function page(lang, slug, md) {
     '<meta name="description" content="BMP Terbuka — local-first searchable PDF workflow.">' +
     '<link rel="canonical" href="' + esc(canonical) + '">' +
     '<link rel="stylesheet" href="' + sitePath("assets/styles.css").replace(/\/$/, "") + '">' +
-    "</head><body>" + nav(lang) + "<main>" + body + "</main>" + footer(lang) + "</body></html>";
+    "</head><body>" + nav(lang) + "<main" + mainClass + ">" + mainBody + "</main>" + footer(lang) + "</body></html>";
 }
 
 fs.rmSync(out, {recursive: true, force: true});
