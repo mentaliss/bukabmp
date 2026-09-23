@@ -29,7 +29,7 @@ jobs:
       BMP_SITE_BASE_PATH: /bukabmp
       BMP_SITE_URL: https://mentaliss.github.io/bukabmp
       BMP_EDGE_ADDONS_URL: https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
-      BMP_BUSINESS_CONTACT_URL: https://t.me/bukabmp?direct
+      BMP_BUSINESS_CONTACT_URL: https://t.me/bukabmp
       BMP_GITHUB_ZIP_URL: https://github.com/mentaliss/bukabmp/releases/download/v1.0.5/BMP-Terbuka-v1.0.5.zip
     steps:
       - uses: actions/checkout@v4
