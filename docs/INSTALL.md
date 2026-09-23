@@ -2,48 +2,53 @@
 
 ## Persyaratan
 
-- Desktop: Google Chrome atau Microsoft Edge yang mendukung Manifest V3.
-- Android: Microsoft Edge Stable dengan dukungan extension melalui Microsoft Edge Add-ons. Edge Canary tetap menjadi jalur fallback/testing bila Stable belum kompatibel pada perangkat tertentu.
+- Microsoft Edge Desktop atau Android untuk jalur utama Microsoft Edge Add-ons.
+- Desktop Chromium lain yang kompatibel untuk jalur manual yang didukung.
 - Akun Anda sendiri pada portal reader yang didukung.
 - Telegram untuk aktivasi komunitas.
-- Internet saat mengakses sumber dan saat aktivasi.
+- Internet saat mengakses sumber dan aktivasi.
 
-OCR sudah ada di dalam paket release.
+OCR sudah dibundel di package release.
 
-## Desktop — Chrome / Edge
+## Microsoft Edge — Desktop
 
-1. Buka halaman **Releases** repo `mentaliss/bukabmp` dan download `BMP-Terbuka-v<VERSION>.zip`.
-2. Extract ZIP ke folder tetap.
-3. Buka `chrome://extensions` atau `edge://extensions`.
-4. Aktifkan **Developer mode**.
-5. Klik **Load unpacked** dan pilih folder hasil extract yang berisi `manifest.json`.
-6. Buka popup **BMP Terbuka** dan selesaikan aktivasi Telegram.
-7. Login ke portal reader dengan akun Anda sendiri, isi kode BMP + rentang modul, lalu tekan **Mulai**.
+Jalur utama adalah **Microsoft Edge Add-ons**.
 
-## Android — Microsoft Edge Stable
+1. Buka website/download page resmi BMP Terbuka.
+2. Ikuti tautan Microsoft Edge Add-ons yang sudah diverifikasi.
+3. Pasang extension melalui mekanisme normal Edge.
+4. Buka popup BMP Terbuka dan selesaikan aktivasi komunitas.
+5. Login ke portal reader dengan akun Anda sendiri dan gunakan extension.
 
-Jalur utama 1.1.0 adalah **Microsoft Edge Stable + Microsoft Edge Add-ons**.
+Sampai URL listing resmi diverifikasi, dokumentasi tidak boleh mengarang atau menebak listing ID.
 
-1. Install/update **Microsoft Edge** dari Google Play. Pada sebagian listing, nama yang tampil dapat berupa **Microsoft Edge: Ekstensi / Microsoft Edge: Extensions**; itu tetap channel Edge Stable.
-2. Buka listing resmi **BMP Terbuka** di Microsoft Edge Add-ons melalui Edge.
-3. Tekan **Dapatkan**, lalu konfirmasi pemasangan extension.
-4. Buka popup **BMP Terbuka**, selesaikan aktivasi Telegram, lalu kembali ke Edge.
-5. Login ke portal reader, isi kode BMP + modul, lalu tekan **Mulai**.
+## Microsoft Edge — Android
 
-Jika Edge Stable pada perangkat tertentu belum dapat memasang/menjalankan BMP Terbuka dengan benar, gunakan **Edge Canary** hanya sebagai fallback/testing.
+Jalur utama adalah **Microsoft Edge Stable + Microsoft Edge Add-ons**.
 
-**Chrome Android bukan jalur instalasi resmi BMP Terbuka.** Paket GitHub/manual ditujukan sementara untuk desktop Chromium non-Edge, bukan untuk Chrome Android.
+1. Install/update Microsoft Edge Stable.
+2. Buka listing resmi BMP Terbuka di Microsoft Edge Add-ons melalui Edge.
+3. Tekan Dapatkan dan konfirmasi pemasangan.
+4. Selesaikan aktivasi komunitas.
+5. Login ke reader dengan akun Anda sendiri.
 
-Panduan Android lengkap, screenshot, dan troubleshooting tersedia melalui komunitas **Buka BMP** di Telegram.
+Edge Canary tetap fallback/testing bila diperlukan. **Chrome Android bukan target instalasi resmi BMP Terbuka.**
 
-## Aktivasi komunitas
+## Manual / supported Chromium
 
-Aktivasi hanya memeriksa keanggotaan komunitas dan tidak meminta password/NIM/cookie portal sumber. Masa aktivasi dapat diperbarui selama syarat komunitas terpenuhi.
+Untuk browser desktop yang didukung tetapi tidak memakai Edge Add-ons:
+
+1. Buka GitHub Releases.
+2. Download asset build bernama seperti BMP-Terbuka-v<VERSION>.zip.
+3. Jangan gunakan GitHub **Source code (zip)** sebagai paket instalasi.
+4. Extract ke folder tetap.
+5. Buka halaman extensions browser dan aktifkan Developer mode.
+6. Load unpacked folder yang berisi manifest.json.
+
+Karena v1.1.0 masih **Unreleased**, jangan menganggap asset stable v1.1.0 sudah tersedia.
 
 ## Update
 
-BMP Terbuka memeriksa kebijakan versi secara berkala. Jika versi yang dipasang sudah tidak didukung, popup akan meminta update sebelum proses atau aktivasi baru dapat dimulai. Proses OCR yang sudah berjalan tidak diputus di tengah hanya karena kebijakan versi berubah.
-
-- Instalasi dari **Edge Add-ons** mengikuti mekanisme update extension milik Edge.
-- Instalasi **GitHub/manual** perlu diperbarui manual menggunakan paket release baru.
-- Update in-place dengan extension ID yang sama mempertahankan storage extension, termasuk token aktivasi, draft, dan cache lokal. Pindah ke instalasi dengan extension ID berbeda dianggap instalasi baru dan storage tidak otomatis ikut pindah.
+- Instalasi Store mengikuti mekanisme update extension milik browser/store.
+- Instalasi manual perlu diperbarui menggunakan package release baru.
+- Update in-place dengan extension identity yang sama biasanya mempertahankan token, draft, dan cache lokal; instalasi dengan identity berbeda diperlakukan sebagai instalasi baru.
