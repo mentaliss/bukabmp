@@ -15,12 +15,12 @@ OCR sudah dibundel di package release.
 Jalur utama adalah **Microsoft Edge Add-ons**.
 
 1. Buka website/download page resmi BMP Terbuka.
-2. Ikuti tautan Microsoft Edge Add-ons yang sudah diverifikasi.
+2. Buka listing BMP Terbuka di Microsoft Edge Add-ons: https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
 3. Pasang extension melalui mekanisme normal Edge.
 4. Buka popup BMP Terbuka dan selesaikan aktivasi komunitas.
 5. Login ke portal reader dengan akun Anda sendiri dan gunakan extension.
 
-Sampai URL listing resmi diverifikasi, dokumentasi tidak boleh mengarang atau menebak listing ID.
+Listing di atas adalah jalur Store yang digunakan saat ini. Versi yang tersedia di Store tidak boleh dianggap sebagai v1.1.0 sampai v1.1.0 benar-benar dirilis.
 
 ## Microsoft Edge — Android
 
