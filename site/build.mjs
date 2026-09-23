@@ -341,6 +341,8 @@ function inject(content) {
 
   const docs = '<a class="button secondary" href="' + sitePath("id/docs") + '">Mulai Menggunakan</a>';
 
+  const download = '<a class="button" href="' + sitePath("id/download") + '">Download</a>';
+
   const zip = GITHUB_ZIP_URL
     ? '<a class="button" href="' + esc(GITHUB_ZIP_URL) + '">GitHub ZIP — current stable v1.1.0</a>'
     : '<span class="button disabled">GitHub ZIP — unavailable</span>';
@@ -348,6 +350,7 @@ function inject(content) {
   return content
     .replaceAll("[[EDGE_CTA]]", edge)
     .replaceAll("[[DOCS_CTA]]", docs)
+    .replaceAll("[[DOWNLOAD_CTA]]", download)
     .replaceAll("[[BUSINESS_CTA]]", business)
     .replaceAll("[[GITHUB_ZIP_CTA]]", zip);
 }
