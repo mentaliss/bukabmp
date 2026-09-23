@@ -35,4 +35,4 @@ Source extension dan website publik tersedia di GitHub. Backend produksi dan ope
 
 ## Status
 
-v1.1.0 masih **Unreleased**. Website ini tidak boleh menyatakan release final sebelum Owner mengotorisasi.
+**v1.1.0** adalah release stabil saat ini.
