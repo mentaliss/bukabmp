@@ -19,7 +19,7 @@ Tidak. BMP Terbuka mempertahankan watermark dari sumber.
 Karena BMP Terbuka tidak dirancang untuk memaksa melewati penolakan server.
 
 ## Di mana download resminya?
-Edge Desktop dan Edge Android akan diarahkan ke Microsoft Edge Add-ons setelah listing resmi terverifikasi. Jalur manual memakai asset ZIP hasil build di GitHub Releases, bukan Source code (zip). v1.1.0 masih **Unreleased**.
+Edge Desktop dan Edge Android menggunakan listing Microsoft Edge Add-ons BMP Terbuka. Jalur manual memakai asset ZIP hasil build di GitHub Releases, bukan Source code (zip). Release stabil saat ini adalah **v1.1.0**.
 
 ## Apa yang open-source?
 Browser extension, public tooling, dokumentasi publik, dan source website publik berada/akan berada di repository ini. Worker produksi, bot/backend, Control Center, private database/deployment material, dan secret tidak dipublikasikan.
