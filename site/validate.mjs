@@ -33,7 +33,7 @@ for (const required of [
   "/bukabmp/assets/styles.css",
   "https://mentaliss.github.io/bukabmp/id/",
   "https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm",
-  "https://t.me/bukabmp?direct"
+  "https://t.me/bukabmp"
 ]) {
   if (!idHome.includes(required)) throw new Error("homepage missing expected value: " + required);
 }
