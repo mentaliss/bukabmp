@@ -1,0 +1,40 @@
+name: One-shot GitHub cleanup
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/cleanup-stale-github.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Delete stale merged branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          for branch in             "docs/help-center-20260924"             "site/ai-corpus-revision-20260924"             "site/ai-docs-corpus-20260924"             "site/docs-toc-landing-20260924"             "site/en-parity-20260924"             "site/home-cta-row-20260924"
+          do
+            if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+              git push origin --delete "$branch"
+            fi
+          done
+
+      - name: Remove obsolete one-shot workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f .github/workflows/release-v110.yml
+          git rm -f .github/workflows/cleanup-stale-github.yml
+          git commit -m "chore: remove completed one-shot workflows"
+          git push origin HEAD:main
