@@ -30,6 +30,16 @@ function clear(container){
     try{node.pause();node.removeAttribute("src");node.load();}catch(_){}
   }
   container.textContent="";
+  container.style.aspectRatio="";
+}
+function applyIntrinsicFrame(container,asset){
+  const width=Number(asset?.width),height=Number(asset?.height);
+  if(Number.isFinite(width)&&Number.isFinite(height)&&width>0&&height>0){
+    container.style.aspectRatio=`${width} / ${height}`;
+    return width/height;
+  }
+  container.style.aspectRatio="";
+  return null;
 }
 async function loadBlob(url,expectedMime){
   const response=await fetch(url,{method:"GET",credentials:"omit",cache:"no-store"});
@@ -50,6 +60,7 @@ function render(container,{apiBase,asset,posterAsset=null,mode,onError=()=>{}}={
   if(!src)return null;
   const wanted=String(mode||"").toLowerCase();
   const mime=String(asset.mime||"").toLowerCase();
+  applyIntrinsicFrame(container,asset);
 
   if((wanted==="banner"||wanted==="image")&&IMAGE_MIME.has(mime)){
     const img=document.createElement("img");
@@ -130,6 +141,6 @@ function render(container,{apiBase,asset,posterAsset=null,mode,onError=()=>{}}={
 }
 
 root.BMP_ADS_MEDIA=Object.freeze({
-  IMAGE_MIME,VIDEO_MIME,safeId,mediaUrl,clear,render
+  IMAGE_MIME,VIDEO_MIME,safeId,mediaUrl,clear,applyIntrinsicFrame,render
 });
 })(typeof self!=="undefined"?self:globalThis);
