@@ -393,7 +393,7 @@ async function cloudState({force = false} = {}) {
 
   try {
     const data = await api(
-      `/v1/extension-state?extension_version=${encodeURIComponent(currentVersion)}&distribution_channel=${encodeURIComponent(channel)}`,
+      `/v1/extension-state?extension_version=${encodeURIComponent(currentVersion)}&distribution_channel=${encodeURIComponent(channel)}&capabilities=${encodeURIComponent("ads_split_v2,clickable_ad_media_v1")}`,
       {method: "GET"}
     );
     const state = CLOUD.sanitizeState(data);
@@ -428,7 +428,8 @@ async function reportAdEvent({
   eventType,
   placement,
   campaignId,
-  revision
+  revision,
+  clickTarget = ""
 } = {}) {
   const type = String(eventType || "").toLowerCase();
   const place = String(placement || "").toLowerCase();
@@ -452,6 +453,9 @@ async function reportAdEvent({
         placement: place,
         campaign_id: id,
         revision: Math.max(0, Math.floor(Number(revision) || 0)),
+        ...(type === "click" && ["media", "cta"].includes(String(clickTarget || "").toLowerCase())
+          ? {click_target: String(clickTarget).toLowerCase()}
+          : {}),
         distribution_channel: distributionChannel(),
         extension_version: currentVersion
       })
@@ -1349,7 +1353,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         eventType: msg.eventType,
         placement: msg.placement,
         campaignId: msg.campaignId,
-        revision: msg.revision
+        revision: msg.revision,
+        clickTarget: msg.clickTarget
       }));
       return;
     }

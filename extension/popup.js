@@ -77,23 +77,27 @@ function houseAdFromState(state){
 
 function campaignAdFromState(state,placement){
   const ads=state?.ads||null;
+  const creative=placement==="card"?ads?.card:ads?.interstitial;
   if(
     !ads?.active||
     !ads.placements?.[placement]||
+    creative?.enabled===false||
     (placement==="interstitial"&&!ads.interstitial?.enabled)
   )return null;
   return {
     campaignId:String(ads.campaignId||""),
     revision:Number(ads.revision||0),
+    provider:String(ads.provider||"direct"),
     sponsorLabel:String(ads.sponsorLabel||"Sponsor"),
     advertiser:String(ads.advertiser||""),
-    headline:String(ads.headline||""),
-    body:String(ads.body||""),
-    disclaimer:String(ads.disclaimer||""),
-    cta:ads.cta||null,
-    mode:placement==="card"?String(ads.card?.mode||"text"):String(ads.interstitial?.mode||"text"),
-    asset:placement==="card"?(ads.card?.asset||null):(ads.interstitial?.asset||null),
-    posterAsset:placement==="interstitial"?(ads.interstitial?.posterAsset||null):null,
+    headline:String(creative?.headline??ads.headline??""),
+    body:String(creative?.body??ads.body??""),
+    disclaimer:String(creative?.disclaimer??ads.disclaimer??""),
+    cta:creative?.cta??ads.cta??null,
+    mediaUrl:String(creative?.mediaUrl||""),
+    mode:String(creative?.mode||"text"),
+    asset:creative?.asset||null,
+    posterAsset:placement==="interstitial"?(creative?.posterAsset||null):null,
     isHouse:false
   };
 }
@@ -110,19 +114,76 @@ async function executeAdCta(ad){
   return true;
 }
 
+async function executeAdMedia(ad){
+  const url=String(ad?.mediaUrl||ad?.cta?.url||"");
+  if(!url)return false;
+  const result=await send("EXECUTE_CLOUD_ACTION",{action:{
+    type:"OPEN_URL",
+    label:String(ad?.headline||ad?.advertiser||"Sponsor"),
+    url
+  }});
+  if(!result?.ok)throw new Error(result?.error||"Tautan sponsor tidak dapat dibuka.");
+  return true;
+}
+
 function reportTelemetry(event,dimensions={}){
   send("REPORT_TELEMETRY",{event,dimensions}).catch(()=>{});
 }
 
-function reportAdEvent(eventType,ad,placement){
+function reportAdEvent(eventType,ad,placement,clickTarget=""){
   if(!ad?.campaignId)return;
   send("REPORT_AD_EVENT",{
     eventType,
     placement,
     campaignId:ad.campaignId,
-    revision:Number(ad.revision||0)
+    revision:Number(ad.revision||0),
+    clickTarget
   }).catch(()=>{});
-  reportTelemetry("ad_"+eventType,{campaign_id:ad.campaignId,placement,revision:Number(ad.revision||0),paid_direct:true});
+  reportTelemetry("ad_"+eventType,{
+    campaign_id:ad.campaignId,
+    placement,
+    revision:Number(ad.revision||0),
+    paid_direct:true,
+    ...(clickTarget?{click_target:clickTarget}:{}),
+    provider:String(ad.provider||"direct")
+  });
+}
+
+function bindMediaActivation(host,ad,placement){
+  if(!host)return;
+  const url=String(ad?.mediaUrl||ad?.cta?.url||"");
+  host.classList.remove("clickableAdMedia");
+  host.removeAttribute("role");
+  host.removeAttribute("tabindex");
+  host.removeAttribute("aria-label");
+  host.onclick=null;
+  host.onkeydown=null;
+  if(!url)return;
+
+  host.classList.add("clickableAdMedia");
+  host.setAttribute("role","link");
+  host.setAttribute("tabindex","0");
+  host.setAttribute("aria-label","Buka tautan sponsor");
+  let busy=false;
+  const activate=async()=>{
+    if(busy)return;
+    busy=true;
+    try{
+      await executeAdMedia(ad);
+      if(!ad?.isHouse)reportAdEvent("click",ad,placement,"media");
+      if(placement==="interstitial")hideAdInterstitial({report:false});
+    }catch(_){
+      // Media click failures stay non-blocking; the BMP job is never coupled to ads.
+    }finally{
+      busy=false;
+    }
+  };
+  host.onclick=()=>{void activate()};
+  host.onkeydown=event=>{
+    if(event.key!=="Enter"&&event.key!==" ")return;
+    event.preventDefault();
+    void activate();
+  };
 }
 
 function reportVisibleCardImpression(){
@@ -167,8 +228,10 @@ function showAdInterstitial(ad){
   mediaHost.style.display="none";
   if(!creative.isHouse&&creative.mode!=="text"){
     const rendered=ADS_MEDIA?.render?.(mediaHost,{apiBase:self.BMP_CONFIG?.API_BASE_URL,mode:creative.mode,asset:creative.asset,posterAsset:creative.posterAsset,onError:reason=>{ADS_MEDIA?.clear?.(mediaHost);mediaHost.style.display="none";reportTelemetry("media_render_failed",{campaign_id:creative.campaignId,placement:"interstitial",revision:Number(creative.revision||0),paid_direct:true,reason})}});
-    if(rendered)mediaHost.style.display="flex";
-    else reportTelemetry("media_render_failed",{campaign_id:creative.campaignId,placement:"interstitial",revision:Number(creative.revision||0),paid_direct:true,reason:creative.mode==="video"?"video_load_failed":"image_load_failed"});
+    if(rendered){
+      mediaHost.style.display="flex";
+      bindMediaActivation(mediaHost,creative,"interstitial");
+    }else reportTelemetry("media_render_failed",{campaign_id:creative.campaignId,placement:"interstitial",revision:Number(creative.revision||0),paid_direct:true,reason:creative.mode==="video"?"video_load_failed":"image_load_failed"});
   }
   el("adInterstitialDisclaimer").textContent=creative.disclaimer||"";
   el("adInterstitialDisclaimer").style.display=creative.disclaimer?"block":"none";
@@ -308,7 +371,9 @@ function renderCloudSurface(state){
       media.className="sponsorMedia sponsorMediaBanner";
       card.append(media);
       const rendered=ADS_MEDIA?.render?.(media,{apiBase:self.BMP_CONFIG?.API_BASE_URL,mode:"banner",asset:cardAd.asset,onError:reason=>{media.remove();reportTelemetry("media_render_failed",{campaign_id:cardAd.campaignId,placement:"card",revision:Number(cardAd.revision||0),paid_direct:true,reason})}});
-      if(!rendered){
+      if(rendered){
+        bindMediaActivation(media,cardAd,"card");
+      }else{
         media.remove();
         reportTelemetry("media_render_failed",{campaign_id:cardAd.campaignId,placement:"card",revision:Number(cardAd.revision||0),paid_direct:true,reason:"image_load_failed"});
       }
@@ -340,7 +405,7 @@ function renderCloudSurface(state){
         button.disabled=true;
         try{
           await executeAdCta(cardAd);
-          reportAdEvent("click",cardAd,"card");
+          reportAdEvent("click",cardAd,"card","cta");
         }catch(e){
           button.textContent=String(e?.message||e).slice(0,80);
         }finally{
@@ -1141,7 +1206,7 @@ el("adInterstitialCta").addEventListener("click",async()=>{
   button.disabled=true;
   try{
     await executeAdCta(ad);
-    if(!ad.isHouse)reportAdEvent("click",ad,"interstitial");
+    if(!ad.isHouse)reportAdEvent("click",ad,"interstitial","cta");
     hideAdInterstitial({report:false});
   }catch(e){
     button.textContent=String(e?.message||e).slice(0,80);
