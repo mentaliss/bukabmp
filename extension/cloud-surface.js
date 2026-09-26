@@ -15,6 +15,7 @@
     "supporter",
     "sponsor"
   ]);
+  const AD_PROVIDERS = new Set(["direct","affiliate","house","network"]);
 
   function text(value,max){
     return String(value ?? "").replace(/[\u0000-\u001F\u007F]/g," ").trim().slice(0,max);
@@ -52,6 +53,7 @@
         campaignId:"",
         revision:0,
         creativeVersion:1,
+        provider:"direct",
         sponsorLabel:"Sponsor",
         advertiser:"",
         headline:"",
@@ -59,12 +61,22 @@
         disclaimer:"",
         imageUrl:"",
         cta:null,
-        card:{mode:"text",asset:null},
+        card:{
+          enabled:false,
+          mode:"text",
+          headline:"",
+          body:"",
+          disclaimer:"",
+          asset:null,
+          mediaUrl:"",
+          cta:null
+        },
         network:{adsonbread:false},
         house:{
           sponsorLabel:"Sponsor",
           headline:"Space iklan tersedia",
           body:"",
+          disclaimer:"",
           cta:{label:"Pasang iklan? Hubungi",url:"https://t.me/bukabmp?direct"}
         },
         startsAt:null,
@@ -74,11 +86,18 @@
           enabled:false,
           trigger:"job_started",
           mode:"text",
+          headline:"",
+          body:"",
+          disclaimer:"",
           asset:null,
           posterAsset:null,
+          mediaUrl:"",
+          cta:null,
           delayMinMs:2000,
           delayMaxMs:5000
-        }
+        },
+        legacy:{cardWeight:50,stickyDays:1},
+        legacyProjection:null
       },
       features:{supporterCard:false,communityBanner:false}
     };
@@ -145,6 +164,10 @@
     };
   }
 
+  function own(raw,key){
+    return raw&&Object.prototype.hasOwnProperty.call(raw,key);
+  }
+
   function sanitizeAds(raw){
     const fallback=defaultState().ads;
     if(!raw||typeof raw!=="object")return fallback;
@@ -163,23 +186,24 @@
     const placementsRaw=raw.placements&&typeof raw.placements==="object"
       ?raw.placements
       :{};
+    const cardRaw=raw.card&&typeof raw.card==="object"?raw.card:{};
     const interstitialRaw=raw.interstitial&&typeof raw.interstitial==="object"
       ?raw.interstitial
       :{};
-    const delayMinMs=boundedInt(interstitialRaw.delay_min_ms,2000,2000,5000);
-    const delayMaxMs=boundedInt(interstitialRaw.delay_max_ms,5000,delayMinMs,5000);
 
-    const houseRaw=raw.house&&typeof raw.house==="object"?raw.house:{};
-    const defaultHouse=fallback.house;
-    const house={
-      sponsorLabel:text(houseRaw.sponsor_label,32)||defaultHouse.sponsorLabel,
-      headline:text(houseRaw.headline,120)||defaultHouse.headline,
-      body:text(houseRaw.body,420),
-      cta:sanitizeAdCta(houseRaw.cta)||defaultHouse.cta
-    };
+    const legacyHeadline=text(raw.headline,120);
+    const legacyBody=text(raw.body,700);
+    const legacyDisclaimer=text(raw.disclaimer,220);
+    const legacyImageUrl=httpsUrl(raw.image_url);
+    const legacyCta=sanitizeAdCta(raw.cta);
 
-    const creativeVersion=Number(raw.creative_version)===2?2:1;
-    const cardRaw=raw.card&&typeof raw.card==="object"?raw.card:{};
+    const cardConfigured=typeof cardRaw.enabled==="boolean"
+      ?cardRaw.enabled
+      :placementsRaw.card===true;
+    const interstitialConfigured=typeof interstitialRaw.enabled==="boolean"
+      ?interstitialRaw.enabled
+      :placementsRaw.interstitial===true;
+
     const cardMode=text(cardRaw.mode,16).toLowerCase()==="banner"?"banner":"text";
     const cardAsset=cardMode==="banner"?sanitizeMediaAsset(cardRaw.asset,"image"):null;
     const interstitialModeRaw=text(interstitialRaw.mode,16).toLowerCase();
@@ -190,55 +214,99 @@
     const posterAsset=interstitialMode==="video"
       ?sanitizeMediaAsset(interstitialRaw.poster_asset,"image")
       :null;
-    const networkRaw=raw.network&&typeof raw.network==="object"?raw.network:{};
 
-    const enabled=raw.enabled===true;
-    const headline=text(raw.headline,120);
-    const body=text(raw.body,700);
-    const imageUrl=httpsUrl(raw.image_url);
-    // Legacy image_url remains sanitized for schema compatibility, but v1.1.0
-    // media rendering uses only first-party content-hash assets.
-    const hasCreative=Boolean(headline||body);
-    const active=Boolean(
-      raw.active===true&&
-      enabled&&
-      campaignId&&
-      hasCreative&&
-      inWindow
+    const cardHeadline=own(cardRaw,"headline")?text(cardRaw.headline,120):legacyHeadline;
+    const cardBody=own(cardRaw,"body")?text(cardRaw.body,700):legacyBody;
+    const interstitialHeadline=own(interstitialRaw,"headline")?text(interstitialRaw.headline,120):legacyHeadline;
+    const interstitialBody=own(interstitialRaw,"body")?text(interstitialRaw.body,700):legacyBody;
+    const hasCreative=Boolean(
+      (cardConfigured&&(cardHeadline||cardBody||cardAsset))||
+      (interstitialConfigured&&(interstitialHeadline||interstitialBody||interstitialAsset))
     );
+    const enabled=raw.enabled===true;
+    const active=Boolean(raw.active===true&&enabled&&campaignId&&hasCreative&&inWindow);
     const placements={
-      card:active&&placementsRaw.card===true,
-      interstitial:active&&placementsRaw.interstitial===true
+      card:active&&cardConfigured,
+      interstitial:active&&interstitialConfigured
     };
+    const delayMinMs=boundedInt(interstitialRaw.delay_min_ms,2000,2000,5000);
+    const delayMaxMs=boundedInt(interstitialRaw.delay_max_ms,5000,delayMinMs,5000);
+
+    const houseRaw=raw.house&&typeof raw.house==="object"?raw.house:{};
+    const defaultHouse=fallback.house;
+    const house={
+      sponsorLabel:text(houseRaw.sponsor_label,32)||defaultHouse.sponsorLabel,
+      headline:text(houseRaw.headline,120)||defaultHouse.headline,
+      body:text(houseRaw.body,420),
+      disclaimer:text(houseRaw.disclaimer,220),
+      cta:sanitizeAdCta(houseRaw.cta)||defaultHouse.cta
+    };
+
+    const providerRaw=text(raw.provider,24).toLowerCase();
+    const provider=AD_PROVIDERS.has(providerRaw)&&providerRaw!=="house"?providerRaw:"direct";
+    const networkRaw=raw.network&&typeof raw.network==="object"?raw.network:{};
+    const legacyRaw=raw.legacy&&typeof raw.legacy==="object"?raw.legacy:{};
+    const projectionRaw=raw.legacy_projection&&typeof raw.legacy_projection==="object"
+      ?raw.legacy_projection
+      :null;
 
     return {
       enabled,
       active,
       campaignId,
       revision:boundedInt(raw.revision,0,0,2147483647),
-      creativeVersion,
+      creativeVersion:boundedInt(raw.creative_version,1,1,3),
+      provider,
       sponsorLabel:text(raw.sponsor_label,32)||"Sponsor",
       advertiser:text(raw.advertiser,96),
-      headline,
-      body,
-      disclaimer:text(raw.disclaimer,220),
-      imageUrl,
-      cta:sanitizeAdCta(raw.cta),
-      card:{mode:cardMode,asset:cardAsset},
+      // Shared fields remain for legacy compatibility only.
+      headline:legacyHeadline,
+      body:legacyBody,
+      disclaimer:legacyDisclaimer,
+      imageUrl:legacyImageUrl,
+      cta:legacyCta,
+      card:{
+        enabled:placements.card,
+        mode:cardMode,
+        headline:cardHeadline,
+        body:cardBody,
+        disclaimer:own(cardRaw,"disclaimer")?text(cardRaw.disclaimer,220):legacyDisclaimer,
+        asset:cardAsset,
+        mediaUrl:own(cardRaw,"media_url")?httpsUrl(cardRaw.media_url):legacyImageUrl,
+        cta:own(cardRaw,"cta")?sanitizeAdCta(cardRaw.cta):legacyCta
+      },
       network:{adsonbread:networkRaw.adsonbread===true},
       house,
       startsAt,
       endsAt,
       placements,
       interstitial:{
-        enabled:active&&placements.interstitial&&interstitialRaw.enabled===true,
+        enabled:placements.interstitial,
         trigger:"job_started",
         mode:interstitialMode,
+        headline:interstitialHeadline,
+        body:interstitialBody,
+        disclaimer:own(interstitialRaw,"disclaimer")?text(interstitialRaw.disclaimer,220):legacyDisclaimer,
         asset:interstitialAsset,
         posterAsset,
+        mediaUrl:own(interstitialRaw,"media_url")?httpsUrl(interstitialRaw.media_url):legacyImageUrl,
+        cta:own(interstitialRaw,"cta")?sanitizeAdCta(interstitialRaw.cta):legacyCta,
         delayMinMs,
         delayMaxMs
-      }
+      },
+      legacy:{
+        cardWeight:boundedInt(legacyRaw.card_weight,50,0,100),
+        stickyDays:boundedInt(legacyRaw.sticky_days,1,1,30)
+      },
+      legacyProjection:projectionRaw?{
+        paidPlacement:["card","interstitial"].includes(text(projectionRaw.paid_placement,24).toLowerCase())
+          ?text(projectionRaw.paid_placement,24).toLowerCase()
+          :null,
+        otherSurface:text(projectionRaw.other_surface,32),
+        bucket:boundedInt(projectionRaw.bucket,0,0,99),
+        cardWeight:boundedInt(projectionRaw.card_weight,50,0,100),
+        stickyDays:boundedInt(projectionRaw.sticky_days,7,1,30)
+      }:null
     };
   }
 
@@ -259,7 +327,6 @@
       }
     }
 
-    // Backward-compatible translation for the original blueprint fields.
     if(sections.length<8&&raw.notice?.visible===true){
       const section=sanitizeSection({
         id:text(raw.notice.id,48)||"notice",
