@@ -1,0 +1,91 @@
+name: Validate v1.2.0 Public Release
+
+on:
+  push:
+    branches: ["release-v1.2.0"]
+    paths:
+      - ".github/workflows/v120-public-release-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      BMP_API_BASE_URL: https://community.bukabmp.workers.dev
+      BMP_TELEGRAM_CHANNEL_URL: https://t.me/bukabmp
+      BMP_TELEGRAM_GROUP_URL: https://t.me/+0pAg9ymEhWdkZmNl
+      SOURCE_DATE_EPOCH: "1790926581"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate source
+        run: npm run validate
+
+      - name: Build Chrome payload
+        run: npm run build:release
+
+      - name: Validate Chrome package
+        run: npm run validate:github
+
+      - name: Verify frozen 38-file payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist/BMP-Terbuka-v1.2.0
+          test "$(find . -type f | wc -l)" -eq 38
+          sha256sum -c ../../release/v1.2.0-frozen-payload.sha256
+
+      - name: Build Chrome public ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib,zipfile
+          root=pathlib.Path("dist/BMP-Terbuka-v1.2.0")
+          out=pathlib.Path("dist/BMP-Terbuka-v1.2.0.zip")
+          with zipfile.ZipFile(out,"w",compression=zipfile.ZIP_DEFLATED,compresslevel=9) as z:
+              for p in sorted(root.rglob("*")):
+                  if p.is_file():
+                      z.write(p,(pathlib.Path(root.name)/p.relative_to(root)).as_posix(),compress_type=zipfile.ZIP_DEFLATED,compresslevel=9)
+          with zipfile.ZipFile(out) as z:
+              assert all(i.is_dir() or i.compress_type==zipfile.ZIP_DEFLATED for i in z.infolist())
+          PY
+          sha256sum dist/BMP-Terbuka-v1.2.0.zip | tee dist/BMP-Terbuka-v1.2.0.zip.sha256
+
+      - name: Build Edge Add-ons package
+        run: npm run build:edge
+
+      - name: Validate Edge Add-ons package
+        run: npm run validate:edge
+
+      - name: Package Edge Add-ons ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib,zipfile
+          root=pathlib.Path("dist/edge/BMP-Terbuka-v1.2.0")
+          out=pathlib.Path("dist/BMP-Terbuka-v1.2.0-EDGE.zip")
+          with zipfile.ZipFile(out,"w",compression=zipfile.ZIP_DEFLATED,compresslevel=9) as z:
+              for p in sorted(root.rglob("*")):
+                  if p.is_file():
+                      z.write(p,p.relative_to(root).as_posix(),compress_type=zipfile.ZIP_DEFLATED,compresslevel=9)
+          with zipfile.ZipFile(out) as z:
+              assert all(i.is_dir() or i.compress_type==zipfile.ZIP_DEFLATED for i in z.infolist())
+          PY
+          sha256sum dist/BMP-Terbuka-v1.2.0-EDGE.zip | tee dist/BMP-Terbuka-v1.2.0-EDGE.zip.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BMP-Terbuka-v1.2.0-public-release-candidates
+          path: |
+            dist/BMP-Terbuka-v1.2.0.zip
+            dist/BMP-Terbuka-v1.2.0.zip.sha256
+            dist/BMP-Terbuka-v1.2.0-EDGE.zip
+            dist/BMP-Terbuka-v1.2.0-EDGE.zip.sha256
+          retention-days: 30
