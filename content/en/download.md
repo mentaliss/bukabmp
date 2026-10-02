@@ -1,45 +1,41 @@
 # Download BMP Terbuka
 
-This page contains the **official download paths**. For installation from start to finish, open [Installation & Updates](docs/install).
-
-## Microsoft Edge — Desktop
-
-The primary path is Microsoft Edge Add-ons.
-
-[[EDGE_CTA]]
-
-After installation, continue to [Activation & Verification](docs/activation).
-
-## Microsoft Edge — Android
-
-The primary path is **Microsoft Edge Stable + Microsoft Edge Add-ons**.
-
-[[EDGE_CTA]]
-
-Edge Canary is fallback/testing only, not the default path.
+This is the **canonical BMP Terbuka download and update page**.
 
 ## Google Chrome — Desktop
 
-**Chrome Web Store is not an active BMP Terbuka installation path yet.**
-
-Chrome desktop users currently use the manual package from GitHub Releases.
+Latest version: **v1.2.0**
 
 [[GITHUB_ZIP_CTA]]
 
-Download the built extension asset, for example `BMP-Terbuka-v1.1.0.zip`.
+Use the official asset:
+
+`BMP-Terbuka-v1.2.0.zip`
 
 Do not use GitHub's automatically generated **Source code (zip)** or **Source code (tar.gz)** as the extension package.
 
-Developer mode + Load unpacked instructions are in [Installation & Updates](docs/install).
+For a manual update, extract the new package into the folder you manage and use **Reload** from `chrome://extensions`. Do not uninstall or clear local storage just to perform a normal update.
 
-## Version and Distribution Status
+See [Installation & Updates](docs/install).
 
-The current stable release is **v1.1.0**.
+## Microsoft Edge — Desktop
 
-Store availability can change without changing this page. Use [Status & Version](status) as the authority for Edge Add-ons, Chrome Web Store, GitHub/manual availability, and browser compatibility.
+The official path remains Microsoft Edge Add-ons.
 
-## Tutorials
+[[EDGE_CTA]]
 
-The latest written guide is available in [BMP Terbuka Guides](docs).
+Store availability follows Microsoft's review/propagation process. Check [Status & Version](status) before treating v1.2.0 as live in the Store.
 
-The currently available Android/Desktop videos are still labeled v1.0.4 and are kept as references for the older flow. Video links are listed in [Installation & Updates](docs/install).
+## Microsoft Edge — Android
+
+Use **Microsoft Edge Stable + Microsoft Edge Add-ons**.
+
+[[EDGE_CTA]]
+
+Edge Canary is fallback/testing only.
+
+In v1.2.0, Android Restore uses a dedicated BMP Terbuka restore tab. See [Installation & Updates](docs/install) and [PDF, Backup, Restore & Storage](docs/files).
+
+## Edge v1.2.0 note
+
+When this page was prepared, the verified Edge Add-ons package was still **1.1.0.1**. Do not install diagnostic/audit CRX packages as a shortcut. Wait for the legitimate Store update.
