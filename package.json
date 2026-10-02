@@ -1,7 +1,7 @@
 {
   "name": "bukabmp-extension",
   "private": true,
-  "version": "1.1.0-1",
+  "version": "1.2.0",
   "description": "Open-source browser extension, public website, and release tooling for BMP Terbuka.",
   "scripts": {
     "validate": "node tools/validate.mjs",
@@ -14,8 +14,14 @@
     "validate:github": "node tools/validate-cws.mjs --channel=github",
     "validate:edge": "node tools/validate-cws.mjs --channel=edge",
     "validate:android": "node tools/validate-cws.mjs --channel=android",
+    "package:github": "node tools/package-extension.mjs --channel=github",
+    "package:android": "node tools/package-extension.mjs --channel=android",
+    "package:cws": "node tools/package-extension.mjs --channel=cws",
+    "package:edge": "node tools/package-extension.mjs --channel=edge",
     "build:site": "node site/build.mjs",
     "validate:site": "node site/validate.mjs"
   },
-  "engines": {"node": ">=20"}
+  "engines": {
+    "node": ">=20"
+  }
 }

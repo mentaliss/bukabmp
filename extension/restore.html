@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>BMP Terbuka — Pulihkan Backup</title>
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#fff;color:#161616}
+    main{max-width:640px;margin:0 auto;padding:24px 20px 36px}
+    h1{font-size:22px;margin:0}.sub{font-size:13px;color:#666;margin-top:5px}
+    .card{margin-top:18px;padding:16px;border:1px solid #ddd;border-radius:12px;background:#fafafa}
+    label{display:block;font-size:13px;font-weight:700}
+    input[type=file]{display:block;width:100%;margin-top:8px;padding:11px;border:1px solid #bbb;border-radius:8px;background:#fff;font:inherit}
+    .status{margin-top:14px;padding:10px 11px;border:1px solid #e0e0e0;border-radius:9px;background:#fff;white-space:pre-wrap;font-size:13px;line-height:1.5}.state-waiting{background:#fff9ed;border-color:#eadbb8}.state-success{background:#f4f8f3;border-color:#d6e2d5}.state-warning{background:#fff8e8;border-color:#ead3a5}.state-error{background:#fcf3f4;border-color:#ead7da}.state-info{background:#f4f7f9;border-color:#d8e0e5}
+    .warning{display:none;margin-top:12px;padding:11px;border:1px solid #ead3a5;border-radius:9px;background:#fff8e8;font-size:12px;line-height:1.45}
+    .actions{display:flex;gap:9px;margin-top:14px}
+    button{flex:1;padding:10px 12px;border:1px solid #c7c7c7;border-radius:8px;background:#fff;font:inherit;font-weight:700}
+    button:disabled,input:disabled{opacity:.5}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>BMP Terbuka</h1>
+    <div class="sub">Pulihkan Backup</div>
+    <div class="card">
+      <label for="restoreFile">Pilih file backup</label>
+      <input id="restoreFile" type="file" accept=".json,.gz,.jsonl.gz,application/json,application/gzip" disabled>
+      <div id="runningWarning" class="warning">Jangan tutup tab ini selama proses berlangsung.
+Menutup tab akan menghentikan proses.</div>
+      <div id="status" class="status">Pilih file backup BMP Terbuka untuk memulai restore.</div>
+      <div class="actions">
+        <button id="cancel" type="button" disabled>Batal</button>
+        <button id="close" type="button">Tutup</button>
+      </div>
+    </div>
+  </main>
+  <script src="local-backup.js"></script>
+  <script src="restore-engine.js"></script>
+  <script src="restore-session.js"></script>
+  <script src="restore.js"></script>
+</body>
+</html>

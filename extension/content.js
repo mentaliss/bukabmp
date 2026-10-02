@@ -3,6 +3,8 @@
   window.__BMP_TERBUKA__ = true;
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const PAGE_FETCH_MAX_ATTEMPTS = 3;
+  const PAGE_FETCH_RETRY_BASE_MS = 750;
 
   function passwordVisible() {
     const elems = [...document.querySelectorAll('input[type="password"]')];
@@ -163,7 +165,7 @@
         cache: "no-store"
       });
     } catch (e) {
-      return {kind: "network_error", reason: String(e)};
+      return {kind: "network_error", retryable: true, reason: String(e)};
     }
 
     const contentType = (resp.headers.get("content-type") || "").toLowerCase();
@@ -184,9 +186,19 @@
       };
     }
 
-    if (resp.status >= 500 || (resp.status >= 400 && resp.status !== 404)) {
+    if (resp.status >= 500 || resp.status === 408 || resp.status === 425) {
       return {
         kind: "network_error",
+        retryable: true,
+        status: resp.status,
+        reason: `HTTP ${resp.status}`
+      };
+    }
+
+    if (resp.status >= 400 && resp.status !== 404) {
+      return {
+        kind: "network_error",
+        retryable: false,
         status: resp.status,
         reason: `HTTP ${resp.status}`
       };
@@ -254,6 +266,25 @@
     };
   }
 
+  async function fetchPageWithRetry(code, moduleNo, pageNo, shouldContinue = () => true) {
+    let last = null;
+    for (let attempt = 1; attempt <= PAGE_FETCH_MAX_ATTEMPTS; attempt++) {
+      last = await fetchPage(code, moduleNo, pageNo);
+      if (last.kind !== "network_error" || last.retryable === false) {
+        return last;
+      }
+      if (attempt >= PAGE_FETCH_MAX_ATTEMPTS || !shouldContinue()) {
+        return {
+          ...last,
+          attempts: attempt,
+          reason: `${last.reason || "Gangguan jaringan"} setelah ${attempt} percobaan`
+        };
+      }
+      await sleep(PAGE_FETCH_RETRY_BASE_MS * attempt);
+    }
+    return last;
+  }
+
   let activeRunId = "";
 
   async function runModule(cfg) {
@@ -298,7 +329,7 @@
         totalPages
       });
 
-      const r = await fetchPage(code, module, page);
+      const r = await fetchPageWithRetry(code, module, page, stillActive);
       if (!stillActive()) return;
 
       if (r.kind === "blocked") {
@@ -370,7 +401,7 @@
         // enough to declare end-of-module: a single missing page in the middle
         // would silently produce a truncated PDF. Confirm the sentinel with the
         // following page. Known page-count modules never need this extra probe.
-        const nextProbe = await fetchPage(code, module, page + 1);
+        const nextProbe = await fetchPageWithRetry(code, module, page + 1, stillActive);
         if (!stillActive()) return;
 
         if (nextProbe.kind === "blocked") {

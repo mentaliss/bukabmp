@@ -1,0 +1,49 @@
+name: Finalize v1.2.0 Tag
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "release/v1.2.0-release-trigger.txt"
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    env:
+      BMP_API_BASE_URL: https://community.bukabmp.workers.dev
+      BMP_TELEGRAM_CHANNEL_URL: https://t.me/bukabmp
+      BMP_TELEGRAM_GROUP_URL: https://t.me/+0pAg9ymEhWdkZmNl
+      SOURCE_DATE_EPOCH: "1790926581"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Final frozen-payload gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run validate
+          npm run build:release
+          npm run validate:github
+          cd dist/BMP-Terbuka-v1.2.0
+          sha256sum -c ../../release/v1.2.0-frozen-payload.sha256
+      - name: Create v1.2.0 tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --tags origin refs/tags/v1.2.0 >/dev/null 2>&1; then
+            echo "v1.2.0 already exists"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a v1.2.0 -m "BMP Terbuka v1.2.0"
+          git push origin v1.2.0

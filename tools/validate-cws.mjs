@@ -3,9 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import crypto from "node:crypto";
+import {execFileSync} from "node:child_process";
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
-const sourceManifest=JSON.parse(fs.readFileSync(path.join(ROOT,"extension","manifest.json"),"utf8"));
+const EXT_SRC=path.join(ROOT,"extension");
+const sourceManifest=JSON.parse(fs.readFileSync(path.join(EXT_SRC,"manifest.json"),"utf8"));
+const packageBaseline=JSON.parse(fs.readFileSync(path.join(ROOT,"tools","extension-package-baseline.json"),"utf8"));
 const channelArg=process.argv.find(x=>x.startsWith("--channel="));
 const channel=String(channelArg?channelArg.slice("--channel=".length):"cws").toLowerCase();
 const allowedChannels=new Set(["github","cws","edge","android"]);
@@ -28,6 +31,8 @@ function mustFile(rel){
 if(!fs.existsSync(packageDir))fail(`Package build not found: ${packageDir}`);
 const manifest=JSON.parse(fs.readFileSync(mustFile("manifest.json"),"utf8"));
 if(manifest.manifest_version!==3)fail("Manifest must use Manifest V3.");
+if(String(manifest.version||"")!==String(sourceManifest.version||""))fail("Package manifest version changed from audited source.");
+if(String(manifest.version_name||"")!==String(sourceManifest.version_name||""))fail("Package manifest version_name changed from audited source.");
 if(manifest.update_url)fail("Store/manual package must not set update_url.");
 if(manifest.default_locale!=="id")fail('Manifest default_locale must be "id".');
 if(manifest.name!=="__MSG_extensionName__"||manifest.description!=="__MSG_extensionDescription__"){
@@ -57,8 +62,46 @@ if(JSON.stringify(actualHosts)!==JSON.stringify([...expectedHosts].sort())){
   fail(`Unexpected host permissions: ${actualHosts.join(", ")}`);
 }
 
-if(fs.existsSync(path.join(packageDir,"config.template.js")))fail("config.template.js must not ship.");
-if(fs.existsSync(path.join(packageDir,"vendor","adsonbread-test-sdk.js")))fail("Development AdsOnBread mock must not ship.");
+for(const rel of packageBaseline.required_files||[])mustFile(rel);
+for(const rel of packageBaseline.forbidden_files||[]){
+  if(fs.existsSync(path.join(packageDir,rel)))fail(`Forbidden package file: ${rel}`);
+}
+
+function collectFiles(dir,rel="",out=[]){
+  for(const ent of fs.readdirSync(dir,{withFileTypes:true})){
+    const abs=path.join(dir,ent.name);
+    const next=path.join(rel,ent.name).replaceAll("\\","/");
+    if(ent.isDirectory())collectFiles(abs,next,out);
+    else if(ent.isFile())out.push(next);
+  }
+  return out;
+}
+
+// Every first-party source runtime file must survive packaging. Vendor is
+// validated separately because the build intentionally replaces/fetches it.
+const sourceRuntimeFiles=collectFiles(EXT_SRC).filter(rel=>
+  rel!=="config.template.js" &&
+  !rel.startsWith("vendor/")
+);
+for(const rel of sourceRuntimeFiles)mustFile(rel);
+
+const manifestRefs=new Set();
+if(manifest?.background?.service_worker)manifestRefs.add(manifest.background.service_worker);
+if(manifest?.action?.default_popup)manifestRefs.add(manifest.action.default_popup);
+if(manifest?.options_page)manifestRefs.add(manifest.options_page);
+if(manifest?.options_ui?.page)manifestRefs.add(manifest.options_ui.page);
+if(manifest?.side_panel?.default_path)manifestRefs.add(manifest.side_panel.default_path);
+for(const rel of Object.values(manifest?.icons||{}))manifestRefs.add(rel);
+for(const script of manifest?.content_scripts||[]){
+  for(const rel of script?.js||[])manifestRefs.add(rel);
+  for(const rel of script?.css||[])manifestRefs.add(rel);
+}
+for(const item of manifest?.web_accessible_resources||[]){
+  for(const rel of item?.resources||[]){
+    if(!String(rel).includes("*"))manifestRefs.add(rel);
+  }
+}
+for(const rel of manifestRefs)mustFile(rel);
 const config=fs.readFileSync(mustFile("config.js"),"utf8");
 const channelPattern=new RegExp(`DISTRIBUTION_CHANNEL:\\s*["']${channel}["']`);
 if(!channelPattern.test(config))fail(`Config must set DISTRIBUTION_CHANNEL to "${channel}".`);
@@ -69,7 +112,9 @@ const tessdataRel=channel==="edge"
   : "vendor/lang/ind.traineddata.gz";
 
 for(const rel of [
-  "background.js","cloud-surface.js","telemetry.js","ads-media.js","ad-network.js","content.js","popup.js","offscreen.js",
+  "background.js","cache-consistency.js","cloud-surface.js","telemetry.js",
+  "ads-media.js","ad-network.js","local-backup.js","quiz-local.js","content.js","popup.js","offscreen.js",
+  "popup.html","offscreen.html","about.html",
   "vendor/tesseract.min.js","vendor/worker.min.js","vendor/pdf-lib.min.js",
   "vendor/core/tesseract-core.wasm.js",
   "vendor/core/tesseract-core-simd.wasm.js",
@@ -100,7 +145,7 @@ if(channel==="edge"){
   if(!edgeOffscreen.includes("gzip: false"))fail("Edge Tesseract loader must use gzip:false.");
 }
 
-for(const rel of ["background.js","cloud-surface.js","telemetry.js","ads-media.js","ad-network.js","content.js","popup.js","offscreen.js"]){
+for(const rel of ["background.js","cloud-surface.js","telemetry.js","ads-media.js","ad-network.js","local-backup.js","content.js","popup.js","offscreen.js"]){
   const code=fs.readFileSync(mustFile(rel),"utf8");
   if(/\beval\s*\(/.test(code))fail(`eval() found in ${rel}`);
   if(/\bnew\s+Function\s*\(/.test(code))fail(`new Function() found in ${rel}`);
@@ -136,6 +181,20 @@ for(const rel of shippedJs){
 for(const rel of ["popup.html","offscreen.html","about.html"]){
   const html=fs.readFileSync(mustFile(rel),"utf8");
   if(/<script[^>]+src\s*=\s*["']https?:\/\//i.test(html))fail(`Remote script tag found in ${rel}`);
+  for(const match of html.matchAll(/<script[^>]+src\s*=\s*["']([^"']+)["']/gi)){
+    const src=String(match[1]||"").trim();
+    if(!src||/^(?:https?:|data:|blob:)/i.test(src))continue;
+    mustFile(src.replace(/^\.\//,""));
+  }
+}
+
+// Parse every shipped JavaScript file with the same Node major used by CI.
+for(const rel of shippedJs){
+  try{
+    execFileSync(process.execPath,["--check",mustFile(rel)],{stdio:"pipe"});
+  }catch(error){
+    fail(`JavaScript syntax check failed: ${rel}\n${String(error?.stderr||error?.message||error)}`);
+  }
 }
 
 const vendorManifest=JSON.parse(fs.readFileSync(mustFile("VENDOR_MANIFEST.json"),"utf8"));

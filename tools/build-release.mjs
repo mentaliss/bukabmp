@@ -16,6 +16,10 @@ const channel = String(
 ).toLowerCase();
 const allowedChannels = new Set(["github", "cws", "edge", "android"]);
 const storeChannels = new Set(["cws", "edge"]);
+const sourceDateEpoch=Number(process.env.SOURCE_DATE_EPOCH||0);
+const buildGeneratedAt=Number.isFinite(sourceDateEpoch)&&sourceDateEpoch>0
+  ? new Date(sourceDateEpoch*1000).toISOString()
+  : new Date().toISOString();
 if (!allowedChannels.has(channel)) throw new Error(`Unknown distribution channel: ${channel}`);
 
 const TESSDATA_FAST_COMMIT = "87416418657359cb625c412a48b6e1d6d41c29bd";
@@ -192,7 +196,7 @@ walk(path.join(out,"vendor"));
 fs.writeFileSync(
   path.join(out,"VENDOR_MANIFEST.json"),
   JSON.stringify({
-    generated_at:new Date().toISOString(),
+    generated_at:buildGeneratedAt,
     distribution_channel:channel,
     tesseract_js:"6.0.1",
     tesseract_js_core:"6.0.0",

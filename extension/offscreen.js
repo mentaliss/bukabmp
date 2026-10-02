@@ -7,7 +7,9 @@ let progressPage = 0;
 let currentModuleKey = null;
 let currentPdfRunId = "";
 let currentPdf = null;
+let currentQuizPageText = new Map();
 const blobUrls = new Set();
+const QUIZ_LOCAL = self.BMP_QUIZ_LOCAL;
 
 function assertLibraries() {
   if (typeof Tesseract === "undefined") {
@@ -53,24 +55,80 @@ async function ensureWorker() {
 
 function dbOpen() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open("bmp-terbuka-pdf-cache", 1);
+    const req = indexedDB.open("bmp-terbuka-pdf-cache", 2);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains("pdfs")) db.createObjectStore("pdfs");
+      if (!db.objectStoreNames.contains("quiz_sources")) db.createObjectStore("quiz_sources");
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
 
-async function dbPut(key, bytes) {
+function storedByteView(value) {
+  if (value instanceof Uint8Array) return value;
+  if (value instanceof ArrayBuffer) return new Uint8Array(value);
+  if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  return null;
+}
+
+function storedBytesEqual(expected, actual) {
+  const a = storedByteView(expected);
+  const b = storedByteView(actual);
+  if (!a || !b || a.byteLength !== b.byteLength) return false;
+  for (let i = 0; i < a.byteLength; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+async function verifyModuleArtifacts(db, key, bytes, quizSource) {
+  const [storedPdf, storedQuiz] = await Promise.all([
+    new Promise((resolve, reject) => {
+      const tx = db.transaction("pdfs", "readonly");
+      const req = tx.objectStore("pdfs").get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+      tx.onerror = () => reject(tx.error);
+    }),
+    new Promise((resolve, reject) => {
+      const tx = db.transaction("quiz_sources", "readonly");
+      const req = tx.objectStore("quiz_sources").get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+      tx.onerror = () => reject(tx.error);
+    })
+  ]);
+
+  if (!storedBytesEqual(bytes, storedPdf)) {
+    throw new Error("Verifikasi penyimpanan PDF lokal gagal.");
+  }
+  if (quizSource) {
+    if (JSON.stringify(storedQuiz) !== JSON.stringify(quizSource)) {
+      throw new Error("Verifikasi source Quiz lokal gagal.");
+    }
+  } else if (storedQuiz !== undefined) {
+    throw new Error("Source Quiz lama masih tersimpan setelah modul diperbarui.");
+  }
+}
+
+async function dbPutModuleArtifacts(key, bytes, quizSource) {
   const db = await dbOpen();
-  return await new Promise((resolve, reject) => {
-    const tx = db.transaction("pdfs", "readwrite");
-    tx.objectStore("pdfs").put(bytes, key);
-    tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { const e = tx.error; db.close(); reject(e); };
-  });
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(["pdfs", "quiz_sources"], "readwrite");
+      tx.objectStore("pdfs").put(bytes, key);
+      if (quizSource) tx.objectStore("quiz_sources").put(quizSource, key);
+      else tx.objectStore("quiz_sources").delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error("Penyimpanan modul dibatalkan."));
+    });
+    await verifyModuleArtifacts(db, key, bytes, quizSource);
+  } finally {
+    db.close();
+  }
 }
 
 async function dbGet(key) {
@@ -83,11 +141,116 @@ async function dbGet(key) {
   });
 }
 
+async function dbGetQuizSource(key) {
+  const db = await dbOpen();
+  return await new Promise((resolve, reject) => {
+    const tx = db.transaction("quiz_sources", "readonly");
+    const req = tx.objectStore("quiz_sources").get(key);
+    req.onsuccess = () => { const v = req.result; db.close(); resolve(v || null); };
+    req.onerror = () => { const e = req.error; db.close(); reject(e); };
+  });
+}
+
+async function quizSourceInfo(code, moduleNo, {includeText = false} = {}) {
+  const normalized = String(code || "").trim().toUpperCase();
+  const mod = Number(moduleNo);
+  if (!/^[A-Z0-9_-]{3,32}$/.test(normalized) ||
+      !Number.isInteger(mod) || mod < 1 || mod > 99) {
+    throw new Error("Identitas modul quiz tidak valid.");
+  }
+  const key = `${normalized}:M${mod}`;
+  const value = await dbGetQuizSource(key);
+  if (!value || value.schemaVersion !== 1) {
+    return {available: false, contentHash: "", charCount: 0};
+  }
+  const sanitizedText = String(value.sanitizedText || "");
+  const contentHash = String(value.contentHash || "").toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(contentHash)) {
+    return {available: false, contentHash: "", charCount: 0};
+  }
+  const actualHash = await QUIZ_LOCAL.sha256Hex(sanitizedText);
+  if (actualHash !== contentHash) {
+    throw new Error("Fingerprint source quiz lokal tidak cocok.");
+  }
+  return {
+    available: true,
+    contentHash,
+    charCount: sanitizedText.length,
+    pageCount: Number(value.pageCount || value.quality?.pageCount || 0) || null,
+    quality: value.quality && typeof value.quality === "object" ? value.quality : null,
+    ...(includeText ? {sanitizedText} : {})
+  };
+}
+
 function storedBytes(value) {
   if (!value) return 0;
   if (typeof value.byteLength === "number") return value.byteLength;
   if (typeof value.size === "number") return value.size;
-  return 0;
+  if (typeof value === "string") return new TextEncoder().encode(value).byteLength;
+  try {
+    return new TextEncoder().encode(JSON.stringify(value)).byteLength;
+  } catch {
+    return 0;
+  }
+}
+
+async function dbStorageInfo(code = "") {
+  const normalized = String(code || "").trim().toUpperCase();
+  const db = await dbOpen();
+  return await new Promise((resolve, reject) => {
+    const tx = db.transaction(["pdfs", "quiz_sources"], "readonly");
+    let totalBytes = 0;
+    let pdfCount = 0;
+    let codeBytes = 0;
+    const modules = [];
+    const bytesByCode = {};
+
+    const scan = (storeName, countPdf = false) => {
+      const req = tx.objectStore(storeName).openCursor();
+      req.onsuccess = () => {
+        const cur = req.result;
+        if (!cur) return;
+        const key = String(cur.key || "");
+        const bytes = storedBytes(cur.value);
+        totalBytes += bytes;
+        const match = key.match(/^([A-Z0-9_-]{3,32}):M(\d+)$/);
+        if (match) {
+          const recordCode = match[1];
+          bytesByCode[recordCode] = Number(bytesByCode[recordCode] || 0) + bytes;
+          if (normalized && recordCode === normalized) {
+            codeBytes += bytes;
+            if (countPdf) {
+              const moduleNo = Number.parseInt(match[2], 10);
+              if (Number.isInteger(moduleNo) && moduleNo >= 1 && moduleNo <= 99) {
+                modules.push(moduleNo);
+              }
+            }
+          }
+        }
+        if (countPdf) pdfCount++;
+        cur.continue();
+      };
+    };
+
+    scan("pdfs", true);
+    scan("quiz_sources", false);
+
+    tx.oncomplete = () => {
+      db.close();
+      resolve({
+        totalBytes,
+        pdfCount,
+        bytesByCode,
+        codeBytes,
+        modules:Array.from(new Set(modules)).sort((a,b)=>a-b)
+      });
+    };
+    tx.onerror = () => {
+      const e = tx.error;
+      db.close();
+      reject(e);
+    };
+  });
 }
 
 async function dbCacheInfo(code) {
@@ -136,15 +299,28 @@ async function dbListModules(code) {
 async function dbClearCode(code) {
   const db = await dbOpen();
   return await new Promise((resolve, reject) => {
-    const tx = db.transaction("pdfs", "readwrite");
-    const store = tx.objectStore("pdfs");
-    const req = store.openCursor();
-    req.onsuccess = () => {
-      const cur = req.result;
-      if (!cur) return;
-      if (String(cur.key).startsWith(`${code}:`)) cur.delete();
-      cur.continue();
-    };
+    const tx = db.transaction(["pdfs", "quiz_sources"], "readwrite");
+    for (const storeName of ["pdfs", "quiz_sources"]) {
+      const store = tx.objectStore(storeName);
+      const req = store.openCursor();
+      req.onsuccess = () => {
+        const cur = req.result;
+        if (!cur) return;
+        if (String(cur.key).startsWith(`${code}:`)) cur.delete();
+        cur.continue();
+      };
+    }
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { const e = tx.error; db.close(); reject(e); };
+  });
+}
+
+async function dbClearAll() {
+  const db = await dbOpen();
+  return await new Promise((resolve, reject) => {
+    const tx = db.transaction(["pdfs", "quiz_sources"], "readwrite");
+    tx.objectStore("pdfs").clear();
+    tx.objectStore("quiz_sources").clear();
     tx.oncomplete = () => { db.close(); resolve(); };
     tx.onerror = () => { const e = tx.error; db.close(); reject(e); };
   });
@@ -165,6 +341,7 @@ function clearPdfOwnedBy(runId) {
   currentModuleKey = null;
   currentPdfRunId = "";
   currentPdf = null;
+  currentQuizPageText = new Map();
 }
 
 async function ensureModulePdf(code, moduleNo, runId) {
@@ -183,6 +360,7 @@ async function ensureModulePdf(code, moduleNo, runId) {
   currentModuleKey = key;
   currentPdfRunId = runId;
   currentPdf = pdf;
+  currentQuizPageText = new Map();
   return pdf;
 }
 
@@ -225,7 +403,14 @@ async function addOcrPage(code, moduleNo, pageNo, dataUrl, runId) {
     throw new Error("OCR request dibatalkan sebelum halaman digabungkan.");
   }
   copied.forEach(p => pdf.addPage(p));
-  return String(res?.data?.text || "").trim();
+
+  // Raw OCR text stays inside this local offscreen context. Only sanitized
+  // page text is retained for the optional Quiz V0 source cache.
+  const sanitizedPage = QUIZ_LOCAL.sanitizeQuizSourceText(
+    String(res?.data?.text || "")
+  );
+  currentQuizPageText.set(Number(pageNo), sanitizedPage);
+  return sanitizedPage;
 }
 
 async function finishModule(code, moduleNo, pages, runId) {
@@ -243,10 +428,31 @@ async function finishModule(code, moduleNo, pages, runId) {
     throw new Error("Finalisasi modul dibatalkan karena proses sudah berubah.");
   }
 
-  // IndexedDB write is issued only while this generation still owns the PDF.
-  // A later generation writes after this transaction on the same object store,
-  // so an old generation cannot overwrite a newer completed module.
-  await dbPut(key, bytes);
+  const sanitizedText = [...currentQuizPageText.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, text]) => String(text || "").trim())
+    .filter(Boolean)
+    .join("\n\n")
+    .slice(0, QUIZ_LOCAL.MAX_QUIZ_SOURCE_CHARS);
+  const quizPageTexts = [...currentQuizPageText.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, text]) => String(text || "").trim());
+  const quality = QUIZ_LOCAL.analyzeQuizSourcePages(quizPageTexts, Number(pages));
+  const quizSource = sanitizedText
+    ? {
+        schemaVersion: 1,
+        sanitizedText,
+        contentHash: await QUIZ_LOCAL.sha256Hex(sanitizedText),
+        charCount: sanitizedText.length,
+        pageCount: Number(pages),
+        quality,
+        createdAt: Date.now()
+      }
+    : null;
+
+  // PDF + sanitized quiz source are committed locally in one IndexedDB
+  // transaction. No raw OCR text or page image is persisted for Quiz V0.
+  await dbPutModuleArtifacts(key, bytes, quizSource);
   if (!ownsActivePdf(runId, key) || currentPdf !== pdf) {
     throw new Error("Finalisasi modul selesai setelah proses dibatalkan.");
   }
@@ -384,6 +590,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       currentModuleKey = null;
       currentPdfRunId = "";
       currentPdf = null;
+      currentQuizPageText = new Map();
       sendResponse({
         ok: true,
         cachedModules: await dbListModules(code)
@@ -392,6 +599,34 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     if (msg.type === "OCR_CACHE_INFO") {
       const info = await dbCacheInfo(String(msg.code || "").toUpperCase());
+      sendResponse({ok: true, ...info});
+      return;
+    }
+    if (msg.type === "OCR_STORAGE_INFO") {
+      const info = await dbStorageInfo();
+      sendResponse({ok: true, ...info});
+      return;
+    }
+    if (msg.type === "OCR_CACHE_SNAPSHOT") {
+      const info = await dbStorageInfo(String(msg.code || "").toUpperCase());
+      sendResponse({ok: true, ...info});
+      return;
+    }
+    if (msg.type === "OCR_QUIZ_SOURCE_INFO") {
+      const info = await quizSourceInfo(
+        String(msg.code || "").toUpperCase(),
+        Number(msg.module),
+        {includeText: false}
+      );
+      sendResponse({ok: true, ...info});
+      return;
+    }
+    if (msg.type === "OCR_GET_QUIZ_SOURCE") {
+      const info = await quizSourceInfo(
+        String(msg.code || "").toUpperCase(),
+        Number(msg.module),
+        {includeText: true}
+      );
       sendResponse({ok: true, ...info});
       return;
     }
@@ -421,6 +656,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         currentPdfRunId = "";
         currentPdf = null;
       }
+      sendResponse({ok: true});
+      return;
+    }
+    if (msg.type === "OCR_CLEAR_ALL") {
+      assertLibraries();
+      await dbClearAll();
+      const oldRunId = activeJobRunId;
+      activeJobRunId = "";
+      progressRunId = "";
+      clearPdfOwnedBy(oldRunId);
+      currentModuleKey = null;
+      currentPdfRunId = "";
+      currentPdf = null;
+      currentQuizPageText = new Map();
       sendResponse({ok: true});
       return;
     }
