@@ -1,8 +1,9 @@
-importScripts("config.js", "cloud-surface.js", "telemetry.js");
+importScripts("config.js", "cloud-surface.js", "telemetry.js", "cache-consistency.js");
 
 const CFG = self.BMP_CONFIG;
 const CLOUD = self.BMP_CLOUD_SURFACE;
 const TELEMETRY = self.BMP_TELEMETRY;
+const CACHE_CONSISTENCY = self.BMP_CACHE_CONSISTENCY;
 const SOURCE_ROOT = "https://pustaka.ut.ac.id";
 const VERSION_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const CLOUD_FAILURE_BACKOFF_MS = 5 * 60 * 1000;
@@ -12,6 +13,14 @@ const ACTIVATION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const ACTIVATION_REFRESH_NO_SUPPORTER_INTERVAL_MS = 60 * 1000;
 const ACTIVATION_REFRESH_FAILURE_BACKOFF_MS = 60 * 1000;
 const DETECTED_LAST_MODULE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const LAST_MODULE_EVIDENCE_VERSION = 2;
+const LAST_MODULE_CANDIDATE_TTL_MS = 30 * 60 * 1000;
+const QUIZ_LIFECYCLE_KEY = "bmpQuizLifecycleV1";
+const QUIZ_LIFECYCLES_KEY = "bmpQuizLifecyclesV2";
+const QUIZ_LIFECYCLE_ACTIVE_TTL_MS = 10 * 60 * 1000;
+const QUIZ_LIFECYCLE_TERMINAL_TTL_MS = 5 * 60 * 1000;
+const QUIZ_LIFECYCLE_SLOW_GENERATION_MS = 2 * 60 * 1000;
+const QUIZ_LIFECYCLE_ACTIVE_PHASES = new Set(["checking_bank", "generating_bank", "starting_round"]);
 const JOB_ERROR_MESSAGE_TYPES = new Set(["START_JOB", "OCR_PAGE", "MODULE_RESULT"]);
 const DEFAULT_STATE = {
   running: false,
@@ -41,13 +50,23 @@ let creatingOffscreen = null;
 let installIdPromise = null;
 let startJobClaimRunId = "";
 let offscreenMaintenanceClaim = "";
+let quizStartClaim = "";
+let quizStartIdentity = null;
+let quizReadyStartClaim = "";
 let stateMutationQueue = Promise.resolve();
+let quizLifecycleMutationQueue = Promise.resolve();
 const cancelledRunIds = new Set();
-const cacheInfoMemo = new Map();
+const cacheInfoMemo = CACHE_CONSISTENCY.createEpochMemo();
 
 function serializeStateMutation(fn) {
   const run = stateMutationQueue.then(fn, fn);
   stateMutationQueue = run.catch(() => {});
+  return run;
+}
+
+function serializeQuizLifecycleMutation(fn) {
+  const run = quizLifecycleMutationQueue.then(fn, fn);
+  quizLifecycleMutationQueue = run.catch(() => {});
   return run;
 }
 
@@ -67,7 +86,7 @@ async function getState() {
 }
 
 const JOB_SUCCESS_STATUSES=new Set(["DONE","END_CANDIDATE"]);
-const JOB_FAILURE_STATUSES=new Set(["ERROR","BLOCKED","LOGIN_REQUIRED","MISSING_GAP","INTERRUPTED"]);
+const JOB_FAILURE_STATUSES=new Set(["ERROR","BLOCKED","LOGIN_REQUIRED","MISSING_GAP","MISSING_UNCONFIRMED","INTERRUPTED"]);
 
 function reportJobStateTransition(previous,next){
   try{
@@ -158,23 +177,60 @@ async function setDetectedLastModule(code, lastModule) {
 }
 
 async function setDetectedLastModuleForRun(runId, code, lastModule) {
+  const id = String(runId || "");
   const normalized = String(code || "").toUpperCase();
-  if (!normalized || !Number.isInteger(lastModule) || lastModule < 1 || lastModule > 99) {
+  if (!id || !normalized || !Number.isInteger(lastModule) || lastModule < 1 || lastModule > 99) {
     return null;
   }
   const map = await getCacheMetaMap();
-  if (!(await activeRunState(runId))) return null;
-  map[normalized] = {
-    ...(map[normalized] || {}),
-    detectedLastModule: lastModule,
-    detectedAt: Date.now()
-  };
-  if (cancelledRunIds.has(String(runId || ""))) return null;
+  if (!(await activeRunState(id))) return null;
+
+  const now = Date.now();
+  const previous = map[normalized] && typeof map[normalized] === "object"
+    ? map[normalized]
+    : {};
+  const candidate = Number(previous.lastModuleCandidate);
+  const candidateAt = Number(previous.lastModuleCandidateAt || 0);
+  const candidateRunId = String(previous.lastModuleCandidateRunId || "");
+  const confirmsPreviousRun = (
+    candidate === lastModule &&
+    candidateAt > 0 &&
+    now - candidateAt <= LAST_MODULE_CANDIDATE_TTL_MS &&
+    candidateRunId &&
+    candidateRunId !== id
+  );
+
+  map[normalized] = confirmsPreviousRun
+    ? {
+        ...previous,
+        detectedLastModule: lastModule,
+        detectedAt: now,
+        detectedEvidenceVersion: LAST_MODULE_EVIDENCE_VERSION,
+        lastModuleCandidate: null,
+        lastModuleCandidateAt: 0,
+        lastModuleCandidateRunId: ""
+      }
+    : {
+        ...previous,
+        detectedLastModule: null,
+        detectedAt: 0,
+        detectedEvidenceVersion: 0,
+        lastModuleCandidate: lastModule,
+        lastModuleCandidateAt: now,
+        lastModuleCandidateRunId: id
+      };
+
+  if (cancelledRunIds.has(id)) return null;
   await chrome.storage.local.set({bmpCacheMeta: map});
-  return cancelledRunIds.has(String(runId || "")) ? null : map[normalized];
+  if (cancelledRunIds.has(id)) return null;
+  return {
+    confirmed: confirmsPreviousRun,
+    meta: map[normalized]
+  };
 }
 
 function recentDetectedLastModule(meta, now = Date.now()) {
+  if (Number(meta?.detectedEvidenceVersion) !== LAST_MODULE_EVIDENCE_VERSION) return null;
   const last = Number(meta?.detectedLastModule);
   const detectedAt = Number(meta?.detectedAt || 0);
   if (!Number.isInteger(last) || last < 1 || last > 99) return null;
@@ -358,10 +414,378 @@ async function api(path, options = {}) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error || `Community API HTTP ${res.status}`);
+    const error = new Error(data.error || `Community API HTTP ${res.status}`);
+    error.status = res.status;
+    error.data = data;
+    throw error;
   }
   return data;
 }
+
+async function quizBearerToken() {
+  const store = await chrome.storage.local.get("bmpCommunityToken");
+  const token = typeof store.bmpCommunityToken === "string"
+    ? store.bmpCommunityToken
+    : "";
+  const verified = await verifyCommunityToken(token);
+  const scopes = verified.ok && Array.isArray(verified.payload?.scope)
+    ? verified.payload.scope.map(String)
+    : [];
+  if (!verified.ok || !scopes.includes("community_access")) {
+    throw new Error("Aktivasi komunitas diperlukan untuk Quiz.");
+  }
+  if (
+    Number(verified.payload?.token_version || 0) < 2 ||
+    !/^tg:\d+$/.test(String(verified.payload?.sub || ""))
+  ) {
+    throw new Error("Verifikasi ulang aktivasi diperlukan sebelum memakai Quiz.");
+  }
+  return token;
+}
+
+async function quizApi(path, body) {
+  const token = await quizBearerToken();
+  const installId = await getInstallId();
+  try {
+    return await api(path, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "X-BMP-Install-Id": installId
+      },
+      body: JSON.stringify(body || {})
+    });
+  } catch (error) {
+    if (error?.data && typeof error.data === "object") {
+      return error.data;
+    }
+    throw error;
+  }
+}
+
+function normalizeQuizModuleIdentity(code, moduleNo) {
+  const normalized = String(code || "").trim().toUpperCase();
+  const mod = Number(moduleNo);
+  if (!/^[A-Z0-9_-]{3,32}$/.test(normalized)) {
+    throw new Error("Kode BMP tidak valid.");
+  }
+  if (!Number.isInteger(mod) || mod < 1 || mod > 99) {
+    throw new Error("Nomor modul tidak valid.");
+  }
+  return {course_code: normalized, module_number: mod};
+}
+
+async function localQuizSourceInfo(code, moduleNo, {includeText = false} = {}) {
+  const identity = normalizeQuizModuleIdentity(code, moduleNo);
+  const out = await askOffscreen({
+    type: includeText ? "OCR_GET_QUIZ_SOURCE" : "OCR_QUIZ_SOURCE_INFO",
+    code: identity.course_code,
+    module: identity.module_number
+  });
+  if (!out?.ok) throw new Error(out?.error || "Source quiz lokal tidak dapat dibaca.");
+  return {
+    ...identity,
+    available: out.available === true,
+    content_hash: String(out.contentHash || "").toLowerCase(),
+    char_count: Number(out.charCount || 0),
+    page_count: Number(out.pageCount || 0) || null,
+    quality: out.quality && typeof out.quality === "object" ? out.quality : null,
+    ...(includeText ? {sanitized_text: String(out.sanitizedText || "")} : {})
+  };
+}
+
+async function quizLocalStatus(code, moduleNo) {
+  await requireAccess();
+  const source = await localQuizSourceInfo(code, moduleNo);
+  return {
+    ok: true,
+    sourceAvailable: source.available,
+    contentHash: source.content_hash,
+    charCount: source.char_count,
+    pageCount: source.page_count,
+    quality: source.quality,
+    requiresRedownload: !source.available || source.quality?.level === "invalid"
+  };
+}
+
+function quizRetryHint(retryAfter) {
+  const remaining = Math.max(0, Number(retryAfter || 0) - Date.now());
+  if (remaining <= 0) return "sebentar";
+  const seconds = Math.ceil(remaining / 1000);
+  if (seconds < 60) return "sekitar " + seconds + " detik";
+  return "sekitar " + Math.ceil(seconds / 60) + " menit";
+}
+
+function quizLifecycleMessage(phase, code, moduleNo, extra = {}) {
+  if (phase === "checking_bank") return `Memeriksa bank soal M${moduleNo}...`;
+  if (phase === "generating_bank") {
+    return `Bank soal M${moduleNo} belum tersedia. Sedang menyiapkan bank soal dari materi modul. Biasanya selesai dalam 1–2 menit, tetapi pada kondisi tertentu dapat memakan waktu hingga sekitar 10 menit.`;
+  }
+  if (phase === "starting_round") return `✓ Bank soal M${moduleNo} siap. Membuka Quiz di Telegram...`;
+  if (phase === "queued") {
+    return extra.alreadyQueued
+      ? `Quiz ${code} M${moduleNo} sudah menunggu di antrian #${extra.queuePosition || 1}.`
+      : `Quiz ${code} M${moduleNo} masuk antrian #${extra.queuePosition || 1}. Menunggu slot Quiz kosong.`;
+  }
+  if (phase === "active") return "Quiz modul ini sudah sedang berjalan. Ronde yang aktif dibuka di Telegram.";
+  if (phase === "started") {
+    return extra.bankCreated
+      ? "✓ Quiz siap. Soal baru dibuat dan ronde dibuka di Telegram."
+      : "✓ Quiz siap. Soal yang sudah tersedia dipakai lagi. Ronde dibuka di Telegram.";
+  }
+  return String(extra.message || "");
+}
+
+function quizLifecycleMapKey(code, moduleNo) {
+  const identity = normalizeQuizModuleIdentity(code, moduleNo);
+  return `${identity.course_code}:M${identity.module_number}`;
+}
+
+async function readQuizLifecycleMap() {
+  const stored = await chrome.storage.local.get([QUIZ_LIFECYCLES_KEY, QUIZ_LIFECYCLE_KEY]);
+  const source = stored[QUIZ_LIFECYCLES_KEY];
+  const now = Date.now();
+  const map = {};
+  if (source && typeof source === "object" && !Array.isArray(source)) {
+    for (const [key, lifecycle] of Object.entries(source)) {
+      if (
+        lifecycle &&
+        typeof lifecycle === "object" &&
+        Number(lifecycle.schemaVersion || 0) === 1 &&
+        Number(lifecycle.expiresAt || 0) > now
+      ) {
+        map[String(key)] = lifecycle;
+      }
+    }
+  }
+
+  // One-time compatibility path for canary installs that still have the V1
+  // single-lifecycle shape. The next write migrates it into the V2 map.
+  const legacy = stored[QUIZ_LIFECYCLE_KEY];
+  if (
+    legacy &&
+    typeof legacy === "object" &&
+    Number(legacy.schemaVersion || 0) === 1 &&
+    Number(legacy.expiresAt || 0) > now
+  ) {
+    try {
+      map[quizLifecycleMapKey(legacy.code, Number(legacy.module))] = legacy;
+    } catch {}
+  }
+  return map;
+}
+
+async function setQuizLifecycle(code, moduleNo, phase, extra = {}) {
+  const identity = normalizeQuizModuleIdentity(code, moduleNo);
+  const now = Date.now();
+  const active = QUIZ_LIFECYCLE_ACTIVE_PHASES.has(String(phase || ""));
+  const lifecycle = {
+    schemaVersion: 1,
+    code: identity.course_code,
+    module: identity.module_number,
+    phase: String(phase || ""),
+    active,
+    message: quizLifecycleMessage(
+      String(phase || ""),
+      identity.course_code,
+      identity.module_number,
+      extra
+    ),
+    bankCreated: extra.bankCreated === true,
+    queued: extra.queued === true,
+    alreadyQueued: extra.alreadyQueued === true,
+    queuePosition: Number(extra.queuePosition || 0) || null,
+    alreadyActive: extra.alreadyActive === true,
+    updatedAt: now,
+    expiresAt: now + (active ? QUIZ_LIFECYCLE_ACTIVE_TTL_MS : QUIZ_LIFECYCLE_TERMINAL_TTL_MS)
+  };
+
+  return await serializeQuizLifecycleMutation(async () => {
+    const map = await readQuizLifecycleMap();
+    map[quizLifecycleMapKey(identity.course_code, identity.module_number)] = lifecycle;
+    await chrome.storage.local.set({[QUIZ_LIFECYCLES_KEY]: map});
+    await chrome.storage.local.remove(QUIZ_LIFECYCLE_KEY);
+    return lifecycle;
+  });
+}
+
+async function getQuizLifecycle(code, moduleNo) {
+  const identity = normalizeQuizModuleIdentity(code, moduleNo);
+  const map = await readQuizLifecycleMap();
+  return map[quizLifecycleMapKey(identity.course_code, identity.module_number)] || null;
+}
+
+async function failQuizLifecycle(code, moduleNo, error) {
+  const message = String(error?.message || error || "Quiz Telegram tidak dapat dimulai.");
+  return await setQuizLifecycle(code, moduleNo, "error", {message});
+}
+
+function normalizeQuizGenerationCapacity(payload) {
+  const raw = payload?.generation_capacity && typeof payload.generation_capacity === "object"
+    ? payload.generation_capacity
+    : payload;
+  const capacity = Math.max(0, Number(raw?.capacity || 0));
+  if (!capacity) return null;
+  const activeGenerations = Math.max(
+    0,
+    Math.min(capacity, Number(raw?.active_generations || 0))
+  );
+  const availableSlots = Math.max(
+    0,
+    Math.min(capacity, Number(raw?.available_slots ?? (capacity - activeGenerations)))
+  );
+  const generationEnabled = raw?.generation_enabled !== false;
+  return {
+    capacity,
+    activeGenerations,
+    availableSlots,
+    slotReady: generationEnabled && availableSlots > 0,
+    full: availableSlots <= 0,
+    generationEnabled,
+    leaseMs: Math.max(0, Number(raw?.lease_ms || 0))
+  };
+}
+
+function currentQuizDeviceGeneration() {
+  if (!quizStartClaim || !quizStartIdentity) return null;
+  return {
+    active: true,
+    code: String(quizStartIdentity.course_code || ""),
+    module: Number(quizStartIdentity.module_number || 0)
+  };
+}
+
+async function quizGenerationStatus() {
+  await requireAccess();
+  await requireSupportedVersion();
+  const status = await quizApi("/v1/quiz/generation/status", {});
+  if (!status?.ok) {
+    return {ok: false, error: String(status?.error || "Status slot Quiz tidak dapat dibaca.")};
+  }
+  return {
+    ok: true,
+    generationCapacity: normalizeQuizGenerationCapacity(status),
+    deviceGeneration: currentQuizDeviceGeneration()
+  };
+}
+
+async function quizBankStatus(code, moduleNo) {
+  await requireAccess();
+  await requireSupportedVersion();
+  const identity = normalizeQuizModuleIdentity(code, moduleNo);
+  const lookup = await quizApi("/v1/quiz/bank/lookup", identity);
+  if (lookup?.error && lookup?.status !== "ready" && lookup?.generation_available !== true) {
+    return {ok: false, error: String(lookup.error)};
+  }
+  return {
+    ok: true,
+    ready: lookup?.status === "ready" && Boolean(lookup?.bank),
+    generationAvailable: lookup?.generation_available === true,
+    status: String(lookup?.status || ""),
+    generationCapacity: normalizeQuizGenerationCapacity(lookup),
+    deviceGeneration: currentQuizDeviceGeneration()
+  };
+}
+
+async function startTelegramQuiz(code, moduleNo) {
+  await requireAccess();
+  await requireSupportedVersion();
+
+  const identity = normalizeQuizModuleIdentity(code, moduleNo);
+  await setQuizLifecycle(identity.course_code, identity.module_number, "checking_bank");
+
+  // Privacy + AI-budget invariant: reusable bank lookup needs only
+  // course/module metadata. Local OCR source is opened only after a true miss.
+  let lookup = await quizApi("/v1/quiz/bank/lookup", identity);
+  if (lookup?.status !== "ready") {
+    if (lookup?.generation_available !== true) {
+      throw new Error("Bank soal belum tersedia dan pembuatan bank baru sedang dinonaktifkan.");
+    }
+
+    const source = await localQuizSourceInfo(
+      identity.course_code,
+      identity.module_number,
+      {includeText: true}
+    );
+    if (
+      !source.available ||
+      !/^[0-9a-f]{64}$/.test(source.content_hash) ||
+      source.sanitized_text.length > 48000
+    ) {
+      throw new Error(
+        `Source quiz lokal untuk M${identity.module_number} belum tersedia atau tidak lolos pemeriksaan privasi/ukuran. Download ulang modul ini sekali untuk membuat source lokal yang disanitasi.`
+      );
+    }
+    if (source.quality?.level === "invalid") {
+      const pages = Number(source.page_count || source.quality?.pageCount || 0);
+      throw new Error(
+        pages === 1
+          ? "Hanya 1 halaman yang terbaca. Coba unduh ulang modul."
+          : `Materi M${identity.module_number} terdeteksi tidak lengkap. Download ulang modul ini lalu periksa hasilnya sebelum membuat Quiz.`
+      );
+    }
+    if (source.sanitized_text.length < 800) {
+      throw new Error(
+        `Materi M${identity.module_number} yang terbaca terlalu sedikit. Download ulang modul ini sebelum membuat Quiz.`
+      );
+    }
+
+    await setQuizLifecycle(identity.course_code, identity.module_number, "generating_bank");
+    const generated = await quizApi("/v1/quiz/bank/generate", {
+      ...identity,
+      content_hash: source.content_hash,
+      sanitized_text: source.sanitized_text
+    });
+    if (generated?.status !== "ready" || !generated?.bank) {
+      const reason = String(generated?.status || generated?.error || "quiz_generation_failed");
+      const resourceMessage = String(generated?.resource?.message || "").trim();
+      const retryHint = quizRetryHint(generated?.retry_after);
+      throw new Error(
+        resourceMessage ||
+        (reason === "generation_in_progress"
+          ? `Quiz M${identity.module_number} sedang dibuat. Tunggu sebentar lalu coba lagi.`
+          : reason === "retry_cooldown"
+            ? "Pembuatan bank sedang dijeda setelah gangguan sementara. Coba lagi " + retryHint + "."
+            : reason === "invalid_ai_output"
+              ? "Hasil pembuatan soal belum valid. Sistem sudah menandainya untuk dicoba ulang; coba lagi " + retryHint + "."
+              : reason === "d1_persistence_failure"
+                ? "Bank soal belum bisa disimpan karena server sedang bermasalah. Coba lagi " + retryHint + "."
+                : reason === "provider_rate_limit" || reason === "provider_capacity" || reason === "provider_timeout_network"
+                  ? "Server pembuat soal sedang sibuk. Coba lagi " + retryHint + "."
+                  : "Bank Quiz belum siap.")
+      );
+    }
+    lookup = generated;
+  }
+
+  await setQuizLifecycle(identity.course_code, identity.module_number, "starting_round");
+  const started = await quizApi("/v1/quiz/start", identity);
+  if (!started?.ok) {
+    throw new Error(started?.error || "Quiz Telegram tidak dapat dimulai.");
+  }
+
+  const topicUrl = safeTelegramUrl(started.topic_url);
+  const targetUrl = topicUrl || CFG.TELEGRAM_GROUP_URL;
+  await chrome.tabs.create({url: targetUrl});
+  const result = {
+    ok: true,
+    bankCreated: lookup?.created === true,
+    queued: started.queued === true,
+    alreadyQueued: started.already_queued === true,
+    queuePosition: Number(started.queue_position || 0) || null,
+    alreadyActive: started.already_active === true,
+    roundId: String(started.round_id || ""),
+    topicUrl: targetUrl
+  };
+  const terminalPhase = result.queued
+    ? "queued"
+    : result.alreadyActive
+      ? "active"
+      : "started";
+  await setQuizLifecycle(identity.course_code, identity.module_number, terminalPhase, result);
+  return result;
+}
+
 
 function distributionChannel() {
   const value = String(CFG?.DISTRIBUTION_CHANNEL || "github").toLowerCase();
@@ -445,10 +869,14 @@ async function reportAdEvent({
   }
 
   const currentVersion = chrome.runtime.getManifest().version;
+  const actorId = TELEMETRY?.ensureAnalyticsId
+    ? await TELEMETRY.ensureAnalyticsId()
+    : "";
   try {
     return await api("/v1/ad-event", {
       method: "POST",
       body: JSON.stringify({
+        actor_id: actorId,
         event_type: type,
         placement: place,
         campaign_id: id,
@@ -1060,23 +1488,25 @@ async function buildMergedPdf(state, firstModule, lastModule, {full = false} = {
 }
 
 function invalidateCacheInfo(code) {
-  cacheInfoMemo.delete(String(code || "").trim().toUpperCase());
+  cacheInfoMemo.invalidate(String(code || "").trim().toUpperCase());
 }
 
-async function cacheInfo(code) {
+async function cacheInfo(code, {force = false} = {}) {
   const normalized = String(code || "").trim().toUpperCase();
   if (!normalized) return {modules: [], bytes: 0, totalBytes: 0, detectedLastModule: null};
-  let raw = cacheInfoMemo.get(normalized) || null;
-  if (!raw) {
-    const out = await askOffscreen({type: "OCR_CACHE_INFO", code: normalized});
-    if (!out?.ok) throw new Error(out?.error || "Penyimpanan lokal tidak dapat dibaca.");
-    raw = {
-      modules: normalizeModules(out.modules || [], 99),
-      bytes: Number(out.bytes || 0),
-      totalBytes: Number(out.totalBytes || 0)
-    };
-    cacheInfoMemo.set(normalized, raw);
-  }
+  const raw = await cacheInfoMemo.get(
+    normalized,
+    async () => {
+      const out = await askOffscreen({type: "OCR_CACHE_INFO", code: normalized});
+      if (!out?.ok) throw new Error(out?.error || "Penyimpanan lokal tidak dapat dibaca.");
+      return {
+        modules: normalizeModules(out.modules || [], 99),
+        bytes: Number(out.bytes || 0),
+        totalBytes: Number(out.totalBytes || 0)
+      };
+    },
+    {force}
+  );
   const meta = await getCodeMeta(normalized);
   return {
     ...raw,
@@ -1212,6 +1642,16 @@ async function recoverStaleRunningState({forceInterrupt = false} = {}) {
   // because the reader tab itself survived the restart.
   if (forceInterrupt) return await interrupt();
 
+  // Cache-only merge jobs intentionally have no reader tab. If this service
+  // worker still owns the START_JOB claim, the local merge is alive and popup
+  // polling must not mark it interrupted just because tabId is null.
+  if (
+    startJobClaimRunId &&
+    String(startJobClaimRunId) === String(state.runId || "")
+  ) {
+    return state;
+  }
+
   const tabId = Number(state.tabId);
   if (!Number.isInteger(tabId) || tabId <= 0) return await interrupt();
 
@@ -1296,6 +1736,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   let requestRunId = "";
   (async () => {
+    if (msg.type === "LOCAL_CACHE_MUTATED") {
+      cacheInfoMemo.clear();
+      sendResponse({ok:true});
+      return;
+    }
     if (msg.type === "GET_ACCESS_STATUS") {
       sendResponse({ok: true, ...(await accessStatus())});
       return;
@@ -1406,8 +1851,131 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ok: true, modules: [], bytes: 0, totalBytes: 0, detectedLastModule: null});
         return;
       }
-      sendResponse({ok: true, ...(await cacheInfo(code))});
+      const current = await getState();
+      const force = Boolean(
+        offscreenMaintenanceClaim ||
+        (current.running && String(current.code || "").trim().toUpperCase() === code)
+      );
+      sendResponse({ok: true, ...(await cacheInfo(code, {force}))});
       return;
+    }
+    if (msg.type === "GET_CACHE_SNAPSHOT") {
+      const code = String(msg.code || "").trim().toUpperCase();
+      const safeCode = /^[A-Z0-9_-]{3,32}$/.test(code) ? code : "";
+      const out = await askOffscreen({type: "OCR_CACHE_SNAPSHOT", code: safeCode});
+      if (!out?.ok) throw new Error(out?.error || "Penyimpanan lokal tidak dapat dibaca.");
+      const meta = safeCode ? await getCodeMeta(safeCode) : null;
+      sendResponse({
+        ok: true,
+        code: safeCode,
+        modules: normalizeModules(out.modules || [], 99),
+        codeBytes: Number(out.codeBytes || 0),
+        totalBytes: Number(out.totalBytes || 0),
+        pdfCount: Number(out.pdfCount || 0),
+        detectedLastModule: safeCode ? recentDetectedLastModule(meta) : null
+      });
+      return;
+    }
+    if (msg.type === "GET_STORAGE_INFO") {
+      const out = await askOffscreen({type: "OCR_STORAGE_INFO"});
+      if (!out?.ok) throw new Error(out?.error || "Total penyimpanan lokal tidak dapat dibaca.");
+      const code = String(msg.code || "").trim().toUpperCase();
+      const codeBytes = /^[A-Z0-9_-]{3,32}$/.test(code)
+        ? Number(out.bytesByCode?.[code] || 0)
+        : 0;
+      sendResponse({
+        ok: true,
+        totalBytes: Number(out.totalBytes || 0),
+        pdfCount: Number(out.pdfCount || 0),
+        codeBytes
+      });
+      return;
+    }
+    if (msg.type === "GET_QUIZ_BANK_STATUS") {
+      sendResponse(await quizBankStatus(msg.code, Number(msg.module)));
+      return;
+    }
+    if (msg.type === "GET_QUIZ_GENERATION_STATUS") {
+      sendResponse(await quizGenerationStatus());
+      return;
+    }
+    if (msg.type === "GET_QUIZ_LIFECYCLE") {
+      sendResponse({
+        ok: true,
+        lifecycle: await getQuizLifecycle(msg.code, Number(msg.module))
+      });
+      return;
+    }
+    if (msg.type === "GET_QUIZ_SOURCE_STATUS") {
+      sendResponse(await quizLocalStatus(msg.code, Number(msg.module)));
+      return;
+    }
+    if (msg.type === "START_TELEGRAM_QUIZ") {
+      if (startJobClaimRunId || offscreenMaintenanceClaim) {
+        sendResponse({ok: false, error: "Operasi lain sedang berjalan."});
+        return;
+      }
+
+      const identity = normalizeQuizModuleIdentity(msg.code, Number(msg.module));
+      const current = await getState();
+      if (current.running || startJobClaimRunId || offscreenMaintenanceClaim) {
+        throw new Error("Quiz tidak dapat dimulai saat proses BMP atau penyimpanan lokal sedang berjalan.");
+      }
+
+      // READY banks do not consume an AI-generation slot. They may open while
+      // another module is still being generated on this installation.
+      const bankStatus = await quizBankStatus(identity.course_code, identity.module_number);
+      if (!bankStatus?.ok) {
+        sendResponse({ok: false, error: bankStatus?.error || "Status bank soal tidak dapat diperiksa."});
+        return;
+      }
+
+      if (bankStatus.ready) {
+        if (quizReadyStartClaim) {
+          sendResponse({ok: false, error: "Ronde Quiz lain sedang dibuka."});
+          return;
+        }
+        const readyClaimId = "quiz-ready:" + crypto.randomUUID();
+        quizReadyStartClaim = readyClaimId;
+        try {
+          sendResponse(await startTelegramQuiz(identity.course_code, identity.module_number));
+          return;
+        } catch (error) {
+          await failQuizLifecycle(identity.course_code, identity.module_number, error).catch(() => {});
+          throw error;
+        } finally {
+          if (quizReadyStartClaim === readyClaimId) quizReadyStartClaim = "";
+        }
+      }
+
+      if (quizReadyStartClaim) {
+        sendResponse({ok: false, error: "Ronde Quiz lain sedang dibuka."});
+        return;
+      }
+      if (quizStartClaim) {
+        sendResponse({
+          ok: false,
+          error: "quiz_generation_device_busy",
+          activeGeneration: currentQuizDeviceGeneration()
+        });
+        return;
+      }
+
+      const claimId = "quiz-generate:" + crypto.randomUUID();
+      quizStartClaim = claimId;
+      quizStartIdentity = identity;
+      try {
+        sendResponse(await startTelegramQuiz(identity.course_code, identity.module_number));
+        return;
+      } catch (error) {
+        await failQuizLifecycle(identity.course_code, identity.module_number, error).catch(() => {});
+        throw error;
+      } finally {
+        if (quizStartClaim === claimId) {
+          quizStartClaim = "";
+          quizStartIdentity = null;
+        }
+      }
     }
     if (msg.type === "EXPORT_CACHED_MODULE") {
       await requireAccess();
@@ -1439,6 +2007,34 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (current.code === code) {
           await setState({completedModules: [], detectedLastModule: null});
         }
+        sendResponse({ok: true});
+        return;
+      } finally {
+        if (offscreenMaintenanceClaim === maintenanceId) offscreenMaintenanceClaim = "";
+      }
+    }
+    if (msg.type === "CLEAR_ALL_CACHE") {
+      if (startJobClaimRunId || offscreenMaintenanceClaim) {
+        sendResponse({ok: false, error: "Operasi penyimpanan lain sedang berjalan."});
+        return;
+      }
+      const maintenanceId = "clear-all:" + crypto.randomUUID();
+      offscreenMaintenanceClaim = maintenanceId;
+      try {
+        await requireAccess();
+        const current = await getState();
+        if (current.running || startJobClaimRunId) {
+          throw new Error("Penyimpanan lokal tidak bisa dibersihkan saat proses BMP masih berjalan.");
+        }
+        const out = await askOffscreen({type: "OCR_CLEAR_ALL"});
+        if (!out?.ok) throw new Error(out?.error || "Penyimpanan lokal tidak dapat dibersihkan.");
+        await chrome.storage.local.set({bmpCacheMeta: {}});
+        cacheInfoMemo.clear();
+        await setState({
+          completedModules: [],
+          skippedModules: [],
+          detectedLastModule: null
+        });
         sendResponse({ok: true});
         return;
       } finally {
@@ -1587,7 +2183,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         mergeMessage: ""
       });
       if (!nextState) throw new Error("Proses dibatalkan sebelum persiapan selesai.");
-      if (startJobClaimRunId === runId) startJobClaimRunId = "";
 
       if (effectiveMaxModule < startModule) {
         const message = knownLast
@@ -1601,9 +2196,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           ocrProgress: ""
         });
         if (!done) {
+          if (startJobClaimRunId === runId) startJobClaimRunId = "";
           sendResponse({ok: true, stale: true});
           return;
         }
+        if (startJobClaimRunId === runId) startJobClaimRunId = "";
         sendResponse({ok: true, resumed: true, skippedModules: []});
         return;
       }
@@ -1627,13 +2224,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           ocrProgress: ""
         });
         if (!done) {
+          if (startJobClaimRunId === runId) startJobClaimRunId = "";
           sendResponse({ok: true, stale: true});
           return;
         }
+        if (startJobClaimRunId === runId) startJobClaimRunId = "";
         sendResponse({ok: true, resumed: true, skippedModules});
         return;
       }
 
+      if (startJobClaimRunId === runId) startJobClaimRunId = "";
       const committed = await setStateForRun(runId, {currentModule});
       if (!committed) {
         sendResponse({ok: true, stale: true});
@@ -1875,22 +2475,45 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
 
         const lastMod = mod - 1;
-        if (lastMod >= 1) {
-          const savedLast = await setDetectedLastModuleForRun(state.runId, state.code, lastMod);
-          if (!savedLast) {
+        const evidence = lastMod >= 1
+          ? await setDetectedLastModuleForRun(state.runId, state.code, lastMod)
+          : {confirmed: false};
+        if (lastMod >= 1 && !evidence) {
+          sendResponse({ok: true, stale: true});
+          return;
+        }
+
+        await requireActiveRun(state.runId);
+        if (!evidence.confirmed) {
+          const stopped = {...state, completedModules: completed};
+          const summary = finalSummary(stopped);
+          const done = await setStateForRun(state.runId, {
+            running: false,
+            runId: "",
+            completedModules: completed,
+            detectedLastModule: null,
+            effectiveMaxModule: Number(state.maxModule),
+            status: "MISSING_UNCONFIRMED",
+            progress:
+              `Modul ${mod} belum terbaca. Batas modul belum disimpan karena perlu dikonfirmasi pada percobaan terpisah. Coba lagi.` +
+              (summary ? `\n${summary}` : ""),
+            mergeMessage: "",
+            ocrProgress: ""
+          });
+          if (!done) {
             sendResponse({ok: true, stale: true});
             return;
           }
+          sendResponse({ok: true});
+          return;
         }
-        await requireActiveRun(state.runId);
-        const detectedLastModule = lastMod >= 1 ? lastMod : null;
+
+        const detectedLastModule = lastMod;
         const readyState = {
           ...state,
           completedModules: completed,
           detectedLastModule,
-          effectiveMaxModule: lastMod >= 1
-            ? Math.min(Number(state.maxModule), lastMod)
-            : 0
+          effectiveMaxModule: Math.min(Number(state.maxModule), lastMod)
         };
 
         let mergeMessage = "";
