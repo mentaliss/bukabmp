@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "note": "Canonical complete extension structure: last known-good runtime plus hardening runtime files. Build-only vendor files are validated separately.",
+  "required_files": [
+    "manifest.json",
+    "config.js",
+    "background.js",
+    "cache-consistency.js",
+    "cloud-surface.js",
+    "telemetry.js",
+    "ads-media.js",
+    "ad-network.js",
+    "local-backup.js",
+    "quiz-local.js",
+    "restore.js",
+    "restore.html",
+    "restore-session.js",
+    "restore-engine.js",
+    "content.js",
+    "popup.html",
+    "popup.js",
+    "offscreen.html",
+    "offscreen.js",
+    "about.html",
+    "_locales/id/messages.json",
+    "icons/icon16.png",
+    "icons/icon32.png",
+    "icons/icon48.png",
+    "icons/icon128.png",
+    "vendor/tesseract.min.js",
+    "vendor/worker.min.js",
+    "vendor/pdf-lib.min.js",
+    "vendor/core/tesseract-core.wasm.js",
+    "vendor/core/tesseract-core-simd.wasm.js",
+    "vendor/core/tesseract-core-lstm.wasm.js",
+    "vendor/core/tesseract-core-simd-lstm.wasm.js",
+    "VENDOR_MANIFEST.json"
+  ],
+  "forbidden_files": [
+    "config.template.js",
+    "vendor/adsonbread-test-sdk.js"
+  ]
+}
