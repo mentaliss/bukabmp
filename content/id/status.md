@@ -6,7 +6,7 @@ Halaman ini adalah acuan untuk **versi stabil, jalur instalasi, dan status distr
 
 **BMP Terbuka v1.2.0**
 
-Release publik: **2 Oktober 2026**
+Release publik: **3 Oktober 2026**
 
 GitHub Release:
 
@@ -34,9 +34,9 @@ Jalur resmi tetap **Microsoft Edge Add-ons**:
 
 https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
 
-Pada saat release publik v1.2.0 ini, package yang terverifikasi tersedia dari Edge Add-ons masih **1.1.0.1**. v1.2.0 **belum boleh dianggap live di Store** sampai listing/update service benar-benar menyajikan versi tersebut.
+**BMP Terbuka v1.2.0 sudah live di Microsoft Edge Add-ons** untuk Desktop dan Android.
 
-Jangan memakai package CRX diagnostic/audit sebagai pengganti Store.
+Gunakan listing resmi Store untuk instalasi/update. Jangan memakai package CRX diagnostic/audit sebagai pengganti Store.
 
 Edge Canary hanya fallback/testing, bukan jalur default.
 
