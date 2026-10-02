@@ -7,7 +7,7 @@ BMP Terbuka v1.2.0 adds Telegram Quiz, local Backup & Restore, clearer local sto
 ### Distribution
 
 - Chrome Desktop: v1.2.0 is available through the official GitHub/manual ZIP.
-- Edge Desktop/Android: the official path remains Microsoft Edge Add-ons. Store availability follows Microsoft review/propagation; do not treat v1.2.0 as Store-live until the listing actually serves it.
+- Edge Desktop/Android: **v1.2.0 is live on the official Microsoft Edge Add-ons listing** as of 3 October 2026.
 
 ### Important behavior
 
