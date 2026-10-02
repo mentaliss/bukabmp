@@ -1,45 +1,47 @@
 # Download BMP Terbuka
 
-Halaman ini berisi **jalur download resmi**. Untuk langkah pemasangan dari awal sampai extension siap dipakai, buka [Instalasi & Update](docs/install).
-
-## Microsoft Edge — Desktop
-
-Jalur utama adalah Microsoft Edge Add-ons.
-
-[[EDGE_CTA]]
-
-Setelah terpasang, lanjutkan ke [Aktivasi & Verifikasi](docs/activation).
-
-## Microsoft Edge — Android
-
-Jalur utama adalah **Microsoft Edge Stable + Microsoft Edge Add-ons**.
-
-[[EDGE_CTA]]
-
-Edge Canary hanya fallback/testing, bukan jalur utama.
+Halaman ini adalah **tujuan utama untuk download dan update BMP Terbuka**.
 
 ## Google Chrome — Desktop
 
-**Chrome Web Store belum menjadi jalur instalasi aktif BMP Terbuka saat ini.**
-
-Untuk Chrome desktop gunakan package manual dari GitHub Release.
+Versi terbaru: **v1.2.0**
 
 [[GITHUB_ZIP_CTA]]
 
-Download asset extension hasil build, misalnya `BMP-Terbuka-v1.1.0.zip`.
+Gunakan asset resmi:
 
-Jangan gunakan asset otomatis **Source code (zip)** atau **Source code (tar.gz)** sebagai package instalasi.
+`BMP-Terbuka-v1.2.0.zip`
 
-Langkah Developer mode + Load unpacked ada di [Instalasi & Update](docs/install).
+Jangan gunakan asset otomatis **Source code (zip)** atau **Source code (tar.gz)** sebagai package extension.
 
-## Versi dan Status Distribusi
+Untuk update instalasi manual, extract package baru ke folder yang kamu kelola lalu **Reload** extension dari `chrome://extensions`. Jangan uninstall atau menghapus storage hanya untuk update normal.
 
-Release stabil saat ini adalah **v1.1.0**.
+Panduan lengkap: [Instalasi & Update](docs/install).
 
-Status Store dapat berubah tanpa mengubah isi panduan ini. Gunakan [Status & Versi](status) sebagai acuan untuk ketersediaan Edge Add-ons, Chrome Web Store, GitHub/manual, dan kompatibilitas browser.
+## Microsoft Edge — Desktop
+
+Jalur resmi tetap Microsoft Edge Add-ons.
+
+[[EDGE_CTA]]
+
+Versi yang tersedia melalui Store mengikuti proses review/propagasi Microsoft. Cek [Status & Versi](status) sebelum menganggap v1.2.0 sudah live di Store.
+
+## Microsoft Edge — Android
+
+Gunakan **Microsoft Edge Stable + Microsoft Edge Add-ons**.
+
+[[EDGE_CTA]]
+
+Edge Canary hanya fallback/testing.
+
+Untuk v1.2.0, fitur Restore di Android memakai tab restore khusus BMP Terbuka. Detail ada di [Instalasi & Update](docs/install) dan [PDF, Backup, Restore & Penyimpanan](docs/files).
+
+## Catatan Edge v1.2.0
+
+Pada saat halaman ini disiapkan, Edge Add-ons yang terverifikasi masih menyajikan **1.1.0.1**. Jangan memasang CRX diagnostic/audit sebagai jalan pintas. Tunggu versi Store yang sah.
 
 ## Tutorial
 
 Panduan teks terbaru tersedia di [Panduan BMP Terbuka](docs).
 
-Video Android/Desktop yang tersedia saat ini masih bertanda v1.0.4 dan dipertahankan sebagai referensi alur lama. Link video ada di halaman [Instalasi & Update](docs/install).
+Video lama v1.0.4 tetap dapat dipakai untuk gambaran dasar, tetapi UI dan beberapa alur sudah berubah.
