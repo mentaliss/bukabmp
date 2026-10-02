@@ -210,10 +210,13 @@ function walkHtml(dir) {
 walkHtml("dist-site");
 const generatedHtml = htmlFiles.map(file => fs.readFileSync(file, "utf8")).join("\n");
 for (const stale of [
-  "Edge Add-ons yang terverifikasi masih menyajikan <strong>1.1.0.1</strong>",
-  "verified Edge Add-ons package was still <strong>1.1.0.1</strong>",
+  "1.1.0.1",
   "belum boleh dianggap live di Store",
-  "must <strong>not</strong> be treated as Store-live"
+  "belum tersedia di Store",
+  "masih mengikuti proses update Store",
+  "must <strong>not</strong> be treated as Store-live",
+  "not yet available in the Store",
+  "still follows the Store update process"
 ]) {
   if (generatedHtml.includes(stale)) {
     throw new Error("generated site contains stale Edge v1.2 availability copy: " + stale);
