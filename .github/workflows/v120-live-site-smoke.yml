@@ -1,0 +1,45 @@
+name: Verify v1.2.0 Live Website
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/v120-live-site-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify live pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://mentaliss.github.io/bukabmp"
+          for path in             id/ id/status/ id/download/ id/docs/install/ id/features/ id/docs/usage/ id/docs/files/ id/docs/troubleshooting/ id/docs/bot/ id/privacy/ id/security/ id/faq/ id/community/ id/release-notes/             en/ en/status/ en/download/ en/docs/install/ en/features/ en/docs/usage/ en/docs/files/ en/docs/troubleshooting/ en/docs/bot/ en/privacy/ en/security/ en/faq/ en/community/ en/release-notes/
+          do
+            url="$base/$path"
+            code=$(curl -L -sS -o /tmp/page.html -w "%{http_code}" "$url")
+            echo "$path http=$code"
+            test "$code" = "200"
+          done
+
+      - name: Verify live v1.2.0 contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://mentaliss.github.io/bukabmp/id/status/ -o /tmp/status.html
+          curl -fsSL https://mentaliss.github.io/bukabmp/id/download/ -o /tmp/download.html
+          curl -fsSL https://mentaliss.github.io/bukabmp/id/docs/files/ -o /tmp/files.html
+          curl -fsSL https://mentaliss.github.io/bukabmp/id/docs/bot/ -o /tmp/bot.html
+          grep -F "BMP Terbuka v1.2.0" /tmp/status.html >/dev/null
+          grep -F "BMP-Terbuka-v1.2.0.zip" /tmp/download.html >/dev/null
+          grep -F "MERGE" /tmp/files.html >/dev/null
+          grep -F "Playground komunitas buat ngobrol" /tmp/bot.html >/dev/null
+          if grep -E 'releases/download/v1\.1\.0/|Release stabil produk saat ini adalah[^<]*v1\.1\.0' /tmp/status.html /tmp/download.html; then
+            echo "stale live current-state copy"
+            exit 1
+          fi
+          echo "LIVE_WEBSITE_V120=PASS"
