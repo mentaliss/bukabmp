@@ -1,0 +1,76 @@
+name: Publish v1.2.0 Release
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/v120-publish-release.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      BMP_API_BASE_URL: https://community.bukabmp.workers.dev
+      BMP_TELEGRAM_CHANNEL_URL: https://t.me/bukabmp
+      BMP_TELEGRAM_GROUP_URL: https://t.me/+0pAg9ymEhWdkZmNl
+      SOURCE_DATE_EPOCH: "1790926581"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Verify tag points to this release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          test "$(git rev-list -n1 v1.2.0)" = "393d737bd46025e43170d488b316541f1da72b10"
+
+      - name: Build and verify frozen Chrome payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run validate
+          npm run build:release
+          npm run validate:github
+          cd dist/BMP-Terbuka-v1.2.0
+          test "$(find . -type f | wc -l)" -eq 38
+          sha256sum -c ../../release/v1.2.0-frozen-payload.sha256
+
+      - name: Package public Chrome ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib,zipfile
+          root=pathlib.Path("dist/BMP-Terbuka-v1.2.0")
+          out=pathlib.Path("dist/BMP-Terbuka-v1.2.0.zip")
+          with zipfile.ZipFile(out,"w",compression=zipfile.ZIP_DEFLATED,compresslevel=9) as z:
+              for p in sorted(root.rglob("*")):
+                  if p.is_file():
+                      z.write(p,(pathlib.Path(root.name)/p.relative_to(root)).as_posix(),compress_type=zipfile.ZIP_DEFLATED,compresslevel=9)
+          with zipfile.ZipFile(out) as z:
+              bad=[i.filename for i in z.infolist() if not i.is_dir() and i.compress_type!=zipfile.ZIP_DEFLATED]
+              if bad: raise SystemExit("non-DEFLATE entries: "+", ".join(bad))
+          PY
+          sha256sum dist/BMP-Terbuka-v1.2.0.zip > dist/BMP-Terbuka-v1.2.0.zip.sha256
+          cat dist/BMP-Terbuka-v1.2.0.zip.sha256
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view v1.2.0 >/dev/null 2>&1; then
+            gh release upload v1.2.0               dist/BMP-Terbuka-v1.2.0.zip               dist/BMP-Terbuka-v1.2.0.zip.sha256               --clobber
+            gh release edit v1.2.0               --title "BMP Terbuka v1.2.0"               --notes-file release/v1.2.0-notes.md
+          else
+            gh release create v1.2.0               dist/BMP-Terbuka-v1.2.0.zip               dist/BMP-Terbuka-v1.2.0.zip.sha256               --verify-tag               --title "BMP Terbuka v1.2.0"               --notes-file release/v1.2.0-notes.md
+          fi
