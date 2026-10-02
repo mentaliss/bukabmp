@@ -14,7 +14,7 @@ Use the official asset:
 
 Do not use GitHub's automatically generated **Source code (zip)** or **Source code (tar.gz)** as the extension package.
 
-For a manual update, extract the new package into the folder you manage and use **Reload** from `chrome://extensions`. Do not uninstall or clear local storage just to perform a normal update.
+For a manual Chrome update, download and extract the new package, then **replace/overwrite the contents of the same folder previously selected with Load unpacked**. Only after the new files are in that same folder should you open `chrome://extensions` and press **Reload**. Reload does not download an update by itself. Do not uninstall, Remove, switch to a different folder, or clear local storage just to perform a normal update.
 
 See [Installation & Updates](docs/install).
 
@@ -24,7 +24,7 @@ The official path remains Microsoft Edge Add-ons.
 
 [[EDGE_CTA]]
 
-Store availability follows Microsoft's review/propagation process. Check [Status & Version](status) before treating v1.2.0 as live in the Store.
+**v1.2.0 is now live on Microsoft Edge Add-ons.** Edge Desktop installs and updates through the normal Store mechanism.
 
 ## Microsoft Edge — Android
 
@@ -36,6 +36,6 @@ Edge Canary is fallback/testing only.
 
 In v1.2.0, Android Restore uses a dedicated BMP Terbuka restore tab. See [Installation & Updates](docs/install) and [PDF, Backup, Restore & Storage](docs/files).
 
-## Edge v1.2.0 note
+## Microsoft Edge v1.2.0
 
-When this page was prepared, the verified Edge Add-ons package was still **1.1.0.1**. Do not install diagnostic/audit CRX packages as a shortcut. Wait for the legitimate Store update.
+**v1.2.0 is live through the official Microsoft Edge Add-ons listing** for Desktop and Android. Use the official Store listing; do not install diagnostic/audit CRX packages as a shortcut.
