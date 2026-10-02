@@ -1,164 +1,87 @@
-# PDF, Resume & Penyimpanan
+# PDF, Backup, Restore & Penyimpanan
 
-BMP Terbuka memisahkan **hasil yang disimpan untuk melanjutkan proses** dari **file PDF yang sudah kamu export ke Downloads**. Memahami perbedaan ini penting supaya kamu tidak mengulang OCR tanpa perlu.
+BMP Terbuka menyimpan hasil tertentu secara lokal agar proses dapat dilanjutkan tanpa mengulang OCR yang tidak perlu.
 
-## Bagaimana Hasil Disimpan
+## Penyimpanan Lokal
 
-Setelah sebuah modul selesai diproses, BMP Terbuka menyimpan hasil modul di penyimpanan lokal extension.
+Data lokal dapat dipakai untuk:
 
-Penyimpanan lokal ini dipakai untuk:
-
-- melanjutkan proses yang terputus;
+- resume proses;
 - melewati modul yang sudah selesai;
+- export ulang;
 - membuat PDF gabungan;
-- export ulang tanpa OCR;
-- melihat modul mana yang sudah tersedia.
+- menjalankan fitur lain yang membutuhkan data modul lokal.
 
-Pada implementasi v1.1.0, PDF modul disimpan secara lokal oleh extension. Data ini bukan file yang sama dengan salinan yang kamu lihat di folder Downloads.
+File di folder Downloads adalah **salinan hasil export**. Menghapus file Downloads tidak otomatis menghapus data yang masih tersimpan di extension.
 
-## PDF per Modul
+## Storage Manager
 
-Setiap modul yang selesai dapat tersedia sebagai PDF sendiri.
+Di v1.2.0 kamu dapat menggunakan pengelolaan penyimpanan untuk:
 
-Kalau kamu hanya membutuhkan satu modul, kamu tidak harus membuat PDF gabungan.
+- melihat penggunaan storage lokal;
+- melihat data BMP yang tersedia;
+- export/reuse data yang didukung;
+- menghapus data per BMP;
+- menghapus seluruh data lokal bila memang diinginkan.
 
-### Export Satu Modul
+Sebelum penghapusan yang destruktif, buat backup bila data tersebut masih diperlukan.
 
-Pilih modul yang sudah tersimpan lalu gunakan fungsi export yang tersedia di extension.
+## PDF per Modul & Export Ulang
 
-Karena PDF sudah ada di storage lokal, export ulang tidak perlu mengulang OCR.
-
-### Export Beberapa Modul
-
-Kalau beberapa modul sudah tersedia, pilih modul/range yang dibutuhkan lalu export sesuai opsi yang tersedia.
+Modul yang sudah selesai dapat diexport lagi tanpa mengulang OCR selama data lokalnya masih tersedia.
 
 ## PDF Gabungan
 
-PDF gabungan bersifat opsional.
+PDF gabungan hanya dibuat dari range yang lengkap.
 
-Kamu dapat membuat:
-
-- PDF gabungan penuh bila seluruh modul yang diperlukan tersedia;
-- PDF gabungan untuk range tertentu, misalnya M3–M6.
-
-### Syarat Range Harus Lengkap
-
-BMP Terbuka tidak membuat PDF gabungan seolah-olah lengkap kalau ada modul yang hilang di dalam range.
-
-Contoh:
-
-- M3 tersedia;
-- M4 tersedia;
-- M5 hilang;
-- M6 tersedia.
-
-Range M3–M6 belum lengkap. Proses atau download ulang M5 dulu, lalu buat PDF gabungan lagi.
+Contoh: M3, M4, dan M6 tersedia tetapi M5 hilang. Range M3–M6 belum lengkap. Proses ulang M5 dulu, lalu buat PDF gabungan lagi.
 
 ## Resume
 
-Resume berarti BMP Terbuka menggunakan modul yang sudah tersimpan untuk menghindari pekerjaan ulang.
+Kalau M1–M4 sudah selesai dan tersimpan, menjalankan kembali M1–M9 dapat melewati M1–M4 dan melanjutkan modul yang belum tersedia.
 
-Contoh:
+## Backup
 
-1. kamu memilih M1–M9;
-2. proses selesai sampai M4;
-3. proses berhenti;
-4. kemudian kamu menjalankan M1–M9 lagi.
+Backup menyimpan data lokal BMP Terbuka untuk **pemulihan pribadi**.
 
-Kalau M1–M4 masih lengkap di storage lokal, modul itu dilewati. Extension melanjutkan modul yang belum tersedia.
+File backup dapat memuat data belajar/material yang tersimpan lokal. Karena itu:
 
-## Kapan OCR Harus Diulang
+- simpan backup di tempat yang kamu percaya;
+- jangan membagikannya sembarangan;
+- perlakukan backup seperti data pribadi milikmu sendiri.
 
-OCR perlu dilakukan lagi bila hasil modul yang dibutuhkan memang tidak lagi tersedia di penyimpanan lokal atau kamu sengaja memilih download ulang modul tersebut.
+## Restore = MERGE
 
-OCR tidak perlu diulang hanya karena:
+Restore **bukan** “reset semua data” dan bukan “replace seluruh database”.
 
-- file di Downloads terhapus;
-- kamu ingin export salinan PDF lagi;
-- proses sebelumnya berhenti setelah beberapa modul selesai.
+Perilakunya:
 
-## Penyimpanan Lokal Extension
+- data dari backup dipulihkan;
+- item lokal yang cocok dapat diperbarui oleh isi backup;
+- data lokal lain yang tidak terkait tidak otomatis dihapus.
 
-Penyimpanan lokal adalah authority untuk fitur resume, merge, dan export ulang.
+Setelah restore selesai, cek data yang tersedia sebelum melakukan penghapusan manual.
 
-Di v1.1.0, extension menyimpan cache PDF per BMP secara lokal di browser.
+## Restore di Desktop
 
-Kamu tidak perlu mengelola database internal tersebut secara manual.
+Di Desktop, tekan **Pulihkan backup** dari popup lalu pilih file backup melalui file picker.
 
-## File di Downloads
+## Restore di Edge Android
 
-File di folder Downloads adalah **salinan hasil export**.
+Di Edge Android:
 
-Menghapus file dari Downloads tidak otomatis menghapus data modul yang masih ada di extension.
+**Pulihkan backup → tab restore BMP Terbuka → pilih file → restore berjalan di tab itu.**
 
-Sebaliknya, menghapus storage extension tidak otomatis menghapus file PDF yang sudah ada di Downloads.
+Biarkan tab tersebut terbuka sampai selesai. Menutup tab restore saat proses berjalan akan menghentikan proses.
 
-## File Downloads Terhapus
+## Pindah Browser/Perangkat
 
-Kalau file PDF di Downloads terhapus tetapi modul masih tersedia di storage extension:
+Storage tidak otomatis berpindah antara Chrome dan Edge, perangkat berbeda, profil berbeda, atau instalasi extension dengan identity berbeda.
 
-1. buka BMP yang sesuai;
-2. cek modul yang masih tersimpan;
-3. gunakan export ulang;
-4. tidak perlu OCR ulang.
+Gunakan backup bila kamu perlu menyimpan data lokal sebelum perubahan besar.
 
-Kalau storage lokal juga sudah hilang, modul perlu diproses ulang.
+## Kalau Data Sudah Dihapus
 
-## Mengosongkan Penyimpanan BMP
+Data yang sudah dihapus dari storage extension tidak dapat dipakai lagi untuk resume/export instan. Modul perlu diproses ulang bila sumber lokalnya tidak ada lagi.
 
-Gunakan fungsi hapus/kosongkan penyimpanan hanya kalau kamu memang ingin membuang data lokal BMP tersebut.
-
-Sebelum menghapus, pahami akibatnya:
-
-- data resume untuk BMP tersebut dapat hilang;
-- PDF yang belum diexport tidak lagi bisa diambil dari storage;
-- export ulang tanpa OCR tidak lagi tersedia untuk data yang sudah dihapus;
-- file PDF yang sudah ada di Downloads tidak ikut dihapus.
-
-## Uninstall Extension
-
-Jangan uninstall sebagai langkah troubleshooting pertama.
-
-Uninstall atau penghapusan data browser dapat menghilangkan storage lokal extension.
-
-Kalau kamu hanya ingin memperbarui versi, ikuti [Instalasi & Update](install) tanpa menghapus extension terlebih dahulu.
-
-## Install Ulang
-
-Install ulang dapat dianggap sebagai instalasi baru bila browser memberikan identity/storage yang berbeda.
-
-Akibatnya:
-
-- aktivasi mungkin perlu dilakukan lagi;
-- storage lokal lama mungkin tidak tersedia;
-- resume dari data lama mungkin tidak bisa digunakan.
-
-Karena itu install ulang hanya dilakukan kalau memang diperlukan, bukan sebagai solusi default untuk semua error.
-
-## Pindah Browser atau Perangkat
-
-Jangan menganggap storage extension otomatis berpindah antara:
-
-- Chrome dan Edge;
-- komputer lama dan komputer baru;
-- satu profil browser dan profil lain;
-- instalasi extension yang berbeda.
-
-Simpan file PDF penting yang sudah diexport di tempat yang kamu kelola sendiri.
-
-## Kalau Modul Hilang dari Storage
-
-Kalau hanya satu atau beberapa modul yang hilang:
-
-1. pilih BMP yang benar;
-2. pilih range modul yang hilang;
-3. gunakan proses/download ulang untuk range tersebut;
-4. jangan proses ulang seluruh BMP bila tidak perlu.
-
-## Kalau PDF Gabungan Tidak Bisa Dibuat
-
-Periksa apakah semua modul dalam range target sudah lengkap.
-
-Kalau ada gap, selesaikan modul yang hilang dulu.
-
-Untuk diagnosis lebih lengkap, buka [Mengatasi Masalah](troubleshooting).
+Untuk diagnosis, buka [Mengatasi Masalah](troubleshooting).

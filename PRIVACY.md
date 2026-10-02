@@ -1,55 +1,59 @@
 # Privacy Policy
 
-BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku **BMP Terbuka v1.1.0**, release stabil saat ini.
+BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku **BMP Terbuka v1.2.0**.
 
 ## Ringkasan
 
-Halaman materi, OCR, cache PDF, penggabungan PDF, dan ekspor PDF diproses di perangkat pengguna. Backend BMP Terbuka tidak menerima password/NIM/cookie portal sumber, gambar halaman materi, teks OCR, atau PDF hasil.
+Untuk alur OCR/PDF, halaman materi, OCR, cache PDF, penggabungan PDF, dan ekspor PDF diproses di perangkat pengguna. Backend BMP Terbuka tidak digunakan untuk mengunggah raw PDF hasil, gambar halaman materi, password/NIM/cookie portal sumber, atau teks OCR penuh dari alur PDF biasa.
 
-BMP Terbuka tetap melakukan request jaringan untuk aktivasi komunitas, version/realtime state, telemetry pseudonymous, sponsor/advertising state dan metrics, serta Telegram/community flow.
+BMP Terbuka tetap menggunakan jaringan untuk fungsi yang memang memerlukannya, termasuk aktivasi komunitas, version/realtime state, telemetry pseudonymous, sponsor/advertising state dan metrics terbatas, Telegram/community flow, Supporter/payment flow, dan Quiz Telegram.
 
 ## Penyimpanan lokal
 
-Browser dapat menyimpan installation ID acak, analytics ID acak yang terpisah, signed activation token, pairing state sementara, draft kode BMP/rentang, status pekerjaan, cache PDF per BMP, version-policy cache, dan validated realtime/ads state.
+Browser dapat menyimpan installation ID acak, analytics ID acak yang terpisah, signed activation token, pairing state sementara, draft, status pekerjaan, cache PDF per BMP, source Quiz lokal, version-policy cache, serta state lain yang diperlukan fitur lokal.
 
-PDF modul disimpan lokal di IndexedDB bmp-terbuka-pdf-cache pada object store pdfs. File di Downloads adalah salinan ekspor.
+File di Downloads adalah salinan ekspor dan berbeda dari data yang masih tersimpan di storage extension.
+
+## Backup & Restore
+
+Backup v1.2.0 dibuat untuk pemulihan data lokal pribadi. File backup dapat mengandung data belajar/material yang sebelumnya tersimpan secara lokal.
+
+Karena itu:
+- simpan backup di tempat yang kamu percaya;
+- jangan membagikan file backup ke group, bot, atau pihak lain tanpa alasan yang jelas;
+- menghapus file backup tidak otomatis menghapus storage extension, dan sebaliknya.
+
+Restore memakai **MERGE semantics**. Data dari backup dipulihkan dan item lokal yang cocok dapat diperbarui; data lokal lain yang tidak terkait tidak otomatis dihapus.
+
+## Quiz Telegram
+
+Untuk Quiz:
+- raw PDF tidak diunggah untuk pembuatan soal;
+- gambar halaman tidak diunggah;
+- source Quiz berasal dari teks yang diekstrak dan disanitasi secara lokal;
+- bila bank soal perlu dibuat, source teks yang sudah disanitasi dapat dipakai oleh backend/AI generation flow untuk membuat soal;
+- source teks asli tersebut tidak disimpan server-side sebagai salinan materi sumber setelah flow generation.
+
+Bank soal, status penggunaan, dan data gameplay yang diperlukan fitur Quiz dapat disimpan server-side sesuai fungsi produk.
 
 ## Aktivasi komunitas
 
-Extension membuat pairing menggunakan installation ID acak, versi extension, dan distribution channel. Pairing sementara memakai TTL sekitar 15 menit. Membership Telegram diperiksa saat aktivasi/re-verifikasi dan token refresh.
+Extension membuat pairing menggunakan installation ID acak, versi extension, dan distribution channel. Membership Telegram dapat diperiksa saat aktivasi/re-verifikasi dan token refresh.
 
-Backend dapat menyimpan data durable untuk fungsi bot, aktivasi, referral, Supporter, dan payment/idempotency. Data tersebut dapat mencakup Telegram user ID internal, activation ledger, referral state, Supporter entitlement, dan record transaksi yang diperlukan untuk rekonsiliasi. Data durable ini tidak berisi halaman BMP, OCR text, atau PDF hasil.
+Backend dapat menyimpan data durable untuk fungsi bot, aktivasi, referral, Supporter, payment/idempotency, support ticket, dan Quiz. Data tersebut tidak dimaksudkan sebagai storage raw PDF/page-image pengguna.
 
-## Telemetry produk pseudonymous
+## Telemetry pseudonymous
 
-Kandidat v1.1.0 membuat bmpAnalyticsIdV1, UUID acak per instalasi yang terpisah dari installation ID, Telegram identity, activation credential, dan Supporter/payment state.
+Telemetry produk menggunakan identifier pseudonymous terpisah dari identitas Telegram dan activation credential. Payload telemetry di-allowlist dan tidak boleh berisi raw PDF, OCR text, material page image, password, cookie/session sumber, atau activation secret.
 
-Event yang di-allowlist saat ini mencakup extension open, job started/completed/failed, paid sponsor impression/click/dismiss, dan media render failure yang terbatas.
-
-Worker mengubah analytics UUID dengan **server-side keyed HMAC** sebelum penyimpanan analytics. Raw analytics UUID bukan key penyimpanan analytics.
-
-Telemetry tidak boleh memuat Telegram ID/username, member reference, activation/pairing secret, kode BMP, nomor/nama modul, URL reader, nama/isi PDF, OCR text, judul/isi dokumen, atau browsing history.
-
-Aktivitas pseudonymous harian dibatasi kira-kira **180 hari**; agregat harian kira-kira **400 hari**.
-
-## Rate limiting dan provider logs
-
-Beberapa endpoint memakai fingerprint satu arah dari alamat IP dengan salt server untuk rate limiting. Telemetry analytics sendiri tidak memakai IP sebagai actor analytics. Cloudflare dan provider/platform lain dapat memiliki log infrastrukturnya sendiri sesuai konfigurasi dan kebijakan provider.
+Provider/platform seperti Cloudflare, Telegram, browser/store, dan source service dapat memiliki log infrastrukturnya sendiri sesuai konfigurasi dan kebijakan masing-masing.
 
 ## Sponsor / advertising
 
-Campaign dapat ditampilkan sebagai sponsor card atau interstitial menggunakan renderer yang sudah ada di package. Media direct campaign memakai BMP-owned first-party media ID. Arbitrary advertiser HTML, iframe, tracking pixel, atau executable JavaScript tidak dijalankan sebagai creative extension.
+Campaign dapat menampilkan sponsor card/interstitial melalui renderer di package extension. Arbitrary advertiser HTML, iframe, tracking pixel, atau executable JavaScript tidak digunakan sebagai creative extension.
 
-Metrics coarse dapat mencakup impression, click, dismiss, placement, campaign ID + revision, distribution channel, dan extension version.
-
-Event advertising tidak membawa Telegram user ID, installation ID, activation token, kode BMP, modul/halaman, OCR text, atau PDF.
-
-Pemilihan campaign kandidat v1.1.0 bersifat **contextual**, bukan personalized/interest-based/retargeted berdasarkan identitas pengguna, histori penggunaan, kode BMP, atau isi dokumen.
-
-Sponsor/advertiser tidak memperoleh akses ke identitas pribadi pengguna, private activation identity, private telemetry per-user, atau arbitrary tracking capability.
+Metrics coarse dapat mencakup impression, click, dismiss, placement, campaign ID/revision, distribution channel, dan extension version. Event advertising tidak membawa raw PDF/OCR text atau credential sumber.
 
 ## Pihak ketiga
 
-Fungsi aplikasi berinteraksi dengan layanan yang diperlukan, termasuk Cloudflare, Telegram, browser/store, serta portal sumber yang dibuka pengguna. Masing-masing dapat memiliki log dan kebijakan platform sendiri.
-
-BMP Terbuka tidak menjual isi materi, OCR text, atau PDF pengguna kepada advertiser dan tidak menggunakan data extension untuk personalized advertising/retargeting.
+BMP Terbuka tidak menjual isi materi, OCR text, atau PDF pengguna kepada advertiser dan tidak menggunakan isi dokumen untuk personalized advertising/retargeting.

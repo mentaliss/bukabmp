@@ -99,20 +99,20 @@ if (enHome.includes(">Microsoft Edge Add-ons<")) {
   throw new Error("English homepage must link to Download page instead of exposing Edge Add-ons CTA");
 }
 
-if (!idDownload.includes("BMP-Terbuka-v1.1.0.zip")) {
-  throw new Error("download page missing stable v1.1.0 asset");
+if (!idDownload.includes("BMP-Terbuka-v1.2.0.zip")) {
+  throw new Error("download page missing stable v1.2.0 asset");
 }
 
 if (/Unreleased/i.test(idDownload)) {
-  throw new Error("download page must not describe v1.1.0 as unreleased");
+  throw new Error("download page must not describe v1.2.0 as unreleased");
 }
 
-if (!enDownload.includes("BMP-Terbuka-v1.1.0.zip")) {
-  throw new Error("English download page missing stable v1.1.0 asset");
+if (!enDownload.includes("BMP-Terbuka-v1.2.0.zip")) {
+  throw new Error("English download page missing stable v1.2.0 asset");
 }
 
 if (/Unreleased/i.test(enDownload) || /Unreleased/i.test(enPrivacy)) {
-  throw new Error("English public pages must not describe v1.1.0 as unreleased");
+  throw new Error("English public pages must not describe v1.2.0 as unreleased");
 }
 
 for (const required of [
@@ -136,8 +136,8 @@ for (const required of [
 }
 
 for (const required of [
-  "BMP Terbuka v1.1.0",
-  "Belum tersedia sebagai jalur instalasi aktif",
+  "BMP Terbuka v1.2.0",
+  "1.1.0.1",
   "/bukabmp/id/docs/install/"
 ]) {
   if (!idStatus.includes(required)) throw new Error("status page missing expected value: " + required);
@@ -153,8 +153,8 @@ for (const required of [
 }
 
 for (const required of [
-  "BMP Terbuka v1.1.0",
-  "Not available as an active installation path yet",
+  "BMP Terbuka v1.2.0",
+  "1.1.0.1",
   "/bukabmp/en/docs/install/"
 ]) {
   if (!enStatus.includes(required)) throw new Error("English status page missing expected value: " + required);
@@ -184,7 +184,7 @@ for (const required of [
   "privacy",
   "Chrome Web Store",
   "Microsoft Edge Stable",
-  "v1.1.0",
+  "v1.2.0",
   "https://mentaliss.github.io/bukabmp/id/docs/install/"
 ]) {
   if (!corpusText.includes(required)) {

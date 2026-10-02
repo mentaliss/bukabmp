@@ -89,7 +89,7 @@ Bonus ini berkaitan dengan entitlement aktivasi extension, bukan menambah masa p
 
 ### Kapan Bonus Terlihat di Extension
 
-BMP Terbuka v1.1.0 memiliki mekanisme token/refresh untuk menyinkronkan entitlement yang memenuhi syarat.
+BMP Terbuka v1.2.0 memiliki mekanisme token/refresh untuk menyinkronkan entitlement yang memenuhi syarat.
 
 Token yang sudah tersimpan di perangkat tidak selalu berubah tepat pada saat pembayaran selesai.
 

@@ -1,0 +1,72 @@
+name: Validate v1.2.0 Website
+# rerun after v1.2 validator sync
+
+on:
+  push:
+    branches: ["website-v1.2.0"]
+    paths:
+      - ".github/workflows/v120-website-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build website
+        run: npm run build:site
+
+      - name: Validate website
+        run: npm run validate:site
+
+      - name: Verify v1.2.0 release asset exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fLsS --range 0-15             https://github.com/mentaliss/bukabmp/releases/download/v1.2.0/BMP-Terbuka-v1.2.0.zip             -o /tmp/release-head.bin
+          test -s /tmp/release-head.bin
+
+      - name: Required content contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -R -F "BMP Terbuka v1.2.0" content/id content/en >/dev/null
+          grep -R -F "Playground komunitas buat ngobrol, saling bantu, berbagi, ikut aktivitas, bahas tools, belajar, dan lainnya." content/id docs/COMMUNITY.md >/dev/null
+          grep -R -F "MERGE" content/id/files.md content/en/files.md docs/FAQ.md >/dev/null
+          grep -R -F "tab restore" content/id/install.md content/id/files.md content/id/troubleshooting.md >/dev/null
+          grep -R -F "raw PDF" content/id/features.md content/id/usage.md PRIVACY.md >/dev/null
+
+      - name: Stale current-version scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "=== SOURCE v1.1.0 occurrences outside historical changelog ==="
+          set +e
+          grep -RIn --exclude=CHANGELOG.md --exclude-dir=.git --exclude-dir=dist-site             -E 'v1\.1\.0|BMP-Terbuka-v1\.1\.0'             content docs README.md PRIVACY.md SECURITY.md RESPONSIBLE_USE.md SPONSORSHIP.md site             | tee /tmp/stale.txt
+          rc=$?
+          set -e
+          if [ -s /tmp/stale.txt ]; then
+            echo "STALE_CURRENT_VERSION_REFERENCES_FOUND"
+            exit 1
+          fi
+          echo "No stale current-version references."
+
+      - name: Generated site scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -R -F "v1.2.0" dist-site >/dev/null
+          if grep -RIn -E 'current stable[^<]{0,120}v1\.1\.0|release stabil[^<]{0,120}v1\.1\.0|versi stabil[^<]{0,120}v1\.1\.0' dist-site; then
+            echo "Generated output contains stale current-version copy."
+            exit 1
+          fi
+          if grep -RIn 'releases/download/v1\.1\.0/' dist-site; then
+            echo "Generated output contains stale v1.1.0 download link."
+            exit 1
+          fi

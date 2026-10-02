@@ -1,178 +1,63 @@
 # Cara Menggunakan BMP Terbuka
 
-Halaman ini menjelaskan alur penggunaan BMP Terbuka setelah extension terpasang dan aktivasi sudah selesai.
-
-Kalau belum install, mulai dari [Instalasi & Update](install). Kalau belum aktif, buka [Aktivasi & Verifikasi](activation).
-
-## Alur Singkat
-
-Secara umum:
+## Alur Utama
 
 1. login ke reader menggunakan akun kamu sendiri;
-2. buka BMP yang ingin diproses;
+2. buka BMP yang memang dapat kamu akses;
 3. buka popup BMP Terbuka;
-4. masukkan Kode BMP;
+4. masukkan Kode BMP dari parameter `modul=` pada URL reader;
 5. pilih range modul;
-6. tekan Mulai;
-7. tunggu modul diproses;
+6. tekan **Mulai**;
+7. tunggu proses lokal selesai;
 8. export PDF yang dibutuhkan.
 
-BMP Terbuka tidak memberi akses baru ke materi. Extension bekerja menggunakan sesi browser yang memang sudah memiliki akses.
+BMP Terbuka tidak memberi akses baru ke materi. Extension bekerja menggunakan sesi browser yang sudah memiliki akses normal.
 
-## Membuka Reader yang Benar
+## Saat Proses Berjalan
 
-Login ke portal reader melalui mekanisme normal sumber.
+Untuk setiap modul, BMP Terbuka mengambil resource yang tersedia pada sesi reader, memproses halaman di perangkat, menjalankan OCR lokal, membentuk PDF, lalu menyimpan hasil modul ke storage lokal.
 
-Setelah login, buka BMP yang ingin kamu gunakan sampai halaman reader dapat dibaca secara normal.
+Kalau sumber menolak akses atau meminta login ulang, proses berhenti dengan aman.
 
-Jangan mengirim password, NIM, cookie, atau session ke bot BMP Terbuka.
+## Resume
 
-## Menemukan Kode BMP
+Modul yang sudah selesai dan tersimpan tidak perlu diproses ulang.
 
-Kode BMP diambil dari parameter `modul` pada URL reader.
+Contoh: M1–M4 selesai dari target M1–M9. Saat dilanjutkan, BMP Terbuka dapat memakai M1–M4 yang sudah ada dan meneruskan modul berikutnya.
 
-Contoh pola URL:
+## Download Ulang
 
-`.../reader/index.php?modul=XXXX...`
+Kalau satu modul perlu dibuat ulang, gunakan download ulang hanya untuk range yang bermasalah. Jangan hapus seluruh storage bila masalah hanya terjadi pada satu modul.
 
-Nilai setelah `modul=` itulah yang digunakan sebagai Kode BMP.
-
-### Kode BMP Bukan Selalu Kode Mata Kuliah
-
-Jangan menebak Kode BMP hanya dari kode mata kuliah.
-
-Kalau mata kuliah memiliki edisi atau struktur reader berbeda, nilai yang digunakan extension tetap harus mengikuti URL reader yang sedang dibuka.
-
-### Kalau Ragu
-
-Buka kembali BMP yang benar di reader, lihat URL tab aktif, lalu ambil nilai `modul=`.
-
-## Memilih Range Modul
-
-BMP Terbuka dapat memproses seluruh BMP atau sebagian range.
-
-Contoh:
-
-- `M1–M9`: modul 1 sampai 9;
-- `M3–M6`: modul 3 sampai 6;
-- `M2`: hanya modul 2 jika UI mendukung pilihan tersebut melalui range yang sesuai.
-
-Pilih range sesuai kebutuhan. Memproses ulang seluruh BMP tidak diperlukan kalau masalah hanya terjadi pada satu atau dua modul.
-
-## Memulai Proses
-
-Sebelum menekan **Mulai**:
-
-- pastikan tab reader masih tersedia;
-- pastikan Kode BMP benar;
-- pastikan range modul benar;
-- pastikan aktivasi masih valid.
-
-Setelah menekan **Mulai**, extension mengerjakan modul secara berurutan.
-
-## Apa yang Terjadi Saat Proses Berjalan
-
-Untuk setiap modul, BMP Terbuka:
-
-- meminta halaman yang memang tersedia pada sesi reader;
-- memproses halaman di perangkat;
-- menjalankan OCR lokal;
-- membentuk PDF;
-- menyimpan hasil modul ke penyimpanan lokal extension;
-- melanjutkan ke modul berikutnya.
-
-Kalau sumber menolak akses atau meminta login ulang, extension dirancang untuk berhenti dengan aman daripada melakukan blind retry.
-
-## Progress
-
-Progress dapat berubah dari tahap membuka modul, memproses halaman, OCR, sampai menyimpan hasil.
-
-Kalau terlihat berhenti, catat tahap terakhir sebelum melakukan tindakan lain.
-
-Jangan langsung menghapus storage karena storage tersebut dapat berisi modul yang sudah selesai dan berguna untuk resume.
-
-## Modul Diproses Satu per Satu
-
-Kalau kamu memilih M1–M9, bukan berarti sembilan PDF muncul sekaligus.
-
-Extension menyelesaikan modul secara berurutan. Modul yang selesai disimpan sebelum melanjutkan ke modul berikutnya.
-
-Karena itu, kalau proses berhenti setelah M4, hasil M1–M4 yang sudah lengkap dapat tetap tersedia di penyimpanan lokal.
-
-## Melanjutkan Proses
-
-Resume adalah perilaku normal BMP Terbuka.
-
-Contoh:
-
-- kamu memilih M1–M9;
-- proses selesai sampai M4;
-- browser tertutup atau proses berhenti;
-- kamu membuka kembali BMP yang sama;
-- jalankan M1–M9 lagi.
-
-Kalau M1–M4 masih lengkap di storage lokal, extension melewati modul tersebut dan melanjutkan modul yang belum tersedia.
-
-Kamu tidak perlu mengulang OCR dari M1 hanya karena proses sebelumnya terputus.
-
-## Download Ulang Modul Tertentu
-
-Gunakan **Download ulang modul yang dipilih** kalau hasil modul tertentu perlu dibuat ulang.
-
-Contoh:
-
-- M1–M9 sudah pernah diproses;
-- M5 bermasalah;
-- pilih range yang mencakup M5;
-- aktifkan opsi download ulang;
-- proses ulang hanya bagian yang dibutuhkan.
-
-Jangan menghapus seluruh penyimpanan BMP hanya untuk memperbaiki satu modul.
-
-## Kalau Ada Modul yang Belum Lengkap
-
-Modul yang belum lengkap tidak dianggap selesai.
-
-Kalau sebuah range untuk PDF gabungan memiliki gap, BMP Terbuka tidak seharusnya diam-diam membuat hasil gabungan yang kehilangan modul tersebut.
-
-Proses atau download ulang modul yang hilang dulu, lalu coba merge kembali.
-
-## Setelah Proses Selesai
+## Setelah Selesai
 
 Kamu dapat:
 
 - export PDF per modul;
-- memilih beberapa modul untuk export;
-- membuat PDF gabungan untuk range yang lengkap;
-- membuat PDF gabungan penuh bila seluruh modul yang diperlukan tersedia;
-- export ulang dari storage tanpa OCR lagi.
+- export ulang dari storage;
+- membuat PDF gabungan dari range yang lengkap;
+- membuat backup data lokal;
+- mengelola penyimpanan;
+- memulai Quiz Telegram dari modul yang sudah siap.
 
-Penjelasan lengkap ada di [PDF, Resume & Penyimpanan](files).
+## Mulai Quiz Telegram
 
-## Memproses BMP yang Berbeda
+Untuk modul yang sudah diproses dan source Quiz lokalnya tersedia:
 
-Storage dipisahkan berdasarkan BMP.
+1. pilih modul pada bagian Quiz;
+2. tekan **Mulai Quiz Telegram**;
+3. lanjutkan ronde di Telegram.
 
-Saat beralih ke BMP lain:
+Untuk privasi Quiz, PDF mentah dan gambar halaman tidak dikirim. Source Quiz berasal dari teks yang diekstrak dan disanitasi secara lokal.
 
-1. buka reader BMP baru;
-2. ambil Kode BMP dari URL reader BMP tersebut;
-3. masukkan Kode BMP yang benar;
-4. pilih range;
-5. mulai proses.
+## Backup & Restore
 
-Jangan menggunakan Kode BMP lama untuk reader yang berbeda.
+Gunakan Backup bila kamu ingin menyimpan data lokal sebelum penghapusan, pindah perangkat, atau perubahan lain.
+
+Restore memakai MERGE dan tidak otomatis menghapus data lokal lain yang tidak terkait. Detail: [PDF, Backup, Restore & Penyimpanan](files).
 
 ## Kalau Terjadi Error
 
-Catat:
+Catat versi, browser/perangkat, Kode BMP, modul/range, tahap terakhir, dan teks error. Jangan kirim password, NIM, cookie, session, atau credential lain.
 
-- teks error;
-- tahap saat error muncul;
-- Kode BMP;
-- modul/range;
-- Android atau Desktop;
-- browser;
-- versi BMP Terbuka.
-
-Lalu buka [Mengatasi Masalah](troubleshooting).
+Lanjutkan ke [Mengatasi Masalah](troubleshooting).

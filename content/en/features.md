@@ -1,25 +1,47 @@
-# Features
+# BMP Terbuka v1.2.0 Features
 
-## Searchable PDFs
+## Searchable PDF
 
-Local OCR makes text in generated PDFs searchable.
+OCR makes text in the resulting PDF searchable.
 
 ## Local-first processing
 
-OCR, PDF assembly, cache, and exports run on the user's device.
+OCR, PDF assembly, local cache, and primary export processing run on the device.
 
-## Resume from local storage
+## Resume & local reuse
 
-Per-material module PDFs can remain in IndexedDB so later runs can skip completed work.
+Completed modules can be reused for resume, re-export, and combined PDFs without rerunning OCR from the beginning.
 
-## Flexible export
+## Combined PDF
 
-Export modules, ranges, or combined PDFs when the selected range is complete.
+Build a combined PDF from a complete range. Missing modules are not silently skipped.
+
+## Local Storage Manager
+
+View local storage usage, manage stored BMP data, reuse/export supported local material, remove data per BMP, or remove all local data when intended.
+
+## Backup & Restore
+
+Backup preserves BMP Terbuka local data for personal recovery.
+
+Restore uses **MERGE** semantics: backup data is restored, matching local items may be updated from the backup, and unrelated local data is not automatically erased.
+
+## Edge Android Restore
+
+On Edge Android, restore runs in a dedicated BMP Terbuka restore tab for file-picker compatibility. Desktop keeps restore selection in the popup.
+
+## Telegram Quiz
+
+For a processed module with local Quiz source:
+
+**select module → Start Telegram Quiz → continue in Telegram.**
+
+Raw PDFs and page images are not uploaded for Quiz generation. Quiz source comes from text extracted and sanitized locally.
 
 ## Safe stop
 
-When the source denies access or asks for re-authentication, BMP Terbuka stops rather than attempting blind retries.
+BMP Terbuka stops when the source rejects access, asks for login again, or otherwise cannot be safely continued.
 
-## Community and Supporter
+## Community + Supporter
 
-Community activation provides update/support continuity. Supporter is optional and does not change the privacy boundary.
+The community is a general conversation and activity space. Supporter is optional and does not change the material privacy boundary.

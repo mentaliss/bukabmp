@@ -1,198 +1,96 @@
 # Instalasi & Update
 
-Halaman ini menjelaskan cara memasang dan memperbarui BMP Terbuka berdasarkan perangkat dan browser.
+BMP Terbuka v1.2.0 memakai jalur instalasi yang berbeda sesuai browser. Gunakan [Status & Versi](../status) untuk kondisi distribusi terbaru.
 
-Jalur instalasi tidak sama untuk semua browser. Untuk status distribusi terbaru, selalu cek [Status & Versi](../status).
+## Jalur Resmi
 
-## Pilih Perangkat dan Browser
-
-Jalur utama saat ini:
-
-- **Android:** Microsoft Edge Stable + Microsoft Edge Add-ons.
+- **Desktop Chrome:** package manual GitHub Release.
 - **Desktop Edge:** Microsoft Edge Add-ons.
-- **Desktop Chrome:** instalasi manual dari asset ZIP release resmi.
+- **Android:** Microsoft Edge Stable + Microsoft Edge Add-ons.
 - **Firefox:** belum didukung resmi.
 - **Chrome Android:** bukan target instalasi resmi.
 
-Release stabil BMP Terbuka saat ini adalah **v1.1.0**.
-
-## Android — Microsoft Edge Stable
-
-### Yang Dibutuhkan
-
-- perangkat Android;
-- Microsoft Edge Stable versi terbaru yang tersedia untuk perangkat kamu;
-- Telegram untuk aktivasi;
-- akses normal ke reader.
-
-### Cara Install
-
-1. Install atau update **Microsoft Edge Stable**.
-2. Buka Microsoft Edge.
-3. Buka listing resmi BMP Terbuka di Microsoft Edge Add-ons.
-4. Tekan tombol untuk memasang extension.
-5. Konfirmasi pemasangan bila Edge meminta konfirmasi.
-6. Buka daftar extension di Edge dan pastikan BMP Terbuka sudah terpasang.
-7. Buka BMP Terbuka dan lanjutkan ke aktivasi.
-
-Listing resmi Edge Add-ons:
-
-https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
-
-### Setelah Install
-
-Jangan langsung mencari Kode BMP di Telegram. Aktivasi dimulai dari popup extension.
-
-Buka [Aktivasi & Verifikasi](activation) untuk langkah berikutnya.
-
-### Tentang Edge Canary
-
-Edge Canary pernah digunakan sebagai jalur Android pada versi lama dan masih dapat dipakai sebagai fallback/testing pada kondisi tertentu.
-
-Untuk penggunaan normal saat ini, gunakan **Microsoft Edge Stable**.
-
-## Desktop — Microsoft Edge
-
-### Cara Install
-
-1. Buka Microsoft Edge.
-2. Buka listing BMP Terbuka di Microsoft Edge Add-ons.
-3. Pasang extension melalui mekanisme normal Edge.
-4. Pastikan BMP Terbuka muncul di daftar extension.
-5. Pin extension ke toolbar bila ingin akses lebih cepat.
-6. Buka popup BMP Terbuka dan lakukan aktivasi.
-
-Listing resmi:
-
-https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
-
-### Update di Edge
-
-Instalasi dari Edge Add-ons mengikuti mekanisme update milik browser/store.
-
-Kalau versi baru sudah dirilis tetapi belum muncul di perangkat kamu, cek [Status & Versi](../status). Proses review atau propagasi Store dapat berbeda dari release GitHub.
+Versi stabil produk: **v1.2.0**.
 
 ## Desktop — Google Chrome
 
-Chrome Web Store belum menjadi jalur distribusi aktif BMP Terbuka saat ini. Karena itu, pengguna Chrome desktop memasang BMP Terbuka secara manual dari ZIP release resmi.
+1. Buka GitHub Release resmi: https://github.com/mentaliss/bukabmp/releases/tag/v1.2.0
+2. Download `BMP-Terbuka-v1.2.0.zip`.
+3. Extract ZIP ke folder tetap.
+4. Buka `chrome://extensions`.
+5. Aktifkan **Developer mode**.
+6. Pilih **Load unpacked** dan arahkan ke folder yang berisi `manifest.json`.
+7. Buka popup BMP Terbuka dan selesaikan aktivasi.
 
-### 1. Download ZIP Release
+Jangan gunakan GitHub **Source code (zip)** sebagai package extension.
 
-Buka GitHub Releases:
+### Update Chrome Manual
 
-https://github.com/mentaliss/bukabmp/releases/latest
+Untuk update:
 
-Download asset bernama seperti:
+1. download ZIP release terbaru;
+2. extract package baru;
+3. perbarui folder extension yang digunakan;
+4. buka `chrome://extensions`;
+5. tekan **Reload**;
+6. buka popup dan cek versi.
 
-`BMP-Terbuka-v1.1.0.zip`
+**Jangan uninstall versi lama atau menghapus storage hanya untuk update normal.** Update in-place dengan identity extension yang sama dirancang mempertahankan data lokal.
 
-Jangan download **Source code (zip)** atau **Source code (tar.gz)**. File tersebut dibuat otomatis oleh GitHub dan bukan package extension untuk pengguna.
+## Desktop — Microsoft Edge
 
-### 2. Extract ZIP
-
-Extract ZIP ke folder yang akan tetap kamu simpan.
-
-Jangan menjalankan extension langsung dari file ZIP.
-
-Setelah extract, pastikan folder yang akan dipilih berisi file `manifest.json`.
-
-### 3. Buka Halaman Extension Chrome
-
-Ketik di address bar:
-
-`chrome://extensions`
-
-### 4. Aktifkan Developer Mode
-
-Aktifkan **Developer mode** di halaman Extensions.
-
-### 5. Pilih Load Unpacked
-
-Tekan **Load unpacked**, lalu pilih folder hasil extract yang berisi `manifest.json`.
-
-Kalau Chrome menolak folder yang dipilih, biasanya folder yang dipilih bukan folder root extension. Masuk satu tingkat ke folder yang benar dan pastikan `manifest.json` terlihat di dalamnya.
-
-### 6. Pastikan BMP Terbuka Aktif
-
-Setelah berhasil dimuat:
-
-- BMP Terbuka muncul di daftar extension;
-- extension dalam kondisi aktif;
-- ikon dapat dipin ke toolbar bila diinginkan.
-
-Setelah itu lanjutkan ke [Aktivasi & Verifikasi](activation).
-
-## Update Instalasi Manual di Chrome
-
-Untuk instalasi manual:
-
-1. buka [GitHub Releases](https://github.com/mentaliss/bukabmp/releases/latest);
-2. download asset ZIP release terbaru;
-3. extract package baru;
-4. perbarui folder extension yang kamu gunakan;
-5. buka `chrome://extensions`;
-6. tekan **Reload** pada BMP Terbuka;
-7. buka popup dan cek versi.
-
-Update in-place dengan identitas extension yang sama biasanya mempertahankan token, draft, dan penyimpanan lokal.
-
-Membuat instalasi baru dengan identity berbeda dapat diperlakukan browser sebagai extension yang berbeda. Karena itu jangan uninstall versi lama atau menghapus data hanya untuk melakukan update normal.
-
-## Browser Chromium Lain
-
-BMP Terbuka tidak menjadikan semua browser Chromium sebagai target dukungan resmi.
-
-Kalau sebuah browser mendukung extension Manifest V3 dan **Load unpacked**, package manual secara teknis dapat dimuat, tetapi dokumentasi dan pengujian utama difokuskan pada Google Chrome dan Microsoft Edge.
-
-Kalau kamu menggunakan browser lain dan mengalami masalah, sebutkan nama browser dan versinya saat meminta bantuan.
-
-## Firefox
-
-Firefox belum menjadi browser yang didukung resmi BMP Terbuka.
-
-Untuk desktop gunakan Google Chrome atau Microsoft Edge. Untuk Android gunakan Microsoft Edge Stable.
-
-## Pindah Browser atau Install Ulang
-
-Penyimpanan hasil BMP berada di storage lokal extension.
-
-Karena itu:
-
-- file PDF yang sudah diekspor ke Downloads tetap merupakan file biasa;
-- data resume/cache di extension tidak boleh diasumsikan ikut pindah ke browser lain;
-- uninstall extension atau menghapus data browser dapat menghapus penyimpanan lokal extension;
-- kalau storage lokal hilang, modul yang dibutuhkan mungkin perlu diproses ulang.
-
-Kalau tujuan kamu hanya update, jangan uninstall lebih dulu.
-
-## Tutorial Video
-
-Video yang tersedia saat ini masih dibuat pada alur **v1.0.4**.
-
-Android:
-
-https://t.me/bukabmp/11?comment=294
-
-Desktop:
-
-https://t.me/c/4381494564/18
-
-Video tersebut masih dapat membantu memahami alur dasar, tetapi tampilan dan beberapa perilaku v1.1.0 sudah berubah. Untuk langkah terbaru gunakan dokumentasi di website ini.
-
-## Download Resmi
-
-Halaman download:
-
-https://mentaliss.github.io/bukabmp/id/download/
-
-GitHub Releases:
-
-https://github.com/mentaliss/bukabmp/releases/latest
-
-Microsoft Edge Add-ons:
+Gunakan listing resmi:
 
 https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
 
-## Setelah Instalasi
+Instalasi dari Edge Add-ons mengikuti mekanisme update Store. Kalau v1.2.0 sudah dirilis di GitHub tetapi belum tersedia di Store, tetap gunakan versi Store yang benar-benar tersedia dan cek halaman [Status & Versi](../status).
 
-Lanjutkan ke [Aktivasi & Verifikasi](activation).
+## Android — Microsoft Edge Stable
+
+1. Install/update Microsoft Edge Stable.
+2. Buka listing BMP Terbuka di Microsoft Edge Add-ons.
+3. Pasang melalui mekanisme normal Edge.
+4. Buka popup BMP Terbuka.
+5. Selesaikan aktivasi.
+6. Login ke reader dengan akun kamu sendiri.
+7. Gunakan BMP Terbuka dari Edge.
+
+### Restore Backup di Android v1.2.0
+
+Pada Edge Android, tombol **Pulihkan backup** tidak membuka file picker di popup.
+
+Alurnya:
+
+**Pulihkan backup → tab restore BMP Terbuka → pilih file backup → proses restore berjalan di tab tersebut.**
+
+Biarkan tab restore tetap terbuka sampai proses selesai. Menutup tab restore saat proses berjalan akan menghentikan restore.
+
+Ini adalah alur kompatibilitas Android v1.2.0 dan berbeda dari Desktop.
+
+### Restore di Desktop
+
+Pada Desktop, pemilihan file restore tetap dilakukan langsung dari popup extension.
+
+## Backup sebelum perubahan besar
+
+Kalau kamu akan menghapus data lokal, pindah perangkat, atau melakukan tindakan yang berisiko membuang cache, buat backup dulu bila data tersebut masih dibutuhkan.
+
+Backup dapat berisi data belajar/material yang tersimpan lokal. Simpan file backup secara privat.
+
+## Pindah Browser atau Install Ulang
+
+Storage extension tidak otomatis berpindah antarbrowser, profil, atau perangkat.
+
+File PDF yang sudah diexport ke Downloads tetap file biasa, tetapi cache/resume/Quiz source lokal berada pada storage extension masing-masing instalasi.
+
+## Tutorial Lama
+
+Video v1.0.4 masih dapat membantu memahami alur dasar, tetapi untuk v1.2.0 gunakan dokumentasi website ini.
+
+Android: https://t.me/bukabmp/11?comment=294
+
+Desktop: https://t.me/c/4381494564/18
+
+## Download Resmi
+
+https://mentaliss.github.io/bukabmp/id/download/
