@@ -26,9 +26,20 @@ Do not use GitHub's **Source code (zip)** as the extension package.
 
 ### Manual Chrome Update
 
-Download and extract the newest official ZIP, update the folder used by the extension, then use **Reload** in `chrome://extensions`.
+A **Load unpacked** installation does not download updates automatically. **Reload** in `chrome://extensions` only reloads the files already present in the extension folder.
 
-**Do not uninstall the previous version or clear storage just for a normal update.**
+To update without changing the local extension identity/storage:
+
+1. download the newest official ZIP;
+2. extract the new ZIP to a temporary folder;
+3. open the same stable folder you originally selected with **Load unpacked**;
+4. replace/overwrite that folder's contents with the new release package;
+5. make sure the new `manifest.json` is in that same folder;
+6. open `chrome://extensions`;
+7. press **Reload** on BMP Terbuka;
+8. open the popup and confirm the version changed.
+
+**Do not uninstall the old version, Remove it and Load unpacked from another folder, or clear storage just for a normal update.** Keep using the same extension folder/path.
 
 ## Desktop — Microsoft Edge
 
@@ -36,7 +47,7 @@ Use the official listing:
 
 https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
 
-Edge Add-ons controls Store updates. If v1.2.0 is public on GitHub but not yet available in the Store, keep using the version the Store actually serves and check [Status & Version](../status).
+**BMP Terbuka v1.2.0 is now live on Microsoft Edge Add-ons** for Desktop and Android. Store installations follow the normal Microsoft Edge update mechanism. Check [Status & Version](../status) for the latest distribution state.
 
 ## Android — Microsoft Edge Stable
 
