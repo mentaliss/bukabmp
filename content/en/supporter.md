@@ -89,7 +89,7 @@ This bonus affects extension activation entitlement; it does not add extra days 
 
 ### When the Bonus Appears in the Extension
 
-BMP Terbuka v1.1.0 includes token/refresh behavior for eligible entitlement synchronization.
+BMP Terbuka v1.2.0 includes token/refresh behavior for eligible entitlement synchronization.
 
 A token already stored on the device does not necessarily change at the exact moment payment succeeds.
 

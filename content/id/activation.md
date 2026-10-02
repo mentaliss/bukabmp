@@ -59,7 +59,7 @@ Kamu **tidak perlu install ulang BMP Terbuka**.
 
 Yang perlu dilakukan adalah memperbarui atau memverifikasi akses bila extension memintanya.
 
-Pada v1.1.0, token aktivasi generasi baru mendukung refresh untuk kondisi yang memenuhi syarat. Kalau refresh tidak dapat dilakukan, extension dapat meminta verifikasi ulang melalui Telegram.
+Pada v1.2.0, alur token aktivasi tetap mendukung refresh untuk kondisi yang memenuhi syarat. Kalau refresh tidak dapat dilakukan, extension dapat meminta verifikasi ulang melalui Telegram.
 
 ## Verifikasi Ulang
 
@@ -70,7 +70,7 @@ Verifikasi ulang digunakan bila:
 - status komunitas perlu dicek lagi;
 - extension memang meminta proses verifikasi.
 
-Untuk migrasi token lama ke token v1.1.0, proses re-verification dirancang agar token aktif yang masih valid tidak langsung dibuang sebelum replacement tervalidasi.
+Untuk migrasi token lama ke skema token yang lebih baru, proses re-verification dirancang agar token aktif yang masih valid tidak langsung dibuang sebelum replacement tervalidasi.
 
 ## Aktivasi Setelah Update
 
@@ -86,7 +86,7 @@ Supporter Pass tidak wajib untuk menggunakan fitur inti BMP Terbuka.
 
 Setiap pembayaran Supporter memberi bonus target masa aktivasi **+14 hari**, dengan batas maksimum target aktivasi **60 hari**.
 
-Pada v1.1.0, status Supporter dapat disinkronkan melalui mekanisme token/refresh yang didukung. Token yang sudah tersimpan di perangkat tidak selalu berubah pada detik yang sama dengan pembayaran; entitlement baru diterapkan saat refresh atau penerbitan token berikutnya berhasil.
+Pada v1.2.0, status Supporter tetap dapat disinkronkan melalui mekanisme token/refresh yang didukung. Token yang sudah tersimpan di perangkat tidak selalu berubah pada detik yang sama dengan pembayaran; entitlement baru diterapkan saat refresh atau penerbitan token berikutnya berhasil.
 
 Detail paket dan aturan pembayaran ada di [Supporter Pass](supporter).
 

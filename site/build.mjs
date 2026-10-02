@@ -509,7 +509,7 @@ function inject(content, lang) {
   const download = '<a class="button" href="' + sitePath(lang + "/download") + '">Download</a>';
 
   const zip = GITHUB_ZIP_URL
-    ? '<a class="button" href="' + esc(GITHUB_ZIP_URL) + '">GitHub ZIP — current stable v1.1.0</a>'
+    ? '<a class="button" href="' + esc(GITHUB_ZIP_URL) + '">GitHub ZIP — current stable v1.2.0</a>'
     : '<span class="button disabled">GitHub ZIP — unavailable</span>';
 
   return content

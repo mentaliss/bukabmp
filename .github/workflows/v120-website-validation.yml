@@ -48,7 +48,7 @@ jobs:
           set -euo pipefail
           echo "=== SOURCE v1.1.0 occurrences outside historical changelog ==="
           set +e
-          grep -RIn --exclude=CHANGELOG.md --exclude-dir=.git --exclude-dir=dist-site             -E 'v1\.1\.0|BMP-Terbuka-v1\.1\.0'             content docs README.md PRIVACY.md SECURITY.md RESPONSIBLE_USE.md SPONSORSHIP.md site .github/workflows             | tee /tmp/stale.txt
+          grep -RIn --exclude=CHANGELOG.md --exclude-dir=.git --exclude-dir=dist-site             -E 'v1\.1\.0|BMP-Terbuka-v1\.1\.0'             content docs README.md PRIVACY.md SECURITY.md RESPONSIBLE_USE.md SPONSORSHIP.md site             | tee /tmp/stale.txt
           rc=$?
           set -e
           if [ -s /tmp/stale.txt ]; then

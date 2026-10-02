@@ -8,7 +8,7 @@
 
 BMP Terbuka adalah browser extension open-source yang membantu mengubah materi yang sudah dapat kamu akses secara sah menjadi searchable PDF untuk belajar, dengan OCR dan penyusunan PDF yang berjalan lokal di perangkat.
 
-> **Rilis stabil:** **v1.1.0** — 23 September 2026.
+> **Rilis stabil:** **v1.2.0** — 2 Oktober 2026.
 
 ## Website resmi
 
@@ -22,7 +22,7 @@ Website adalah pintu utama untuk pengguna, sponsor, partner, dan investor. Repos
 - **Microsoft Edge — Android:** Microsoft Edge Stable + [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm).
 - **Google Chrome — Desktop:** Chrome Web Store belum menjadi jalur instalasi aktif; gunakan asset ZIP hasil build di GitHub Releases dan pasang dengan Developer mode + Load unpacked.
 
-Untuk instalasi manual, gunakan asset resmi `BMP-Terbuka-v1.1.0.zip` dari GitHub Release v1.1.0, bukan asset otomatis Source code (zip).
+Untuk instalasi manual, gunakan asset resmi `BMP-Terbuka-v1.2.0.zip` dari GitHub Release v1.2.0, bukan asset otomatis Source code (zip).
 
 Panduan pengguna: [Instalasi & Update](https://mentaliss.github.io/bukabmp/id/docs/install/) · [Status & Versi](https://mentaliss.github.io/bukabmp/id/status/)
 
