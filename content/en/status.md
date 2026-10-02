@@ -6,7 +6,7 @@ This page is the reference for the **stable version, installation paths, and dis
 
 **BMP Terbuka v1.2.0**
 
-Public release: **2 October 2026**
+Public release: **3 October 2026**
 
 GitHub Release:
 
@@ -32,9 +32,9 @@ The official path remains **Microsoft Edge Add-ons**:
 
 https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
 
-At the time of the public v1.2.0 release, the package verified as actually available from Edge Add-ons is still **1.1.0.1**. v1.2.0 must **not** be treated as Store-live until the listing/update service actually serves it.
+**BMP Terbuka v1.2.0 is now live on Microsoft Edge Add-ons** for Desktop and Android.
 
-Do not use diagnostic/audit CRX files as a Store replacement.
+Use the official Store listing for installation/update. Do not use diagnostic/audit CRX files as a Store replacement.
 
 Edge Canary is fallback/testing only. Chrome Android is not an official installation target.
 
