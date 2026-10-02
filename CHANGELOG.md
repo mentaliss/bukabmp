@@ -31,7 +31,8 @@ Semua perubahan penting pada source extension publik dicatat di sini.
 ### Validation
 - Final pre-public regression: **153 / 153 PASS** pada exact audited extension source.
 - Public Chrome payload diverifikasi terhadap 38 file runtime frozen sebelum release.
-- Edge Add-ons package dibangun dan divalidasi dari source runtime audited; availability Store tetap mengikuti review/propagasi Microsoft.
+- Edge Add-ons package dibangun dan divalidasi dari source runtime audited.
+- **Microsoft Edge Add-ons v1.2.0 terverifikasi live pada 3 Oktober 2026** untuk Desktop dan Android melalui listing resmi.
 
 ## [1.1.0] - 2026-09-23
 

@@ -10,7 +10,7 @@ The current stable product release is **BMP Terbuka v1.2.0**.
 
 Chrome Desktop can use the official manual `BMP-Terbuka-v1.2.0.zip` package from GitHub Releases.
 
-The official Edge Desktop/Android path remains Microsoft Edge Add-ons. When v1.2.0 was released on GitHub, the verified Store package was still **1.1.0.1**, so do not treat v1.2.0 as Edge Store-live until the listing/update service actually serves it.
+The official Edge Desktop/Android path remains Microsoft Edge Add-ons. **BMP Terbuka v1.2.0 is now live on the official Microsoft Edge Add-ons listing.**
 
 ### Where should I update?
 

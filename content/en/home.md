@@ -30,7 +30,7 @@ The public extension and website source are available on GitHub. BMP Terbuka is 
 
 **v1.2.0** is the current stable product release.
 
-Use [Download](download) for installation/update paths and [Status & Version](status) for current channel availability. At this release point, Chrome v1.2.0 is available through GitHub/manual distribution while Edge Add-ons still follows the Store update process.
+Use [Download](download) for installation/update paths and [Status & Version](status) for current channel availability. **v1.2.0 is live** through the GitHub/manual package for Chrome Desktop and through Microsoft Edge Add-ons for Edge Desktop/Android.
 
 ## Community
 

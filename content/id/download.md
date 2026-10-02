@@ -14,7 +14,7 @@ Gunakan asset resmi:
 
 Jangan gunakan asset otomatis **Source code (zip)** atau **Source code (tar.gz)** sebagai package extension.
 
-Untuk update instalasi manual, extract package baru ke folder yang kamu kelola lalu **Reload** extension dari `chrome://extensions`. Jangan uninstall atau menghapus storage hanya untuk update normal.
+Untuk update instalasi manual Chrome, download dan extract package baru, lalu **ganti/overwrite isi folder yang sebelumnya dipilih saat Load unpacked**. Setelah file versi baru sudah berada di folder yang sama, buka `chrome://extensions` dan tekan **Reload**. Reload sendiri tidak mengunduh update. Jangan uninstall, Remove, pindah ke folder baru, atau menghapus storage hanya untuk update normal.
 
 Panduan lengkap: [Instalasi & Update](docs/install).
 
@@ -24,7 +24,7 @@ Jalur resmi tetap Microsoft Edge Add-ons.
 
 [[EDGE_CTA]]
 
-Versi yang tersedia melalui Store mengikuti proses review/propagasi Microsoft. Cek [Status & Versi](status) sebelum menganggap v1.2.0 sudah live di Store.
+**v1.2.0 sudah live di Microsoft Edge Add-ons.** Instalasi dan update Edge Desktop mengikuti mekanisme Store normal.
 
 ## Microsoft Edge — Android
 
@@ -36,9 +36,9 @@ Edge Canary hanya fallback/testing.
 
 Untuk v1.2.0, fitur Restore di Android memakai tab restore khusus BMP Terbuka. Detail ada di [Instalasi & Update](docs/install) dan [PDF, Backup, Restore & Penyimpanan](docs/files).
 
-## Catatan Edge v1.2.0
+## Microsoft Edge v1.2.0
 
-Pada saat halaman ini disiapkan, Edge Add-ons yang terverifikasi masih menyajikan **1.1.0.1**. Jangan memasang CRX diagnostic/audit sebagai jalan pintas. Tunggu versi Store yang sah.
+**v1.2.0 sudah live melalui listing resmi Microsoft Edge Add-ons** untuk Desktop dan Android. Gunakan listing Store resmi; jangan memasang CRX diagnostic/audit sebagai jalan pintas.
 
 ## Tutorial
 

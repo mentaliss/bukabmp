@@ -24,7 +24,7 @@ Jalur utama adalah **Microsoft Edge Add-ons**.
 4. Buka popup BMP Terbuka dan selesaikan aktivasi komunitas.
 5. Login ke portal reader dengan akun Anda sendiri dan gunakan extension.
 
-Release stabil produk saat ini adalah **v1.2.0**. Ketersediaan/update package melalui Store tetap mengikuti proses review dan propagasi Microsoft; Edge Add-ons belum dianggap v1.2.0 live sampai listing benar-benar menyajikannya.
+Release stabil produk saat ini adalah **v1.2.0**, dan **v1.2.0 sudah live di Microsoft Edge Add-ons** untuk Desktop dan Android.
 
 ## Microsoft Edge — Android
 
@@ -71,7 +71,8 @@ Gunakan Google Chrome atau Microsoft Edge pada desktop.
 ## Update
 
 - Instalasi Edge Add-ons mengikuti mekanisme update extension milik browser/store.
-- Instalasi manual Chrome perlu diperbarui menggunakan package release baru dan extension di-reload dari `chrome://extensions`.
+- Instalasi manual Chrome **tidak mengunduh update saat tombol Reload ditekan**. Download ZIP release baru, extract ke folder sementara, lalu ganti/overwrite isi folder yang sama yang sebelumnya dipilih lewat **Load unpacked**. Setelah file baru berada di folder tersebut, buka `chrome://extensions` dan tekan **Reload**.
+- Pertahankan folder/path extension yang sama untuk update manual. Jangan Remove lalu Load unpacked dari folder lain hanya untuk update normal.
 - Update in-place dengan extension identity yang sama biasanya mempertahankan token, draft, dan cache lokal.
 - Uninstall atau instalasi dengan identity berbeda dapat diperlakukan sebagai instalasi baru dan dapat kehilangan storage lokal.
 

@@ -137,7 +137,7 @@ for (const required of [
 
 for (const required of [
   "BMP Terbuka v1.2.0",
-  "1.1.0.1",
+  "sudah live di Microsoft Edge Add-ons",
   "/bukabmp/id/docs/install/"
 ]) {
   if (!idStatus.includes(required)) throw new Error("status page missing expected value: " + required);
@@ -154,7 +154,7 @@ for (const required of [
 
 for (const required of [
   "BMP Terbuka v1.2.0",
-  "1.1.0.1",
+  "is now live on Microsoft Edge Add-ons",
   "/bukabmp/en/docs/install/"
 ]) {
   if (!enStatus.includes(required)) throw new Error("English status page missing expected value: " + required);
@@ -197,6 +197,39 @@ if (sections.length < 60) {
 }
 if (!sections.every(section => section.url && section.text && section.search_text)) {
   throw new Error("AI support corpus contains incomplete sections");
+}
+
+const htmlFiles = [];
+function walkHtml(dir) {
+  for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) walkHtml(full);
+    else if (entry.isFile() && entry.name.endsWith(".html")) htmlFiles.push(full);
+  }
+}
+walkHtml("dist-site");
+const generatedHtml = htmlFiles.map(file => fs.readFileSync(file, "utf8")).join("\n");
+for (const stale of [
+  "1.1.0.1",
+  "belum boleh dianggap live di Store",
+  "belum tersedia di Store",
+  "masih mengikuti proses update Store",
+  "must <strong>not</strong> be treated as Store-live",
+  "not yet available in the Store",
+  "still follows the Store update process"
+]) {
+  if (generatedHtml.includes(stale)) {
+    throw new Error("generated site contains stale Edge v1.2 availability copy: " + stale);
+  }
+}
+
+for (const required of [
+  "sudah live di Microsoft Edge Add-ons",
+  "is now live on Microsoft Edge Add-ons"
+]) {
+  if (!generatedHtml.includes(required)) {
+    throw new Error("generated site missing Edge v1.2 live copy: " + required);
+  }
 }
 
 console.log("site validation PASS");

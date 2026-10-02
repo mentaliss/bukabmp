@@ -26,16 +26,20 @@ Jangan gunakan GitHub **Source code (zip)** sebagai package extension.
 
 ### Update Chrome Manual
 
-Untuk update:
+Instalasi **Load unpacked** tidak mengunduh update otomatis. Tombol **Reload** di `chrome://extensions` hanya memuat ulang file yang sudah ada di folder extension.
+
+Untuk update tanpa mengganti identity/storage lokal:
 
 1. download ZIP release terbaru;
-2. extract package baru;
-3. perbarui folder extension yang digunakan;
-4. buka `chrome://extensions`;
-5. tekan **Reload**;
-6. buka popup dan cek versi.
+2. extract ZIP baru ke folder sementara;
+3. buka folder tetap yang sebelumnya kamu pilih saat **Load unpacked**;
+4. ganti/overwrite isi folder tetap tersebut dengan isi package release terbaru;
+5. pastikan `manifest.json` dari versi baru berada di folder yang sama;
+6. buka `chrome://extensions`;
+7. tekan **Reload** pada BMP Terbuka;
+8. buka popup dan pastikan nomor versi sudah berubah.
 
-**Jangan uninstall versi lama atau menghapus storage hanya untuk update normal.** Update in-place dengan identity extension yang sama dirancang mempertahankan data lokal.
+**Jangan uninstall versi lama, jangan Remove lalu Load unpacked dari folder lain, dan jangan menghapus storage hanya untuk update normal.** Gunakan folder/path extension yang sama agar instalasi lokal tetap konsisten.
 
 ## Desktop — Microsoft Edge
 
@@ -43,7 +47,7 @@ Gunakan listing resmi:
 
 https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
 
-Instalasi dari Edge Add-ons mengikuti mekanisme update Store. Kalau v1.2.0 sudah dirilis di GitHub tetapi belum tersedia di Store, tetap gunakan versi Store yang benar-benar tersedia dan cek halaman [Status & Versi](../status).
+**BMP Terbuka v1.2.0 sudah live di Microsoft Edge Add-ons** untuk Desktop dan Android. Instalasi dari Store mengikuti mekanisme update normal Microsoft Edge. Cek [Status & Versi](../status) untuk status distribusi terbaru.
 
 ## Android — Microsoft Edge Stable
 
