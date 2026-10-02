@@ -10,7 +10,7 @@ Release stabil produk saat ini adalah **BMP Terbuka v1.2.0**.
 
 Chrome Desktop dapat memakai package manual resmi `BMP-Terbuka-v1.2.0.zip` dari GitHub Release.
 
-Untuk Edge Desktop/Android, jalur resmi tetap Microsoft Edge Add-ons. Pada saat v1.2.0 dirilis di GitHub, versi Store yang terverifikasi masih **1.1.0.1**, jadi jangan menganggap v1.2.0 sudah live di Edge sampai listing/update service benar-benar menyajikannya.
+Untuk Edge Desktop/Android, jalur resmi tetap Microsoft Edge Add-ons. **BMP Terbuka v1.2.0 sekarang sudah live di listing resmi Microsoft Edge Add-ons.**
 
 ### Di mana update?
 
