@@ -1,4 +1,5 @@
 name: Validate v1.2.0 Website
+# rerun after v1.2 validator sync
 
 on:
   push:
