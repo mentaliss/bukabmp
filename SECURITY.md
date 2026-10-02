@@ -2,9 +2,9 @@
 
 ## Scope publik
 
-Repository ini mempublikasikan source **browser extension BMP Terbuka**, public website source, public build/release tooling, dan dokumentasi publik.
+Repository ini mempublikasikan source browser extension BMP Terbuka, public website source, public build/release tooling, dan dokumentasi publik.
 
-Production Worker, Telegram bot/backend, Control Center, D1 migrations/private operational schema, deployment secrets, dan private signing material tidak berada di repository publik.
+Secret produksi, private signing material, credential operator, serta konfigurasi provider privat tidak boleh berada di package extension atau dokumentasi publik.
 
 ## Melaporkan kerentanan
 
@@ -15,20 +15,18 @@ Sertakan:
 - browser/OS bila relevan;
 - langkah reproduksi minimum;
 - dampak;
-- proof-of-concept yang tidak menyertakan credential atau materi berhak cipta.
+- proof-of-concept yang tidak menyertakan credential, file backup pribadi, atau materi berhak cipta.
 
-## Contoh isu in-scope
+## Prinsip keamanan v1.2.0
 
-- extension mengirim materi atau credential ke endpoint yang tidak semestinya;
-- XSS/injection pada extension atau public website;
-- signed activation token verification dapat dibypass karena bug client;
-- penyimpanan credential sumber yang tidak disengaja;
-- permission extension lebih luas daripada yang diperlukan;
-- dependency/build artifact telah dimodifikasi tanpa terdeteksi;
-- website membocorkan secret/private operational URL;
-- unsafe external navigation.
-
-Masalah yang terlihat melalui public activation/API surface juga boleh dilaporkan secara privat bila berdampak pada keamanan pengguna, meskipun implementation service tidak open-source di repository ini.
+- credential sumber tetap berada pada browser/source service;
+- OCR dan PDF utama local-first;
+- Quiz tidak mengunggah raw PDF atau page image;
+- Backup dapat mengandung data belajar/material lokal sehingga harus diperlakukan sebagai file privat;
+- remote state tidak boleh menyuntikkan arbitrary executable code;
+- 403/429/re-authentication memicu safe stop, bukan blind retry;
+- update normal tidak boleh meminta pengguna menghapus storage sebagai langkah default;
+- Store identity harus menggunakan jalur publikasi resmi, bukan CRX diagnostic/audit.
 
 ## Out of scope
 

@@ -1,42 +1,39 @@
-# Learning material you can access, made easier to study.
+# BMP Terbuka
 
-BMP Terbuka helps turn material you already have legitimate access to into searchable PDFs, with OCR and PDF assembly performed locally on your device.
-
-**Open source · Local-first · Privacy-conscious**
+**Material you can already access, made easier to study.**
 
 [[DOCS_CTA]] [[DOWNLOAD_CTA]] [[BUSINESS_CTA]]
 
-## What BMP Terbuka Is
+BMP Terbuka is an independent community browser extension that helps turn material you can already access into searchable PDFs for personal/offline study.
 
-A browser-extension learning workflow: open material through your normal access, choose the BMP/module range, run local OCR, save PDFs, and resume from local storage without repeating completed work.
+## What It Does
 
-## Why People Use It
+- local OCR and searchable PDF creation;
+- resume and reuse of completed local modules;
+- combined PDFs from complete ranges;
+- local storage management;
+- Backup & Restore for local data;
+- Telegram Quiz from ready modules;
+- a community for chatting, helping each other, sharing, joining activities, discussing tools, learning, and more.
 
-- searchable PDFs;
-- local OCR;
-- per-BMP resume/storage;
-- per-module or combined PDF export;
-- no Python, BAT file, or desktop Tesseract required;
-- community channels for updates and support.
+## Local-first
 
-## Privacy by Design
+Document pages, OCR, cached PDFs, and primary PDF assembly run on the device.
 
-Document content, OCR text, and generated PDFs are not sent to the BMP Terbuka backend. Product telemetry is pseudonymous and current advertising is contextual/non-personalized.
+For Telegram Quiz, raw PDFs and page images are not uploaded. Quiz source comes from text extracted and sanitized locally before the generation flow that needs it.
 
-## Business Model
+## Open Source & Independent
 
-BMP Terbuka may be supported through Supporter, sponsorship, advertising, partnerships, and potential investment. Funding does not buy access to user data or control over privacy, security, or the core product.
+The public extension and website source are available on GitHub. BMP Terbuka is an independent community project and is not an official product of the reader provider.
 
-## Open Source
+## Current Version
 
-The public extension source and website source are available on GitHub. Production backend implementation and operational secrets remain private.
+**v1.2.0** is the current stable product release.
 
-## User Guides
+Use [Download](download) for installation/update paths and [Status & Version](status) for current channel availability. At this release point, Chrome v1.2.0 is available through GitHub/manual distribution while Edge Add-ons still follows the Store update process.
 
-New here? Open the [BMP Terbuka Guides](docs) for step-by-step installation, activation, usage, PDF/resume, and troubleshooting.
+## Community
 
-If you only need the current version, browser support, or Store availability, open [Status & Version](status).
-
-## Status
-
-**v1.1.0** is the current stable release. Distribution and Store details are maintained on [Status & Version](status).
+- Channel: https://t.me/bukabmp
+- Group: https://t.me/+0pAg9ymEhWdkZmNl
+- Bot: https://t.me/bukabmp_bot

@@ -1,9 +1,25 @@
 # Community
 
-BMP Terbuka uses community channels for updates, compatibility notices, support, and discussion.
+## Buka BMP Channel
 
-- Channel: Buka BMP — https://t.me/bukabmp
-- Group: Group Terbuka — https://t.me/+0pAg9ymEhWdkZmNl
-- Activation bot: @bukabmp_bot — https://t.me/bukabmp_bot
+Official channel for releases, compatibility status, security notices, and important updates:
 
-Community activation is separate from source-portal credentials. The activation flow is not used to upload document pages, OCR text, or generated PDFs.
+https://t.me/bukabmp
+
+## Group Terbuka
+
+**A community playground for chatting, helping each other, sharing, joining activities, discussing tools, learning, and more.**
+
+Technical BMP Terbuka discussion, troubleshooting, feedback, and contributions are welcome, but they are only part of the community rather than its sole identity.
+
+https://t.me/+0pAg9ymEhWdkZmNl
+
+## Bot
+
+@bukabmp_bot
+
+https://t.me/bukabmp_bot
+
+The bot is used for activation, help, Supporter, Quiz, and AI support.
+
+Do not share passwords, student IDs, OTPs, cookies/sessions, activation secrets, API keys, private backup files, or material you are not allowed to redistribute.

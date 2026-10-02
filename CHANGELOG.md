@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada source extension publik dicatat di sini.
 
+## [1.2.0] - 2026-10-02
+
+### Added
+- Quiz Telegram dari modul yang sudah diproses, dengan source teks yang diekstrak dan disanitasi secara lokal.
+- Backup & Restore untuk data lokal BMP Terbuka.
+- Storage Manager untuk melihat dan mengelola data BMP lokal.
+- Dedicated restore tab pada Edge Android agar file picker dan lifecycle restore lebih andal.
+
+### Changed
+- Restore menggunakan **MERGE semantics**: backup memulihkan/memperbarui item yang sesuai tanpa otomatis menghapus data lokal lain.
+- Backup dibuat secara streaming/bounded untuk menghindari pola satu blob besar pada data lokal yang besar.
+- Alur cache, redownload, export ulang, dan PDF gabungan diperkuat untuk reuse data lokal.
+- UI/UX popup dirapikan dengan feedback state yang konsisten dan layout footer yang lebih stabil.
+- Jalur update user-facing dipusatkan melalui website BMP Terbuka.
+
+### Fixed
+- Sejumlah race/stale-state pada cache lokal, restore ownership, dan popup state.
+- Perbaikan reliabilitas PDF merge dan local-data verification.
+- Edge Android Restore tidak lagi bergantung pada file picker di popup.
+- Hardening Quiz queue/generation, duplicate protection, polling 30 detik, dan pacing antarpertanyaan.
+
+### Privacy
+- Raw PDF dan gambar halaman tidak diunggah untuk Quiz generation.
+- Source Quiz berasal dari teks lokal yang disanitasi.
+- File Backup dapat mengandung data belajar/material lokal dan harus diperlakukan sebagai file privat.
+
+### Validation
+- Final pre-public regression: **153 / 153 PASS** pada exact audited extension source.
+- Public Chrome payload diverifikasi terhadap 38 file runtime frozen sebelum release.
+- Edge Add-ons package dibangun dan divalidasi dari source runtime audited; availability Store tetap mengikuti review/propagasi Microsoft.
+
 ## [1.1.0] - 2026-09-23
 
 ### Added
@@ -72,7 +103,6 @@ Semua perubahan penting pada source extension publik dicatat di sini.
 - Page-count termination pada reader-reported total: **PASS**.
 - Resume cache, gap processing, redownload rentang, merge OFF, partial merge, FULL merge, re-export, dan clear per BMP: **PASS** pada test lokal.
 - GitHub Actions Validate untuk source v1.0.5: **PASS**.
-- Android CRX test ditandatangani dengan signing key yang sama dan extension ID tetap `lpbcndejhechedaemnjmjppjkhblkonj`.
 
 ## [1.0.4] - 2026-09-17
 
@@ -91,27 +121,6 @@ Semua perubahan penting pada source extension publik dicatat di sini.
 ### Fixed
 - Fallback **Bagikan** tetap bekerja ketika Web Share Android gagal/ditolak sebelum share sheet tampil.
 - Memperbaiki kondisi Android yang dapat berhenti pada status **Membuka modul** karena event tab/navigation tidak terkirim seperti desktop.
-- Perhitungan policy update diterapkan ulang terhadap versi runtime saat cache dibaca, sehingga status mandatory update lama tidak tersangkut setelah extension di-upgrade.
-
-### Validation
-- Android final regression: activation → M1 → OCR → PDF → download → searchable **PASS**.
-- Mandatory-update gate pada versi lama **PASS**.
-- v1.0.4 normal path setelah force-update foundation **PASS**.
-
-## [1.0.2] - 2026-09-14
-
-### Fixed
-- Regenerate seluruh icon extension dari master logo final untuk memperbaiki asset `icon128.png` yang tampil rusak pada GitHub.
-- Menyamakan kembali icon 16, 32, 48, dan 128 px dari sumber master yang sama.
-- Tidak ada perubahan pada alur akses, OCR, PDF, atau community activation.
-
-## [1.0.1] - 2026-09-14
-
-### Changed
-- Mengganti seluruh icon extension dengan identitas visual buku monokrom BMP Terbuka.
-- Menampilkan logo baru pada popup dan halaman informasi extension.
-- Menambahkan logo resmi ke README repository publik.
-- Tidak ada perubahan pada alur akses, OCR, PDF, atau community activation.
 
 ## [1.0.0] - 2026-09-13
 
@@ -119,12 +128,6 @@ Semua perubahan penting pada source extension publik dicatat di sini.
 - Brand publik **BMP Terbuka**.
 - Searchable PDF per modul dan PDF gabungan.
 - OCR lokal self-contained pada release.
-- OCR progress mengikuti halaman aktif.
 - Safe-stop untuk 403/429/login ulang/Request Rejected.
 - Watermark sumber dipertahankan.
 - Community activation: **Buka BMP** + **Group Terbuka**.
-- Signed activation token yang diverifikasi lokal.
-- Fallback Telegram dengan kode aktivasi yang dapat disalin.
-- Popup memeriksa activation pairing secara otomatis setiap 2 detik.
-- Loading/timer aktivasi dan opsi recovery setelah menunggu lama.
-- Privacy, security, responsible-use, contribution, dan release documentation.

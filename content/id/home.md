@@ -1,42 +1,39 @@
-# Materi yang dapat kamu akses, lebih nyaman untuk kamu pelajari.
+# BMP Terbuka
 
-BMP Terbuka membantu mengubah materi yang sudah dapat kamu akses menjadi searchable PDF, dengan OCR dan penyusunan PDF yang berjalan lokal di perangkat.
-
-**Open source · Local-first · Privacy-conscious**
+**Materi yang dapat kamu akses, lebih nyaman untuk kamu pelajari.**
 
 [[DOCS_CTA]] [[DOWNLOAD_CTA]] [[BUSINESS_CTA]]
 
-## Apa itu BMP Terbuka
+BMP Terbuka adalah extension komunitas independen yang membantu mengolah materi yang memang sudah dapat kamu akses menjadi searchable PDF untuk belajar pribadi/offline.
 
-Browser extension untuk workflow belajar: buka materi melalui akses normal kamu, pilih BMP/modul, proses OCR lokal, simpan PDF, dan lanjutkan dari cache lokal tanpa mengulang semuanya.
+## Yang Bisa Dilakukan
 
-## Kenapa orang memakainya
+- OCR dan pembuatan searchable PDF secara lokal;
+- resume dan reuse hasil modul yang tersimpan;
+- PDF gabungan dari range yang lengkap;
+- pengelolaan penyimpanan lokal;
+- Backup & Restore data lokal;
+- Quiz Telegram dari modul yang sudah siap;
+- komunitas untuk ngobrol, saling bantu, berbagi, ikut aktivitas, bahas tools, belajar, dan lainnya.
 
-- searchable PDF;
-- OCR lokal;
-- cache/resume per BMP;
-- ekspor PDF modul atau gabungan;
-- tidak perlu Python, BAT, atau Tesseract desktop;
-- komunitas untuk update dan support.
+## Local-first
 
-## Privacy by design
+Halaman materi, OCR, cache PDF, dan penyusunan PDF utama diproses di perangkat.
 
-Isi materi, OCR text, dan PDF tidak dikirim ke backend BMP Terbuka. Telemetry produk bersifat pseudonymous dan advertising saat ini contextual/non-personalized.
+Untuk Quiz Telegram, raw PDF dan gambar halaman tidak dikirim. Source Quiz berasal dari teks yang diekstrak dan disanitasi secara lokal sebelum alur generation yang diperlukan.
 
-## Business model
+## Open Source & Independen
 
-BMP Terbuka dapat didukung lewat Supporter, sponsorship, advertising, partnership, dan potential investment. Pendanaan tidak membeli akses ke data pengguna atau kontrol atas privacy/security/core product.
+Source extension dan website publik tersedia di GitHub. BMP Terbuka adalah proyek komunitas independen dan bukan produk resmi pihak penyedia reader.
 
-## Open source
+## Versi Saat Ini
 
-Source extension dan website publik tersedia di GitHub. Backend produksi dan operational secrets tetap private.
+**v1.2.0** adalah release stabil produk saat ini.
 
-## Panduan Pengguna
+Gunakan [Download](download) untuk jalur instalasi/update dan [Status & Versi](status) untuk melihat kondisi distribusi tiap platform. Pada saat release ini, Chrome v1.2.0 sudah tersedia melalui GitHub/manual, sedangkan Edge Add-ons masih mengikuti proses update Store.
 
-Baru mulai? Buka [Panduan BMP Terbuka](docs) untuk instalasi, aktivasi, penggunaan, PDF/resume, dan troubleshooting langkah demi langkah.
+## Komunitas
 
-Kalau hanya ingin mengecek versi, browser, atau ketersediaan Store, buka [Status & Versi](status).
-
-## Status
-
-**v1.1.0** adalah release stabil saat ini. Detail jalur instalasi dan status Store ada di [Status & Versi](status).
+- Channel: https://t.me/bukabmp
+- Group: https://t.me/+0pAg9ymEhWdkZmNl
+- Bot: https://t.me/bukabmp_bot
