@@ -23,7 +23,7 @@ Current GitHub Pages deployment uses:
 - BMP_SITE_URL=https://mentaliss.github.io/bukabmp
 - BMP_EDGE_ADDONS_URL=https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
 - BMP_BUSINESS_CONTACT_URL=https://t.me/bukabmp
-- BMP_GITHUB_ZIP_URL=https://github.com/mentaliss/bukabmp/releases/download/v1.2.0/BMP-Terbuka-v1.2.0.zip
+- BMP_GITHUB_ZIP_URL=https://github.com/mentaliss/bukabmp/releases/download/v1.2.0/BMP-Terbuka-v1.2.0.2-github.zip
 
 The manual-download URL targets the current stable v1.2.0 GitHub Release asset.
 

@@ -8,7 +8,7 @@ Untuk fakta yang dapat berubah seperti versi dan status Store, gunakan [Status &
 
 Release stabil produk saat ini adalah **BMP Terbuka v1.2.0**.
 
-Chrome Desktop dapat memakai package manual resmi `BMP-Terbuka-v1.2.0.zip` dari GitHub Release.
+Chrome Desktop dapat memakai package manual resmi `BMP-Terbuka-v1.2.0.2-github.zip` dari GitHub Release.
 
 Untuk Edge Desktop/Android, jalur resmi tetap Microsoft Edge Add-ons. **BMP Terbuka v1.2.0 sekarang sudah live di listing resmi Microsoft Edge Add-ons.**
 
@@ -19,6 +19,8 @@ Gunakan halaman website:
 https://mentaliss.github.io/bukabmp/id/download/
 
 Website ini menjadi tujuan update utama dan menjelaskan jalur sesuai platform.
+
+Ringkasnya: instalasi Store desktop update otomatis tetapi dapat terlambat; update manual Desktop harus mengganti file di **folder Load unpacked yang sama** lalu Reload; Edge Android sebaiknya menunggu auto-update Store. Jika memilih reinstall di Android, buat Backup dulu bila ingin mempertahankan data lokal. PDF yang sudah tersimpan di Downloads/perangkat tetap aman.
 
 ## Instalasi
 

@@ -15,7 +15,7 @@ Stable product version: **v1.2.0**.
 ## Desktop — Google Chrome
 
 1. Open the official release: https://github.com/mentaliss/bukabmp/releases/tag/v1.2.0
-2. Download `BMP-Terbuka-v1.2.0.zip`.
+2. Download `BMP-Terbuka-v1.2.0.2-github.zip`.
 3. Extract it into a stable folder.
 4. Open `chrome://extensions`.
 5. Enable **Developer mode**.
@@ -23,6 +23,10 @@ Stable product version: **v1.2.0**.
 7. Open BMP Terbuka and complete activation.
 
 Do not use GitHub's **Source code (zip)** as the extension package.
+
+### Chrome Web Store — Coming soon
+
+Chrome Web Store is **not publicly available yet**. When it becomes available, Store installations will update automatically, but Store delivery is not always immediate. On desktop, you can open the Extensions page and use **Update** when available; Developer mode may need to be enabled temporarily.
 
 ### Manual Chrome Update
 
@@ -47,11 +51,28 @@ Use the official listing:
 
 https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
 
-**BMP Terbuka v1.2.0 is now live on Microsoft Edge Add-ons** for Desktop and Android. Store installations follow the normal Microsoft Edge update mechanism. Check [Status & Version](../status) for the latest distribution state.
+**BMP Terbuka v1.2.0 is now live on Microsoft Edge Add-ons** for Desktop and Android. Store installations follow the normal Microsoft Edge update mechanism.
+
+Desktop Store updates are normally automatic, but delivery can be delayed. To check sooner, open `edge://extensions` and use **Update** when available. Developer mode may need to be enabled temporarily. Do not uninstall/reinstall for a normal Store update.
+
+Check [Status & Version](../status) for the latest distribution state.
 
 ## Android — Microsoft Edge Stable
 
 Install/update Edge Stable, open the official BMP Terbuka listing in Edge Add-ons, install normally, open the popup, complete activation, and use the reader through Edge.
+
+### Updating Edge Android
+
+For Edge Android, **waiting for the automatic Store update** is the recommended path. Delivery can take time, and Edge Android does not provide the same convenient desktop-style Update button.
+
+If you do not want to wait and choose to reinstall, **create a BMP Terbuka Backup first** if you want to preserve local data. Removing/reinstalling the extension can erase extension-local data.
+
+After reinstalling:
+- activate/pair again if needed;
+- Restore the backup;
+- Restore remains **MERGE**.
+
+**PDF files already saved in Downloads/device storage remain safe** and are not removed just because the extension is reinstalled.
 
 ### Restoring a Backup on Android v1.2.0
 

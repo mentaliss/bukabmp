@@ -10,7 +10,7 @@ const BASE_PATH = (process.env.BMP_SITE_BASE_PATH || "/bukabmp").trim().replace(
 const SITE_URL = (process.env.BMP_SITE_URL || "https://mentaliss.github.io/bukabmp").trim().replace(/\/$/, "");
 const EDGE_URL = (process.env.BMP_EDGE_ADDONS_URL || "https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm").trim();
 const BUSINESS_URL = (process.env.BMP_BUSINESS_CONTACT_URL || "https://t.me/bukabmp").trim();
-const GITHUB_ZIP_URL = (process.env.BMP_GITHUB_ZIP_URL || "https://github.com/mentaliss/bukabmp/releases/download/v1.2.0/BMP-Terbuka-v1.2.0.zip").trim();
+const GITHUB_ZIP_URL = (process.env.BMP_GITHUB_ZIP_URL || "https://github.com/mentaliss/bukabmp/releases/download/v1.2.0/BMP-Terbuka-v1.2.0.2-github.zip").trim();
 
 const idRoutes = {
   "": "content/id/home.md",

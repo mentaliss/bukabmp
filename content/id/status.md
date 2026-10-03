@@ -24,9 +24,9 @@ https://mentaliss.github.io/bukabmp/id/download/
 
 Gunakan asset:
 
-`BMP-Terbuka-v1.2.0.zip`
+`BMP-Terbuka-v1.2.0.2-github.zip`
 
-Chrome Web Store belum menjadi jalur instalasi aktif BMP Terbuka saat ini.
+Chrome Web Store **belum tersedia untuk publik (Coming soon)**. Produk tetap BMP Terbuka v1.2.0; package manual terbaru memakai technical build 1.2.0.2.
 
 ## Microsoft Edge — Desktop & Android
 
@@ -82,4 +82,4 @@ https://t.me/c/4381494564/18
 
 ## Terakhir Diperbarui
 
-**2 Oktober 2026**
+**4 Oktober 2026**

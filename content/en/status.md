@@ -14,7 +14,7 @@ https://github.com/mentaliss/bukabmp/releases/tag/v1.2.0
 
 Download/update page:
 
-https://mentaliss.github.io/bukabmp/id/download/
+https://mentaliss.github.io/bukabmp/en/download/
 
 ## Google Chrome — Desktop
 
@@ -22,9 +22,9 @@ https://mentaliss.github.io/bukabmp/id/download/
 
 Use:
 
-`BMP-Terbuka-v1.2.0.zip`
+`BMP-Terbuka-v1.2.0.2-github.zip`
 
-Chrome Web Store is not an active BMP Terbuka installation path at this time.
+Chrome Web Store is **not publicly available yet (Coming soon)**. The product remains BMP Terbuka v1.2.0; the latest manual package uses technical build 1.2.0.2.
 
 ## Microsoft Edge — Desktop & Android
 
@@ -62,4 +62,4 @@ Existing videos are still labeled **v1.0.4** and remain references for the older
 
 ## Last Updated
 
-**2 October 2026**
+**4 October 2026**
