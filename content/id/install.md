@@ -15,7 +15,7 @@ Versi stabil produk: **v1.2.0**.
 ## Desktop — Google Chrome
 
 1. Buka GitHub Release resmi: https://github.com/mentaliss/bukabmp/releases/tag/v1.2.0
-2. Download `BMP-Terbuka-v1.2.0.zip`.
+2. Download `BMP-Terbuka-v1.2.0.2-github.zip`.
 3. Extract ZIP ke folder tetap.
 4. Buka `chrome://extensions`.
 5. Aktifkan **Developer mode**.
@@ -23,6 +23,10 @@ Versi stabil produk: **v1.2.0**.
 7. Buka popup BMP Terbuka dan selesaikan aktivasi.
 
 Jangan gunakan GitHub **Source code (zip)** sebagai package extension.
+
+### Chrome Web Store — Coming soon
+
+Chrome Web Store **belum tersedia untuk publik**. Kalau nanti sudah tersedia, instalasi Store akan update otomatis, tetapi update Store tidak selalu masuk secara instan. Di desktop, kamu dapat membuka halaman Ekstensi dan memakai tombol **Update** jika tersedia; Developer mode mungkin perlu diaktifkan sementara.
 
 ### Update Chrome Manual
 
@@ -47,7 +51,11 @@ Gunakan listing resmi:
 
 https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
 
-**BMP Terbuka v1.2.0 sudah live di Microsoft Edge Add-ons** untuk Desktop dan Android. Instalasi dari Store mengikuti mekanisme update normal Microsoft Edge. Cek [Status & Versi](../status) untuk status distribusi terbaru.
+**BMP Terbuka v1.2.0 sudah live di Microsoft Edge Add-ons** untuk Desktop dan Android. Instalasi dari Store mengikuti mekanisme update normal Microsoft Edge.
+
+Update Store di desktop biasanya otomatis, tetapi bisa terlambat. Kalau ingin mengecek lebih cepat, buka `edge://extensions` lalu gunakan **Update** jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall untuk update Store normal.
+
+Cek [Status & Versi](../status) untuk status distribusi terbaru.
 
 ## Android — Microsoft Edge Stable
 
@@ -58,6 +66,19 @@ https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnm
 5. Selesaikan aktivasi.
 6. Login ke reader dengan akun kamu sendiri.
 7. Gunakan BMP Terbuka dari Edge.
+
+### Update Edge Android
+
+Untuk Edge Android, **tunggu automatic Store update** adalah pilihan yang direkomendasikan. Update dapat membutuhkan waktu dan Edge Android tidak menyediakan tombol Update desktop yang sama praktisnya.
+
+Kalau tidak ingin menunggu dan memilih reinstall, **WAJIB buat Backup BMP Terbuka terlebih dahulu** jika ingin mempertahankan data lokal. Menghapus/reinstall extension dapat menghapus data lokal extension.
+
+Setelah reinstall:
+- lakukan aktivasi/pairing lagi bila diminta;
+- Restore backup;
+- Restore tetap memakai **MERGE**.
+
+**PDF yang sudah tersimpan di folder Downloads/perangkat tetap aman** dan tidak ikut terhapus hanya karena extension direinstall.
 
 ### Restore Backup di Android v1.2.0
 
