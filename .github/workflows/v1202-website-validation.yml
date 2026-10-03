@@ -1,0 +1,42 @@
+name: Validate v1.2.0.2 Website Sync
+
+on:
+  push:
+    branches: ["website-v1202-silent-maintenance"]
+    paths:
+      - ".github/workflows/v1202-website-validation.yml"
+      - "site/**"
+      - "content/**"
+      - "docs/**"
+      - "*.md"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      BMP_SITE_BASE_PATH: /bukabmp
+      BMP_SITE_URL: https://mentaliss.github.io/bukabmp
+      BMP_EDGE_ADDONS_URL: https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
+      BMP_BUSINESS_CONTACT_URL: https://t.me/bukabmp
+      BMP_GITHUB_ZIP_URL: https://github.com/mentaliss/bukabmp/releases/download/v1.2.0/BMP-Terbuka-v1.2.0.2-github.zip
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build website
+        run: npm run build:site
+      - name: Validate website
+        run: npm run validate:site
+      - name: Silent maintenance copy contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -R -F "BMP-Terbuka-v1.2.0.2-github.zip" content site .github/workflows/pages.yml README.md docs/INSTALL.md >/dev/null
+          grep -R -F "WAJIB buat Backup BMP Terbuka" content/id >/dev/null
+          grep -R -F "PDF files already saved in Downloads/device storage remain safe" content/en >/dev/null
+          grep -R -F "Chrome Web Store" content/id/install.md content/en/install.md >/dev/null
+          ! grep -R -F "BMP-Terbuka-v1.2.0.zip" content site README.md docs/INSTALL.md
