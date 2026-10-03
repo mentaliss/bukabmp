@@ -8,7 +8,7 @@ Use [Status & Version](https://mentaliss.github.io/bukabmp/en/status/) as the pr
 
 The current stable product release is **BMP Terbuka v1.2.0**.
 
-Chrome Desktop can use the official manual `BMP-Terbuka-v1.2.0.zip` package from GitHub Releases.
+Chrome Desktop can use the official manual `BMP-Terbuka-v1.2.0.2-github.zip` package from GitHub Releases.
 
 The official Edge Desktop/Android path remains Microsoft Edge Add-ons. **BMP Terbuka v1.2.0 is now live on the official Microsoft Edge Add-ons listing.**
 
@@ -16,7 +16,9 @@ The official Edge Desktop/Android path remains Microsoft Edge Add-ons. **BMP Ter
 
 Use the website download/update page:
 
-https://mentaliss.github.io/bukabmp/id/download/
+https://mentaliss.github.io/bukabmp/en/download/
+
+In short: desktop Store installations update automatically but may be delayed; manual Desktop updates must replace files in the **same Load unpacked folder** and then Reload; Edge Android users should normally wait for the automatic Store update. If choosing to reinstall on Android, create a Backup first if local data matters. PDFs already saved in Downloads/device storage remain safe.
 
 ## Backup & Restore
 
