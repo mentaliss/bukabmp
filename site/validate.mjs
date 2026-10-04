@@ -111,6 +111,30 @@ if (!enDownload.includes("BMP-Terbuka-v1.2.0.2-github.zip")) {
   throw new Error("English download page missing stable v1.2.0 asset");
 }
 
+for (const required of [
+  "https://t.me/bukabmp/32",
+  "https://t.me/bukabmp/35"
+]) {
+  if (!idDownload.includes(required)) throw new Error("ID download page missing current tutorial: " + required);
+  if (!enDownload.includes(required)) throw new Error("EN download page missing current tutorial: " + required);
+}
+if (!idInstall.includes("https://t.me/bukabmp/32")) {
+  throw new Error("ID install guide missing current install tutorial");
+}
+if (!enInstall.includes("https://t.me/bukabmp/32")) {
+  throw new Error("EN install guide missing current install tutorial");
+}
+for (const obsolete of [
+  "https://t.me/bukabmp/11?comment=294",
+  "https://t.me/c/4381494564/18",
+  "Tutorial Lama"
+]) {
+  if (idInstall.includes(obsolete) || idDownload.includes(obsolete)) {
+    throw new Error("current ID tutorial guidance still contains obsolete material: " + obsolete);
+  }
+}
+
+
 if (/Unreleased/i.test(enDownload) || /Unreleased/i.test(enPrivacy)) {
   throw new Error("English public pages must not describe v1.2.0 as unreleased");
 }
