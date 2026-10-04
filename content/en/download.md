@@ -49,3 +49,10 @@ In v1.2.0, Android Restore uses a dedicated BMP Terbuka restore tab. See [Instal
 ## Microsoft Edge v1.2.0
 
 **v1.2.0 is live through the official Microsoft Edge Add-ons listing** for Desktop and Android. Use the official Store listing; do not install diagnostic/audit CRX packages as a shortcut.
+
+## Tutorials
+
+- **Desktop + Android installation tutorial:** https://t.me/bukabmp/32
+- **Update tutorial:** https://t.me/bukabmp/35
+
+The Telegram videos are visual supplements. This website remains the canonical written/current documentation.
