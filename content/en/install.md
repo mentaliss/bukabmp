@@ -98,6 +98,14 @@ A backup can contain locally stored study/material data. Keep it private.
 
 Extension storage does not automatically move between browsers, profiles, or devices.
 
+## Current Installation Tutorial
+
+The current visual installation tutorial covers **Desktop + Android**:
+
+https://t.me/bukabmp/32
+
+The Telegram video is a visual supplement. Use this website for the current written installation steps and distribution status.
+
 ## Official Download Page
 
-https://mentaliss.github.io/bukabmp/id/download/
+https://mentaliss.github.io/bukabmp/en/download/
