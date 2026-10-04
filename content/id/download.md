@@ -54,4 +54,7 @@ Untuk v1.2.0, fitur Restore di Android memakai tab restore khusus BMP Terbuka. D
 
 Panduan teks terbaru tersedia di [Panduan BMP Terbuka](docs).
 
-Video lama v1.0.4 tetap dapat dipakai untuk gambaran dasar, tetapi UI dan beberapa alur sudah berubah.
+- **Tutorial instalasi Desktop + Android:** https://t.me/bukabmp/32
+- **Tutorial update:** https://t.me/bukabmp/35
+
+Video Telegram adalah tutorial visual tambahan; dokumentasi website tetap menjadi acuan tertulis/current.

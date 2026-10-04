@@ -108,13 +108,13 @@ Storage extension tidak otomatis berpindah antarbrowser, profil, atau perangkat.
 
 File PDF yang sudah diexport ke Downloads tetap file biasa, tetapi cache/resume/Quiz source lokal berada pada storage extension masing-masing instalasi.
 
-## Tutorial Lama
+## Tutorial instalasi saat ini
 
-Video v1.0.4 masih dapat membantu memahami alur dasar, tetapi untuk v1.2.0 gunakan dokumentasi website ini.
+Video instalasi terbaru untuk **Desktop + Android**:
 
-Android: https://t.me/bukabmp/11?comment=294
+https://t.me/bukabmp/32
 
-Desktop: https://t.me/c/4381494564/18
+Video ini adalah tutorial visual. Untuk langkah tertulis dan status jalur instalasi terbaru, tetap gunakan dokumentasi website ini.
 
 ## Download Resmi
 
