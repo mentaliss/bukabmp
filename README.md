@@ -4,7 +4,7 @@
 
 <h1 align="center">BMP Terbuka</h1>
 
-<p align="center"><strong>Materi yang dapat kamu akses, lebih nyaman untuk kamu pelajari.</strong></p>
+<p align="center"><strong>Scanner & pengunduh BMP ke PDF.</strong></p>
 
 BMP Terbuka adalah browser extension open-source yang membantu mengubah materi yang sudah dapat kamu akses secara sah menjadi searchable PDF untuk belajar, dengan OCR dan penyusunan PDF yang berjalan lokal di perangkat.
 

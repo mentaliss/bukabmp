@@ -1,6 +1,6 @@
 # BMP Terbuka
 
-**Material you can already access, made easier to study.**
+**BMP scanner & downloader to PDF.**
 
 [[DOCS_CTA]] [[DOWNLOAD_CTA]] [[BUSINESS_CTA]]
 

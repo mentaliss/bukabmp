@@ -1,6 +1,6 @@
 # BMP Terbuka
 
-**Materi yang dapat kamu akses, lebih nyaman untuk kamu pelajari.**
+**Scanner & pengunduh BMP ke PDF.**
 
 [[DOCS_CTA]] [[DOWNLOAD_CTA]] [[BUSINESS_CTA]]
 
