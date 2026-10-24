@@ -3,7 +3,7 @@
   "language": "id",
   "source": "BMP Terbuka public documentation",
   "source_revision": "local",
-  "content_sha256": "5a61f48237209ede30f5f772f9caf7596d95f132984fe413fba54d9c8b22ba0f",
+  "content_sha256": "fb7893dcb40d5989cd9a37197e25948258728e274e8e982ddc1af90e82f86e9e",
   "canonical_base_url": "https://mentaliss.github.io/bukabmp/id/",
   "generated_from_routes": [
     "docs",
@@ -186,8 +186,8 @@
           ],
           "anchor": "",
           "url": "https://mentaliss.github.io/bukabmp/id/docs/install/",
-          "text": "BMP Terbuka v1.2.0 memakai jalur instalasi yang berbeda sesuai browser. Gunakan [Status & Versi](../status) untuk kondisi distribusi terbaru.",
-          "search_text": "Instalasi & Update Ringkasan BMP Terbuka v1.2.0 memakai jalur instalasi yang berbeda sesuai browser. Gunakan Status & Versi ../status untuk kondisi distribusi terbaru."
+          "text": "BMP Terbuka v1.3.0 memakai jalur instalasi yang berbeda sesuai browser. Gunakan [Status & Versi](../status) untuk kondisi distribusi terbaru.",
+          "search_text": "Instalasi & Update Ringkasan BMP Terbuka v1.3.0 memakai jalur instalasi yang berbeda sesuai browser. Gunakan Status & Versi ../status untuk kondisi distribusi terbaru."
         },
         {
           "heading": "Jalur Resmi",
@@ -196,8 +196,8 @@
           ],
           "anchor": "jalur-resmi",
           "url": "https://mentaliss.github.io/bukabmp/id/docs/install/#jalur-resmi",
-          "text": "- **Desktop Chrome:** package manual GitHub Release.\n- **Desktop Edge:** Microsoft Edge Add-ons.\n- **Android:** Microsoft Edge Stable + Microsoft Edge Add-ons.\n- **Firefox:** belum didukung resmi.\n- **Chrome Android:** bukan target instalasi resmi.\n\nVersi stabil produk: **v1.2.0**.",
-          "search_text": "Instalasi & Update Jalur Resmi - Desktop Chrome: package manual GitHub Release. - Desktop Edge: Microsoft Edge Add-ons. - Android: Microsoft Edge Stable + Microsoft Edge Add-ons. - Firefox: belum didukung resmi. - Chrome Android: bukan target instalasi resmi. Versi stabil produk: v1.2.0 ."
+          "text": "- **Desktop Chrome:** package manual GitHub Release.\n- **Desktop Edge:** Microsoft Edge Add-ons.\n- **Android:** Microsoft Edge Stable + Microsoft Edge Add-ons.\n- **Firefox:** belum didukung resmi.\n- **Chrome Android:** bukan target instalasi resmi.\n\nVersi stabil produk: **v1.3.0**.",
+          "search_text": "Instalasi & Update Jalur Resmi - Desktop Chrome: package manual GitHub Release. - Desktop Edge: Microsoft Edge Add-ons. - Android: Microsoft Edge Stable + Microsoft Edge Add-ons. - Firefox: belum didukung resmi. - Chrome Android: bukan target instalasi resmi. Versi stabil produk: v1.3.0 ."
         },
         {
           "heading": "Desktop — Google Chrome",
@@ -206,8 +206,8 @@
           ],
           "anchor": "desktop-google-chrome",
           "url": "https://mentaliss.github.io/bukabmp/id/docs/install/#desktop-google-chrome",
-          "text": "1. Buka GitHub Release resmi: https://github.com/mentaliss/bukabmp/releases/tag/v1.2.0\n2. Download `BMP-Terbuka-v1.2.0.2-github.zip`.\n3. Extract ZIP ke folder tetap.\n4. Buka `chrome://extensions`.\n5. Aktifkan **Developer mode**.\n6. Pilih **Load unpacked** dan arahkan ke folder yang berisi `manifest.json`.\n7. Buka popup BMP Terbuka dan selesaikan aktivasi.\n\nJangan gunakan GitHub **Source code (zip)** sebagai package extension.",
-          "search_text": "Instalasi & Update Desktop — Google Chrome 1. Buka GitHub Release resmi: https://github.com/mentaliss/bukabmp/releases/tag/v1.2.0 2. Download BMP-Terbuka-v1.2.0.2-github.zip . 3. Extract ZIP ke folder tetap. 4. Buka chrome://extensions . 5. Aktifkan Developer mode . 6. Pilih Load unpacked dan arahkan ke folder yang berisi manifest.json . 7. Buka popup BMP Terbuka dan selesaikan aktivasi. Jangan gunakan GitHub Source code (zip) sebagai package extension."
+          "text": "1. Buka GitHub Release resmi: https://github.com/mentaliss/bukabmp/releases/tag/v1.3.0\n2. Download `BMP-Terbuka-v1.3.0-github.zip`.\n3. Extract ZIP ke folder tetap.\n4. Buka `chrome://extensions`.\n5. Aktifkan **Developer mode**.\n6. Pilih **Load unpacked** dan arahkan ke folder yang berisi `manifest.json`.\n7. Buka popup BMP Terbuka dan selesaikan aktivasi.\n\nJangan gunakan GitHub **Source code (zip)** sebagai package extension.",
+          "search_text": "Instalasi & Update Desktop — Google Chrome 1. Buka GitHub Release resmi: https://github.com/mentaliss/bukabmp/releases/tag/v1.3.0 2. Download BMP-Terbuka-v1.3.0-github.zip . 3. Extract ZIP ke folder tetap. 4. Buka chrome://extensions . 5. Aktifkan Developer mode . 6. Pilih Load unpacked dan arahkan ke folder yang berisi manifest.json . 7. Buka popup BMP Terbuka dan selesaikan aktivasi. Jangan gunakan GitHub Source code (zip) sebagai package extension."
         },
         {
           "heading": "Chrome Web Store — Coming soon",
@@ -238,8 +238,8 @@
           ],
           "anchor": "desktop-microsoft-edge",
           "url": "https://mentaliss.github.io/bukabmp/id/docs/install/#desktop-microsoft-edge",
-          "text": "Gunakan listing resmi:\n\nhttps://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm\n\n**BMP Terbuka v1.2.0 sudah live di Microsoft Edge Add-ons** untuk Desktop dan Android. Instalasi dari Store mengikuti mekanisme update normal Microsoft Edge.\n\nUpdate Store di desktop biasanya otomatis, tetapi bisa terlambat. Kalau ingin mengecek lebih cepat, buka `edge://extensions` lalu gunakan **Update** jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall untuk update Store normal.\n\nCek [Status & Versi](../status) untuk status distribusi terbaru.",
-          "search_text": "Instalasi & Update Desktop — Microsoft Edge Gunakan listing resmi: https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm BMP Terbuka v1.2.0 sudah live di Microsoft Edge Add-ons untuk Desktop dan Android. Instalasi dari Store mengikuti mekanisme update normal Microsoft Edge. Update Store di desktop biasanya otomatis, tetapi bisa terlambat. Kalau ingin mengecek lebih cepat, buka edge://extensions lalu gunakan Update jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall untuk update Store normal. Cek Status & Versi ../status untuk status distribusi terbaru."
+          "text": "Gunakan listing resmi:\n\nhttps://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm\n\n**Microsoft Edge Add-ons masih menyajikan BMP Terbuka v1.2.0** untuk Desktop dan Android; paket GitHub sudah v1.3.0. Instalasi dari Store mengikuti mekanisme update normal Microsoft Edge.\n\nUpdate Store di desktop biasanya otomatis, tetapi bisa terlambat. Kalau ingin mengecek lebih cepat, buka `edge://extensions` lalu gunakan **Update** jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall untuk update Store normal.\n\nCek [Status & Versi](../status) untuk status distribusi terbaru.",
+          "search_text": "Instalasi & Update Desktop — Microsoft Edge Gunakan listing resmi: https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm Microsoft Edge Add-ons masih menyajikan BMP Terbuka v1.2.0 untuk Desktop dan Android; paket GitHub sudah v1.3.0. Instalasi dari Store mengikuti mekanisme update normal Microsoft Edge. Update Store di desktop biasanya otomatis, tetapi bisa terlambat. Kalau ingin mengecek lebih cepat, buka edge://extensions lalu gunakan Update jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall untuk update Store normal. Cek Status & Versi ../status untuk status distribusi terbaru."
         },
         {
           "heading": "Android — Microsoft Edge Stable",
@@ -263,15 +263,15 @@
           "search_text": "Instalasi & Update Android — Microsoft Edge Stable Update Edge Android Untuk Edge Android, tunggu automatic Store update adalah pilihan yang direkomendasikan. Update dapat membutuhkan waktu dan Edge Android tidak menyediakan tombol Update desktop yang sama praktisnya. Kalau tidak ingin menunggu dan memilih reinstall, WAJIB buat Backup BMP Terbuka terlebih dahulu jika ingin mempertahankan data lokal. Menghapus/reinstall extension dapat menghapus data lokal extension. Setelah reinstall: - lakukan aktivasi/pairing lagi bila diminta; - Restore backup; - Restore tetap memakai MERGE . PDF yang sudah tersimpan di folder Downloads/perangkat tetap aman dan tidak ikut terhapus hanya karena extension direinstall."
         },
         {
-          "heading": "Restore Backup di Android v1.2.0",
+          "heading": "Restore Backup di Android v1.3.0",
           "heading_path": [
             "Android — Microsoft Edge Stable",
-            "Restore Backup di Android v1.2.0"
+            "Restore Backup di Android v1.3.0"
           ],
-          "anchor": "restore-backup-di-android-v1-2-0",
-          "url": "https://mentaliss.github.io/bukabmp/id/docs/install/#restore-backup-di-android-v1-2-0",
-          "text": "Pada Edge Android, tombol **Pulihkan backup** tidak membuka file picker di popup.\n\nAlurnya:\n\n**Pulihkan backup → tab restore BMP Terbuka → pilih file backup → proses restore berjalan di tab tersebut.**\n\nBiarkan tab restore tetap terbuka sampai proses selesai. Menutup tab restore saat proses berjalan akan menghentikan restore.\n\nIni adalah alur kompatibilitas Android v1.2.0 dan berbeda dari Desktop.",
-          "search_text": "Instalasi & Update Android — Microsoft Edge Stable Restore Backup di Android v1.2.0 Pada Edge Android, tombol Pulihkan backup tidak membuka file picker di popup. Alurnya: Pulihkan backup → tab restore BMP Terbuka → pilih file backup → proses restore berjalan di tab tersebut. Biarkan tab restore tetap terbuka sampai proses selesai. Menutup tab restore saat proses berjalan akan menghentikan restore. Ini adalah alur kompatibilitas Android v1.2.0 dan berbeda dari Desktop."
+          "anchor": "restore-backup-di-android-v1-3-0",
+          "url": "https://mentaliss.github.io/bukabmp/id/docs/install/#restore-backup-di-android-v1-3-0",
+          "text": "Pada Edge Android, tombol **Pulihkan backup** tidak membuka file picker di popup.\n\nAlurnya:\n\n**Pulihkan backup → tab restore BMP Terbuka → pilih file backup → proses restore berjalan di tab tersebut.**\n\nBiarkan tab restore tetap terbuka sampai proses selesai. Menutup tab restore saat proses berjalan akan menghentikan restore.\n\nIni adalah alur kompatibilitas Android v1.3.0 dan berbeda dari Desktop.",
+          "search_text": "Instalasi & Update Android — Microsoft Edge Stable Restore Backup di Android v1.3.0 Pada Edge Android, tombol Pulihkan backup tidak membuka file picker di popup. Alurnya: Pulihkan backup → tab restore BMP Terbuka → pilih file backup → proses restore berjalan di tab tersebut. Biarkan tab restore tetap terbuka sampai proses selesai. Menutup tab restore saat proses berjalan akan menghentikan restore. Ini adalah alur kompatibilitas Android v1.3.0 dan berbeda dari Desktop."
         },
         {
           "heading": "Restore di Desktop",
@@ -1181,8 +1181,8 @@
           ],
           "anchor": "versi-stabil-saat-ini",
           "url": "https://mentaliss.github.io/bukabmp/id/status/#versi-stabil-saat-ini",
-          "text": "**BMP Terbuka v1.2.0**\n\nRelease publik: **3 Oktober 2026**\n\nGitHub Release:\n\nhttps://github.com/mentaliss/bukabmp/releases/tag/v1.2.0\n\nHalaman download/update:\n\nhttps://mentaliss.github.io/bukabmp/id/download/",
-          "search_text": "Status & Versi BMP Terbuka Versi Stabil Saat Ini BMP Terbuka v1.2.0 Release publik: 3 Oktober 2026 GitHub Release: https://github.com/mentaliss/bukabmp/releases/tag/v1.2.0 Halaman download/update: https://mentaliss.github.io/bukabmp/id/download/"
+          "text": "**BMP Terbuka v1.3.0**\n\nRelease publik: **3 Oktober 2026**\n\nGitHub Release:\n\nhttps://github.com/mentaliss/bukabmp/releases/tag/v1.3.0\n\nHalaman download/update:\n\nhttps://mentaliss.github.io/bukabmp/id/download/",
+          "search_text": "Status & Versi BMP Terbuka Versi Stabil Saat Ini BMP Terbuka v1.3.0 Release publik: 3 Oktober 2026 GitHub Release: https://github.com/mentaliss/bukabmp/releases/tag/v1.3.0 Halaman download/update: https://mentaliss.github.io/bukabmp/id/download/"
         },
         {
           "heading": "Status",
@@ -1192,8 +1192,8 @@
           ],
           "anchor": "status",
           "url": "https://mentaliss.github.io/bukabmp/id/status/#status",
-          "text": "**v1.2.0 tersedia melalui package manual GitHub Release.**\n\nGunakan asset:\n\n`BMP-Terbuka-v1.2.0.2-github.zip`\n\nChrome Web Store **belum tersedia untuk publik (Coming soon)**. Produk tetap BMP Terbuka v1.2.0; package manual terbaru memakai technical build 1.2.0.2.",
-          "search_text": "Status & Versi BMP Terbuka Google Chrome — Desktop Status v1.2.0 tersedia melalui package manual GitHub Release. Gunakan asset: BMP-Terbuka-v1.2.0.2-github.zip Chrome Web Store belum tersedia untuk publik (Coming soon) . Produk tetap BMP Terbuka v1.2.0; package manual terbaru memakai technical build 1.2.0.2."
+          "text": "**v1.3.0 tersedia melalui package manual GitHub Release.**\n\nGunakan asset:\n\n`BMP-Terbuka-v1.3.0-github.zip`\n\nChrome Web Store **belum tersedia untuk publik (Coming soon)**. Produk stabil saat ini BMP Terbuka v1.3.0; package manual terbaru memakai build 1.3.0.",
+          "search_text": "Status & Versi BMP Terbuka Google Chrome — Desktop Status v1.3.0 tersedia melalui package manual GitHub Release. Gunakan asset: BMP-Terbuka-v1.3.0-github.zip Chrome Web Store belum tersedia untuk publik (Coming soon) . Produk stabil saat ini BMP Terbuka v1.3.0; package manual terbaru memakai build 1.3.0."
         },
         {
           "heading": "Microsoft Edge — Desktop & Android",
@@ -1242,8 +1242,8 @@
           ],
           "anchor": "tutorial-video",
           "url": "https://mentaliss.github.io/bukabmp/id/status/#tutorial-video",
-          "text": "Video yang tersedia masih bertanda **v1.0.4** dan dipertahankan sebagai referensi alur lama. Untuk perilaku terbaru gunakan dokumentasi website v1.2.0.\n\nAndroid:\n\nhttps://t.me/bukabmp/11?comment=294\n\nDesktop:\n\nhttps://t.me/c/4381494564/18",
-          "search_text": "Status & Versi BMP Terbuka Tutorial Video Video yang tersedia masih bertanda v1.0.4 dan dipertahankan sebagai referensi alur lama. Untuk perilaku terbaru gunakan dokumentasi website v1.2.0. Android: https://t.me/bukabmp/11?comment=294 Desktop: https://t.me/c/4381494564/18"
+          "text": "Video yang tersedia masih bertanda **v1.0.4** dan dipertahankan sebagai referensi alur lama. Untuk perilaku terbaru gunakan dokumentasi website v1.3.0.\n\nAndroid:\n\nhttps://t.me/bukabmp/11?comment=294\n\nDesktop:\n\nhttps://t.me/c/4381494564/18",
+          "search_text": "Status & Versi BMP Terbuka Tutorial Video Video yang tersedia masih bertanda v1.0.4 dan dipertahankan sebagai referensi alur lama. Untuk perilaku terbaru gunakan dokumentasi website v1.3.0. Android: https://t.me/bukabmp/11?comment=294 Desktop: https://t.me/c/4381494564/18"
         },
         {
           "heading": "Sumber Informasi",
@@ -1406,8 +1406,8 @@
           ],
           "anchor": "google-chrome-desktop",
           "url": "https://mentaliss.github.io/bukabmp/id/download/#google-chrome-desktop",
-          "text": "Versi terbaru: **v1.2.0**\n\n[[GITHUB_ZIP_CTA]]\n\nGunakan asset resmi:\n\n`BMP-Terbuka-v1.2.0.2-github.zip`\n\nJangan gunakan asset otomatis **Source code (zip)** atau **Source code (tar.gz)** sebagai package extension.\n\nUntuk update instalasi manual Chrome, download dan extract package baru, lalu **ganti/overwrite isi folder yang sebelumnya dipilih saat Load unpacked**. Setelah file versi baru sudah berada di folder yang sama, buka `chrome://extensions` dan tekan **Reload**. Reload sendiri tidak mengunduh update. Jangan uninstall, Remove, pindah ke folder baru, atau menghapus storage hanya untuk update normal.\n\nPanduan lengkap: [Instalasi & Update](docs/install).",
-          "search_text": "Download BMP Terbuka Google Chrome — Desktop Versi terbaru: v1.2.0 [[GITHUB ZIP CTA]] Gunakan asset resmi: BMP-Terbuka-v1.2.0.2-github.zip Jangan gunakan asset otomatis Source code (zip) atau Source code (tar.gz) sebagai package extension. Untuk update instalasi manual Chrome, download dan extract package baru, lalu ganti/overwrite isi folder yang sebelumnya dipilih saat Load unpacked . Setelah file versi baru sudah berada di folder yang sama, buka chrome://extensions dan tekan Reload . Reload sendiri tidak mengunduh update. Jangan uninstall, Remove, pindah ke folder baru, atau menghapus storage hanya untuk update normal. Panduan lengkap: Instalasi & Update docs/install."
+          "text": "Versi terbaru: **v1.3.0**\n\n[[GITHUB_ZIP_CTA]]\n\nGunakan asset resmi:\n\n`BMP-Terbuka-v1.3.0-github.zip`\n\nJangan gunakan asset otomatis **Source code (zip)** atau **Source code (tar.gz)** sebagai package extension.\n\nUntuk update instalasi manual Chrome, download dan extract package baru, lalu **ganti/overwrite isi folder yang sebelumnya dipilih saat Load unpacked**. Setelah file versi baru sudah berada di folder yang sama, buka `chrome://extensions` dan tekan **Reload**. Reload sendiri tidak mengunduh update. Jangan uninstall, Remove, pindah ke folder baru, atau menghapus storage hanya untuk update normal.\n\nPanduan lengkap: [Instalasi & Update](docs/install).",
+          "search_text": "Download BMP Terbuka Google Chrome — Desktop Versi terbaru: v1.3.0 [[GITHUB ZIP CTA]] Gunakan asset resmi: BMP-Terbuka-v1.3.0-github.zip Jangan gunakan asset otomatis Source code (zip) atau Source code (tar.gz) sebagai package extension. Untuk update instalasi manual Chrome, download dan extract package baru, lalu ganti/overwrite isi folder yang sebelumnya dipilih saat Load unpacked . Setelah file versi baru sudah berada di folder yang sama, buka chrome://extensions dan tekan Reload . Reload sendiri tidak mengunduh update. Jangan uninstall, Remove, pindah ke folder baru, atau menghapus storage hanya untuk update normal. Panduan lengkap: Instalasi & Update docs/install."
         },
         {
           "heading": "Chrome Web Store",
@@ -1427,8 +1427,8 @@
           ],
           "anchor": "microsoft-edge-desktop",
           "url": "https://mentaliss.github.io/bukabmp/id/download/#microsoft-edge-desktop",
-          "text": "Jalur resmi tetap Microsoft Edge Add-ons.\n\n[[EDGE_CTA]]\n\n**v1.2.0 sudah live di Microsoft Edge Add-ons.** Instalasi dan update Edge Desktop mengikuti mekanisme Store normal.\n\nUpdate Store biasanya terpasang otomatis, tetapi **tidak selalu masuk secara instan** setelah package baru dipublikasikan. Kalau ingin mengecek lebih cepat di desktop, buka `edge://extensions` lalu gunakan tombol **Update** jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall atau menghapus data lokal hanya untuk update Store normal.",
-          "search_text": "Download BMP Terbuka Microsoft Edge — Desktop Jalur resmi tetap Microsoft Edge Add-ons. [[EDGE CTA]] v1.2.0 sudah live di Microsoft Edge Add-ons. Instalasi dan update Edge Desktop mengikuti mekanisme Store normal. Update Store biasanya terpasang otomatis, tetapi tidak selalu masuk secara instan setelah package baru dipublikasikan. Kalau ingin mengecek lebih cepat di desktop, buka edge://extensions lalu gunakan tombol Update jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall atau menghapus data lokal hanya untuk update Store normal."
+          "text": "Jalur resmi tetap Microsoft Edge Add-ons.\n\n[[EDGE_CTA]]\n\n**Microsoft Edge Add-ons masih menyediakan v1.2.0.** Paket GitHub di atas sudah v1.3.0 dan versi Store menyusul setelah listing diperbarui. Instalasi dan update Edge Desktop mengikuti mekanisme Store normal.\n\nUpdate Store biasanya terpasang otomatis, tetapi **tidak selalu masuk secara instan** setelah package baru dipublikasikan. Kalau ingin mengecek lebih cepat di desktop, buka `edge://extensions` lalu gunakan tombol **Update** jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall atau menghapus data lokal hanya untuk update Store normal.",
+          "search_text": "Download BMP Terbuka Microsoft Edge — Desktop Jalur resmi tetap Microsoft Edge Add-ons. [[EDGE CTA]] Microsoft Edge Add-ons masih menyediakan v1.2.0. Paket GitHub di atas sudah v1.3.0 dan versi Store menyusul setelah listing diperbarui. Instalasi dan update Edge Desktop mengikuti mekanisme Store normal. Update Store biasanya terpasang otomatis, tetapi tidak selalu masuk secara instan setelah package baru dipublikasikan. Kalau ingin mengecek lebih cepat di desktop, buka edge://extensions lalu gunakan tombol Update jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall atau menghapus data lokal hanya untuk update Store normal."
         },
         {
           "heading": "Microsoft Edge — Android",
