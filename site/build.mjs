@@ -11,6 +11,7 @@ const SITE_URL = (process.env.BMP_SITE_URL || "https://mentaliss.github.io/bukab
 const EDGE_URL = (process.env.BMP_EDGE_ADDONS_URL || "https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm").trim();
 const BUSINESS_URL = (process.env.BMP_BUSINESS_CONTACT_URL || "https://t.me/bukabmp").trim();
 const GITHUB_ZIP_URL = (process.env.BMP_GITHUB_ZIP_URL || "https://github.com/mentaliss/bukabmp/releases/download/v1.3.0/BMP-Terbuka-v1.3.0-github.zip").trim();
+const SITE_VERSION = (process.env.BMP_SITE_VERSION || "1.3.0").trim();
 
 const idRoutes = {
   "": "content/id/home.md",
@@ -431,21 +432,26 @@ function buildAiSupportCorpus() {
   };
 }
 
-function nav(lang) {
+function nav(lang, slug = "") {
   const home = sitePath(lang);
   const investor = lang === "id" ? sitePath("id/investor") : sitePath("en/investors");
+  const current = (key) => {
+    if (key === "") return slug === "" ? ' aria-current="page"' : "";
+    return slug === key || slug.startsWith(key + "/") ? ' aria-current="page"' : "";
+  };
+  const link = (href, label, key) => '<a href="' + href + '"' + current(key) + ">" + label + "</a>";
   const helpLinks =
-    '<a href="' + sitePath(lang + "/docs") + '">' + (lang === "id" ? "Panduan" : "Guides") + "</a>" +
-    '<a href="' + sitePath(lang + "/status") + '">Status</a>' +
-    '<a href="' + sitePath(lang + "/faq") + '">FAQ</a>';
-  return '<nav><a class="brand" href="' + home + '">BMP TERBUKA</a><div class="navlinks">' +
-    '<a href="' + home + '">' + (lang === "id" ? "Beranda" : "Home") + "</a>" +
-    '<a href="' + sitePath(lang + "/download") + '">Download</a>' +
+    link(sitePath(lang + "/docs"), lang === "id" ? "Panduan" : "Guides", "docs") +
+    link(sitePath(lang + "/status"), "Status", "status") +
+    link(sitePath(lang + "/faq"), "FAQ", "faq");
+  return '<nav><a class="brand" href="' + home + '">BMP Terbuka</a><div class="navlinks">' +
+    link(home, lang === "id" ? "Beranda" : "Home", "") +
+    link(sitePath(lang + "/download"), "Download", "download") +
     helpLinks +
-    '<a href="' + sitePath(lang + "/features") + '">' + (lang === "id" ? "Fitur" : "Features") + "</a>" +
-    '<a href="' + sitePath(lang + "/sponsor") + '">Sponsor</a>' +
-    '<a href="' + investor + '">' + (lang === "id" ? "Investor / Partnership" : "Investors / Partnership") + "</a>" +
-    '<span class="lang"><a href="' + sitePath("id") + '">ID</a> | <a href="' + sitePath("en") + '">EN</a></span></div></nav>';
+    link(sitePath(lang + "/features"), lang === "id" ? "Fitur" : "Features", "features") +
+    link(sitePath(lang + "/sponsor"), "Sponsor", "sponsor") +
+    link(investor, lang === "id" ? "Investor / Partnership" : "Investors / Partnership", lang === "id" ? "investor" : "investors") +
+    '</div><span class="lang"><a href="' + sitePath("id") + '"' + (lang === "id" ? ' aria-current="page"' : "") + ">ID</a> | <a href=\"" + sitePath("en") + '"' + (lang === "en" ? ' aria-current="page"' : "") + ">EN</a></span></nav>";
 }
 
 function footer(lang) {
@@ -491,7 +497,7 @@ function footer(lang) {
     }
     html += "</section>";
   }
-  return html + "</footer>";
+  return html + '<div class="colophon"><span>BMP Terbuka &middot; v' + SITE_VERSION + ' &middot; GPL-3.0</span><span><a href="' + esc(GITHUB_ZIP_URL || sitePath(lang + "/download")) + '">' + (lang === "id" ? "Aset GitHub" : "GitHub asset") + "</a> &middot; <a href=\"https://github.com/mentaliss/bukabmp\">GitHub</a> &middot; <a href=\"" + sitePath(lang + "/status") + '">' + (lang === "id" ? "Status kanal" : "Channel status") + "</a></span></div></footer>";
 }
 
 function inject(content, lang) {
@@ -539,18 +545,26 @@ function page(lang, slug, md) {
   const canonicalPath = slug ? "/" + lang + "/" + slug + "/" : "/" + lang + "/";
   const canonical = SITE_URL + canonicalPath;
 
+  const description = lang === "id"
+    ? "BMP Terbuka - extension komunitas untuk mengubah materi yang kamu akses menjadi searchable PDF, diproses lokal di perangkat."
+    : "BMP Terbuka - a community extension that turns the material you can already access into searchable PDFs, processed locally on your device.";
+  const skip = '<a class="skip-link" href="#main">' + (lang === "id" ? "Lewati ke konten" : "Skip to content") + "</a>";
   return '<!doctype html><html lang="' + lang + '"><head>' +
     '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-    "<title>" + esc(title) + " — BMP Terbuka</title>" +
-    '<meta name="description" content="BMP Terbuka — local-first searchable PDF workflow.">' +
+    "<title>" + esc(title) + " - BMP Terbuka</title>" +
+    '<meta name="description" content="' + esc(description) + '">' +
+    '<meta name="theme-color" content="#f5f2e9" media="(prefers-color-scheme: light)">' +
+    '<meta name="theme-color" content="#14140f" media="(prefers-color-scheme: dark)">' +
+    '<link rel="icon" href="' + sitePath("assets/icon.svg").replace(/\/$/, "") + '" type="image/svg+xml">' +
     '<link rel="canonical" href="' + esc(canonical) + '">' +
     '<link rel="stylesheet" href="' + sitePath("assets/styles.css").replace(/\/$/, "") + '">' +
-    "</head><body>" + nav(lang) + "<main" + mainClass + ">" + mainBody + "</main>" + footer(lang) + "</body></html>";
+    "</head><body>" + skip + nav(lang, slug) + '<main id="main"' + mainClass + ">" + mainBody + "</main>" + footer(lang) + "</body></html>";
 }
 
 fs.rmSync(out, {recursive: true, force: true});
 fs.mkdirSync(path.join(out, "assets"), {recursive: true});
 fs.copyFileSync(path.join(siteDir, "styles.css"), path.join(out, "assets", "styles.css"));
+fs.copyFileSync(path.join(siteDir, "icon.svg"), path.join(out, "assets", "icon.svg"));
 
 for (const [lang, routes] of Object.entries({id: idRoutes, en: enRoutes})) {
   for (const [slug, source] of Object.entries(routes)) {

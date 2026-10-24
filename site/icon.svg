@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="BMP Terbuka">
+  <rect width="64" height="64" rx="6" fill="#f5f2e9"/>
+  <g fill="none" stroke="#16150f" stroke-width="3.2" stroke-linecap="square">
+    <path d="M12 18h17c3 0 3 0 3 3v26c0-3 0-3-3-3H12z"/>
+    <path d="M52 18H35c-3 0-3 0-3 3v26c0-3 0-3 3-3h17z"/>
+    <path d="M17 26h10M17 33h10M37 26h10M37 33h10"/>
+  </g>
+</svg>
