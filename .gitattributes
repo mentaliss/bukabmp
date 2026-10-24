@@ -1,5 +1,0 @@
-# Semua teks keluar-masuk sebagai LF di SEMUA platform.
-# Alasan: test freeze (tests/stable-candidate-freeze.test.mjs) membandingkan
-# byte kerja vs blob audit; checkout CRLF di Windows membuat perbandingan itu
-# gagal palsu walau konten identik (insiden Batch 7, 2026-10-11).
-* text=auto eol=lf
