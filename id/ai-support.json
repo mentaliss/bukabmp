@@ -3,7 +3,7 @@
   "language": "id",
   "source": "BMP Terbuka public documentation",
   "source_revision": "local",
-  "content_sha256": "a98d92d4f2caeef8b62d5385b99d7477287d70266303bb04e494215540a1e37a",
+  "content_sha256": "cf7cb50819fe22bccd74c5ee429c327e9711097a16612922d744af5e1c28b430",
   "canonical_base_url": "https://mentaliss.github.io/bukabmp/id/",
   "generated_from_routes": [
     "docs",
@@ -238,8 +238,8 @@
           ],
           "anchor": "desktop-microsoft-edge",
           "url": "https://mentaliss.github.io/bukabmp/id/docs/install/#desktop-microsoft-edge",
-          "text": "Gunakan listing resmi:\n\nhttps://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm\n\n**Microsoft Edge Add-ons masih menyajikan BMP Terbuka v1.2.0** untuk Desktop dan Android; paket GitHub sudah v1.3.0. Instalasi dari Store mengikuti mekanisme update normal Microsoft Edge.\n\nUpdate Store di desktop biasanya otomatis, tetapi bisa terlambat. Kalau ingin mengecek lebih cepat, buka `edge://extensions` lalu gunakan **Update** jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall untuk update Store normal.\n\nCek [Status & Versi](../status) untuk status distribusi terbaru.",
-          "search_text": "Instalasi & Update Desktop — Microsoft Edge Gunakan listing resmi: https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm Microsoft Edge Add-ons masih menyajikan BMP Terbuka v1.2.0 untuk Desktop dan Android; paket GitHub sudah v1.3.0. Instalasi dari Store mengikuti mekanisme update normal Microsoft Edge. Update Store di desktop biasanya otomatis, tetapi bisa terlambat. Kalau ingin mengecek lebih cepat, buka edge://extensions lalu gunakan Update jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall untuk update Store normal. Cek Status & Versi ../status untuk status distribusi terbaru."
+          "text": "Gunakan listing resmi:\n\nhttps://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm\n\n**Listing Microsoft Edge Add-ons masih menyajikan BMP Terbuka v1.2.0.2** untuk Desktop dan Android; paket GitHub sudah v1.3.0 dan pembaruan Store v1.3.0 sedang ditinjau Microsoft. Instalasi dari Store mengikuti mekanisme update normal Microsoft Edge.\n\nUpdate Store di desktop biasanya otomatis, tetapi bisa terlambat. Kalau ingin mengecek lebih cepat, buka `edge://extensions` lalu gunakan **Update** jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall untuk update Store normal.\n\nCek [Status & Versi](../status) untuk status distribusi terbaru.",
+          "search_text": "Instalasi & Update Desktop — Microsoft Edge Gunakan listing resmi: https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm Listing Microsoft Edge Add-ons masih menyajikan BMP Terbuka v1.2.0.2 untuk Desktop dan Android; paket GitHub sudah v1.3.0 dan pembaruan Store v1.3.0 sedang ditinjau Microsoft. Instalasi dari Store mengikuti mekanisme update normal Microsoft Edge. Update Store di desktop biasanya otomatis, tetapi bisa terlambat. Kalau ingin mengecek lebih cepat, buka edge://extensions lalu gunakan Update jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall untuk update Store normal. Cek Status & Versi ../status untuk status distribusi terbaru."
         },
         {
           "heading": "Android — Microsoft Edge Stable",
@@ -422,8 +422,8 @@
           ],
           "anchor": "kalau-aktivasi-kedaluwarsa",
           "url": "https://mentaliss.github.io/bukabmp/id/docs/activation/#kalau-aktivasi-kedaluwarsa",
-          "text": "Kamu **tidak perlu install ulang BMP Terbuka**.\n\nYang perlu dilakukan adalah memperbarui atau memverifikasi akses bila extension memintanya.\n\nPada v1.2.0, alur token aktivasi tetap mendukung refresh untuk kondisi yang memenuhi syarat. Kalau refresh tidak dapat dilakukan, extension dapat meminta verifikasi ulang melalui Telegram.",
-          "search_text": "Aktivasi & Verifikasi Kalau Aktivasi Kedaluwarsa Kamu tidak perlu install ulang BMP Terbuka . Yang perlu dilakukan adalah memperbarui atau memverifikasi akses bila extension memintanya. Pada v1.2.0, alur token aktivasi tetap mendukung refresh untuk kondisi yang memenuhi syarat. Kalau refresh tidak dapat dilakukan, extension dapat meminta verifikasi ulang melalui Telegram."
+          "text": "Kamu **tidak perlu install ulang BMP Terbuka**.\n\nYang perlu dilakukan adalah memperbarui atau memverifikasi akses bila extension memintanya.\n\nPada v1.3.0, alur token aktivasi tetap mendukung refresh untuk kondisi yang memenuhi syarat. Kalau refresh tidak dapat dilakukan, extension dapat meminta verifikasi ulang melalui Telegram.",
+          "search_text": "Aktivasi & Verifikasi Kalau Aktivasi Kedaluwarsa Kamu tidak perlu install ulang BMP Terbuka . Yang perlu dilakukan adalah memperbarui atau memverifikasi akses bila extension memintanya. Pada v1.3.0, alur token aktivasi tetap mendukung refresh untuk kondisi yang memenuhi syarat. Kalau refresh tidak dapat dilakukan, extension dapat meminta verifikasi ulang melalui Telegram."
         },
         {
           "heading": "Verifikasi Ulang",
@@ -452,8 +452,8 @@
           ],
           "anchor": "aktivasi-dan-supporter-pass",
           "url": "https://mentaliss.github.io/bukabmp/id/docs/activation/#aktivasi-dan-supporter-pass",
-          "text": "Supporter Pass tidak wajib untuk menggunakan fitur inti BMP Terbuka.\n\nSetiap pembayaran Supporter memberi bonus target masa aktivasi **+14 hari**, dengan batas maksimum target aktivasi **60 hari**.\n\nPada v1.2.0, status Supporter tetap dapat disinkronkan melalui mekanisme token/refresh yang didukung. Token yang sudah tersimpan di perangkat tidak selalu berubah pada detik yang sama dengan pembayaran; entitlement baru diterapkan saat refresh atau penerbitan token berikutnya berhasil.\n\nDetail paket dan aturan pembayaran ada di [Supporter Pass](supporter).",
-          "search_text": "Aktivasi & Verifikasi Aktivasi dan Supporter Pass Supporter Pass tidak wajib untuk menggunakan fitur inti BMP Terbuka. Setiap pembayaran Supporter memberi bonus target masa aktivasi +14 hari , dengan batas maksimum target aktivasi 60 hari . Pada v1.2.0, status Supporter tetap dapat disinkronkan melalui mekanisme token/refresh yang didukung. Token yang sudah tersimpan di perangkat tidak selalu berubah pada detik yang sama dengan pembayaran; entitlement baru diterapkan saat refresh atau penerbitan token berikutnya berhasil. Detail paket dan aturan pembayaran ada di Supporter Pass supporter."
+          "text": "Supporter Pass tidak wajib untuk menggunakan fitur inti BMP Terbuka.\n\nSetiap pembayaran Supporter memberi bonus target masa aktivasi **+14 hari**, dengan batas maksimum target aktivasi **60 hari**.\n\nPada v1.3.0, status Supporter tetap dapat disinkronkan melalui mekanisme token/refresh yang didukung. Token yang sudah tersimpan di perangkat tidak selalu berubah pada detik yang sama dengan pembayaran; entitlement baru diterapkan saat refresh atau penerbitan token berikutnya berhasil.\n\nDetail paket dan aturan pembayaran ada di [Supporter Pass](supporter).",
+          "search_text": "Aktivasi & Verifikasi Aktivasi dan Supporter Pass Supporter Pass tidak wajib untuk menggunakan fitur inti BMP Terbuka. Setiap pembayaran Supporter memberi bonus target masa aktivasi +14 hari , dengan batas maksimum target aktivasi 60 hari . Pada v1.3.0, status Supporter tetap dapat disinkronkan melalui mekanisme token/refresh yang didukung. Token yang sudah tersimpan di perangkat tidak selalu berubah pada detik yang sama dengan pembayaran; entitlement baru diterapkan saat refresh atau penerbitan token berikutnya berhasil. Detail paket dan aturan pembayaran ada di Supporter Pass supporter."
         },
         {
           "heading": "Kode Kedaluwarsa",
@@ -651,8 +651,8 @@
           ],
           "anchor": "storage-manager",
           "url": "https://mentaliss.github.io/bukabmp/id/docs/files/#storage-manager",
-          "text": "Di v1.2.0 kamu dapat menggunakan pengelolaan penyimpanan untuk:\n\n- melihat penggunaan storage lokal;\n- melihat data BMP yang tersedia;\n- export/reuse data yang didukung;\n- menghapus data per BMP;\n- menghapus seluruh data lokal bila memang diinginkan.\n\nSebelum penghapusan yang destruktif, buat backup bila data tersebut masih diperlukan.",
-          "search_text": "PDF, Backup, Restore & Penyimpanan Storage Manager Di v1.2.0 kamu dapat menggunakan pengelolaan penyimpanan untuk: - melihat penggunaan storage lokal; - melihat data BMP yang tersedia; - export/reuse data yang didukung; - menghapus data per BMP; - menghapus seluruh data lokal bila memang diinginkan. Sebelum penghapusan yang destruktif, buat backup bila data tersebut masih diperlukan."
+          "text": "Di v1.3.0 kamu dapat menggunakan pengelolaan penyimpanan untuk:\n\n- melihat penggunaan storage lokal;\n- melihat data BMP yang tersedia;\n- export/reuse data yang didukung;\n- menghapus data per BMP;\n- menghapus seluruh data lokal bila memang diinginkan.\n\nSebelum penghapusan yang destruktif, buat backup bila data tersebut masih diperlukan.",
+          "search_text": "PDF, Backup, Restore & Penyimpanan Storage Manager Di v1.3.0 kamu dapat menggunakan pengelolaan penyimpanan untuk: - melihat penggunaan storage lokal; - melihat data BMP yang tersedia; - export/reuse data yang didukung; - menghapus data per BMP; - menghapus seluruh data lokal bila memang diinginkan. Sebelum penghapusan yang destruktif, buat backup bila data tersebut masih diperlukan."
         },
         {
           "heading": "PDF per Modul & Export Ulang",
@@ -828,8 +828,8 @@
           ],
           "anchor": "restore-desktop",
           "url": "https://mentaliss.github.io/bukabmp/id/docs/troubleshooting/#restore-desktop",
-          "text": "Di Desktop, **Pulihkan backup** membuka file picker dari popup.\n\nKalau file tidak dapat dipilih, reload extension dan pastikan kamu memakai v1.2.0 sebelum mencoba langkah destruktif lain.",
-          "search_text": "Mengatasi Masalah Restore Desktop Di Desktop, Pulihkan backup membuka file picker dari popup. Kalau file tidak dapat dipilih, reload extension dan pastikan kamu memakai v1.2.0 sebelum mencoba langkah destruktif lain."
+          "text": "Di Desktop, **Pulihkan backup** membuka file picker dari popup.\n\nKalau file tidak dapat dipilih, reload extension dan pastikan kamu memakai v1.3.0 sebelum mencoba langkah destruktif lain.",
+          "search_text": "Mengatasi Masalah Restore Desktop Di Desktop, Pulihkan backup membuka file picker dari popup. Kalau file tidak dapat dipilih, reload extension dan pastikan kamu memakai v1.3.0 sebelum mencoba langkah destruktif lain."
         },
         {
           "heading": "Restore Edge Android",
@@ -1084,8 +1084,8 @@
           ],
           "anchor": "kapan-bonus-terlihat-di-extension",
           "url": "https://mentaliss.github.io/bukabmp/id/docs/supporter/#kapan-bonus-terlihat-di-extension",
-          "text": "BMP Terbuka v1.2.0 memiliki mekanisme token/refresh untuk menyinkronkan entitlement yang memenuhi syarat.\n\nToken yang sudah tersimpan di perangkat tidak selalu berubah tepat pada saat pembayaran selesai.\n\nBonus diterapkan ketika refresh entitlement atau penerbitan token aktivasi berikutnya berhasil.\n\nKalau extension meminta re-verification, ikuti verifikasi dari popup. Tidak perlu install ulang hanya untuk menerima entitlement baru.",
-          "search_text": "BMP Supporter Pass Bonus Masa Aktivasi Extension Kapan Bonus Terlihat di Extension BMP Terbuka v1.2.0 memiliki mekanisme token/refresh untuk menyinkronkan entitlement yang memenuhi syarat. Token yang sudah tersimpan di perangkat tidak selalu berubah tepat pada saat pembayaran selesai. Bonus diterapkan ketika refresh entitlement atau penerbitan token aktivasi berikutnya berhasil. Kalau extension meminta re-verification, ikuti verifikasi dari popup. Tidak perlu install ulang hanya untuk menerima entitlement baru."
+          "text": "BMP Terbuka v1.3.0 memiliki mekanisme token/refresh untuk menyinkronkan entitlement yang memenuhi syarat.\n\nToken yang sudah tersimpan di perangkat tidak selalu berubah tepat pada saat pembayaran selesai.\n\nBonus diterapkan ketika refresh entitlement atau penerbitan token aktivasi berikutnya berhasil.\n\nKalau extension meminta re-verification, ikuti verifikasi dari popup. Tidak perlu install ulang hanya untuk menerima entitlement baru.",
+          "search_text": "BMP Supporter Pass Bonus Masa Aktivasi Extension Kapan Bonus Terlihat di Extension BMP Terbuka v1.3.0 memiliki mekanisme token/refresh untuk menyinkronkan entitlement yang memenuhi syarat. Token yang sudah tersimpan di perangkat tidak selalu berubah tepat pada saat pembayaran selesai. Bonus diterapkan ketika refresh entitlement atau penerbitan token aktivasi berikutnya berhasil. Kalau extension meminta re-verification, ikuti verifikasi dari popup. Tidak perlu install ulang hanya untuk menerima entitlement baru."
         },
         {
           "heading": "Cara Membeli",
@@ -1181,8 +1181,8 @@
           ],
           "anchor": "versi-stabil-saat-ini",
           "url": "https://mentaliss.github.io/bukabmp/id/status/#versi-stabil-saat-ini",
-          "text": "**BMP Terbuka v1.3.0**\n\nRelease publik: **3 Oktober 2026**\n\nGitHub Release:\n\nhttps://github.com/mentaliss/bukabmp/releases/tag/v1.3.0\n\nHalaman download/update:\n\nhttps://mentaliss.github.io/bukabmp/id/download/",
-          "search_text": "Status & Versi BMP Terbuka Versi Stabil Saat Ini BMP Terbuka v1.3.0 Release publik: 3 Oktober 2026 GitHub Release: https://github.com/mentaliss/bukabmp/releases/tag/v1.3.0 Halaman download/update: https://mentaliss.github.io/bukabmp/id/download/"
+          "text": "**BMP Terbuka v1.3.0**\n\nRelease publik: **24 Oktober 2026**\n\nGitHub Release:\n\nhttps://github.com/mentaliss/bukabmp/releases/tag/v1.3.0\n\nHalaman download/update:\n\nhttps://mentaliss.github.io/bukabmp/id/download/",
+          "search_text": "Status & Versi BMP Terbuka Versi Stabil Saat Ini BMP Terbuka v1.3.0 Release publik: 24 Oktober 2026 GitHub Release: https://github.com/mentaliss/bukabmp/releases/tag/v1.3.0 Halaman download/update: https://mentaliss.github.io/bukabmp/id/download/"
         },
         {
           "heading": "Status",
@@ -1202,8 +1202,8 @@
           ],
           "anchor": "microsoft-edge-desktop-dan-android",
           "url": "https://mentaliss.github.io/bukabmp/id/status/#microsoft-edge-desktop-dan-android",
-          "text": "Jalur resmi tetap **Microsoft Edge Add-ons**:\n\nhttps://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm\n\n**BMP Terbuka v1.2.0 sudah live di Microsoft Edge Add-ons** untuk Desktop dan Android.\n\nGunakan listing resmi Store untuk instalasi/update. Jangan memakai package CRX diagnostic/audit sebagai pengganti Store.\n\nEdge Canary hanya fallback/testing, bukan jalur default.\n\nChrome Android bukan target instalasi resmi BMP Terbuka.",
-          "search_text": "Status & Versi BMP Terbuka Microsoft Edge — Desktop & Android Jalur resmi tetap Microsoft Edge Add-ons : https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm BMP Terbuka v1.2.0 sudah live di Microsoft Edge Add-ons untuk Desktop dan Android. Gunakan listing resmi Store untuk instalasi/update. Jangan memakai package CRX diagnostic/audit sebagai pengganti Store. Edge Canary hanya fallback/testing, bukan jalur default. Chrome Android bukan target instalasi resmi BMP Terbuka."
+          "text": "Jalur resmi tetap **Microsoft Edge Add-ons**:\n\nhttps://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm\n\n**Listing Microsoft Edge Add-ons saat ini menyajikan BMP Terbuka v1.2.0.2** untuk Desktop dan Android (rilis Store 3 Oktober 2026). Pembaruan **v1.3.0 sedang ditinjau Microsoft** dan akan tayang otomatis setelah lolos sertifikasi Store.\n\nGunakan listing resmi Store untuk instalasi/update. Jangan memakai package CRX diagnostic/audit sebagai pengganti Store.\n\nEdge Canary hanya fallback/testing, bukan jalur default.\n\nChrome Android bukan target instalasi resmi BMP Terbuka.",
+          "search_text": "Status & Versi BMP Terbuka Microsoft Edge — Desktop & Android Jalur resmi tetap Microsoft Edge Add-ons : https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm Listing Microsoft Edge Add-ons saat ini menyajikan BMP Terbuka v1.2.0.2 untuk Desktop dan Android (rilis Store 3 Oktober 2026). Pembaruan v1.3.0 sedang ditinjau Microsoft dan akan tayang otomatis setelah lolos sertifikasi Store. Gunakan listing resmi Store untuk instalasi/update. Jangan memakai package CRX diagnostic/audit sebagai pengganti Store. Edge Canary hanya fallback/testing, bukan jalur default. Chrome Android bukan target instalasi resmi BMP Terbuka."
         },
         {
           "heading": "Firefox",
@@ -1262,8 +1262,8 @@
           ],
           "anchor": "terakhir-diperbarui",
           "url": "https://mentaliss.github.io/bukabmp/id/status/#terakhir-diperbarui",
-          "text": "**4 Oktober 2026**",
-          "search_text": "Status & Versi BMP Terbuka Terakhir Diperbarui 4 Oktober 2026"
+          "text": "**24 Oktober 2026**",
+          "search_text": "Status & Versi BMP Terbuka Terakhir Diperbarui 24 Oktober 2026"
         }
       ]
     },
@@ -1290,8 +1290,8 @@
           ],
           "anchor": "versi-terbaru-berapa",
           "url": "https://mentaliss.github.io/bukabmp/id/faq/#versi-terbaru-berapa",
-          "text": "Release stabil produk saat ini adalah **BMP Terbuka v1.2.0**.\n\nChrome Desktop dapat memakai package manual resmi `BMP-Terbuka-v1.2.0.2-github.zip` dari GitHub Release.\n\nUntuk Edge Desktop/Android, jalur resmi tetap Microsoft Edge Add-ons. **BMP Terbuka v1.2.0 sekarang sudah live di listing resmi Microsoft Edge Add-ons.**",
-          "search_text": "FAQ Versi & Download Versi terbaru berapa? Release stabil produk saat ini adalah BMP Terbuka v1.2.0 . Chrome Desktop dapat memakai package manual resmi BMP-Terbuka-v1.2.0.2-github.zip dari GitHub Release. Untuk Edge Desktop/Android, jalur resmi tetap Microsoft Edge Add-ons. BMP Terbuka v1.2.0 sekarang sudah live di listing resmi Microsoft Edge Add-ons."
+          "text": "Release stabil produk saat ini adalah **BMP Terbuka v1.3.0**.\n\nChrome Desktop dapat memakai package manual resmi `BMP-Terbuka-v1.3.0-github.zip` dari GitHub Release.\n\nUntuk Edge Desktop/Android, jalur resmi tetap Microsoft Edge Add-ons. **Listing Microsoft Edge Add-ons saat ini menyajikan BMP Terbuka v1.2.0.2**, dan pembaruan **v1.3.0 sedang ditinjau Microsoft** (tayang otomatis setelah lolos sertifikasi).",
+          "search_text": "FAQ Versi & Download Versi terbaru berapa? Release stabil produk saat ini adalah BMP Terbuka v1.3.0 . Chrome Desktop dapat memakai package manual resmi BMP-Terbuka-v1.3.0-github.zip dari GitHub Release. Untuk Edge Desktop/Android, jalur resmi tetap Microsoft Edge Add-ons. Listing Microsoft Edge Add-ons saat ini menyajikan BMP Terbuka v1.2.0.2 , dan pembaruan v1.3.0 sedang ditinjau Microsoft (tayang otomatis setelah lolos sertifikasi)."
         },
         {
           "heading": "Di mana update?",
@@ -1356,8 +1356,8 @@
           ],
           "anchor": "bagaimana-restore-di-android",
           "url": "https://mentaliss.github.io/bukabmp/id/faq/#bagaimana-restore-di-android",
-          "text": "Pada Edge Android v1.2.0:\n\n**Pulihkan backup → tab restore BMP Terbuka → pilih file → restore berjalan di tab tersebut.**\n\nBiarkan tab restore terbuka sampai selesai. Menutupnya ketika proses berjalan menghentikan restore.",
-          "search_text": "FAQ Backup & Restore Bagaimana Restore di Android? Pada Edge Android v1.2.0: Pulihkan backup → tab restore BMP Terbuka → pilih file → restore berjalan di tab tersebut. Biarkan tab restore terbuka sampai selesai. Menutupnya ketika proses berjalan menghentikan restore."
+          "text": "Pada Edge Android v1.3.0:\n\n**Pulihkan backup → tab restore BMP Terbuka → pilih file → restore berjalan di tab tersebut.**\n\nBiarkan tab restore terbuka sampai selesai. Menutupnya ketika proses berjalan menghentikan restore.",
+          "search_text": "FAQ Backup & Restore Bagaimana Restore di Android? Pada Edge Android v1.3.0: Pulihkan backup → tab restore BMP Terbuka → pilih file → restore berjalan di tab tersebut. Biarkan tab restore terbuka sampai selesai. Menutupnya ketika proses berjalan menghentikan restore."
         },
         {
           "heading": "Desktop?",
@@ -1477,8 +1477,8 @@
           ],
           "anchor": "microsoft-edge-desktop",
           "url": "https://mentaliss.github.io/bukabmp/id/download/#microsoft-edge-desktop",
-          "text": "Jalur resmi tetap Microsoft Edge Add-ons.\n\n[[EDGE_CTA]]\n\n**Microsoft Edge Add-ons masih menyediakan v1.2.0.** Paket GitHub di atas sudah v1.3.0 dan versi Store menyusul setelah listing diperbarui. Instalasi dan update Edge Desktop mengikuti mekanisme Store normal.\n\nUpdate Store biasanya terpasang otomatis, tetapi **tidak selalu masuk secara instan** setelah package baru dipublikasikan. Kalau ingin mengecek lebih cepat di desktop, buka `edge://extensions` lalu gunakan tombol **Update** jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall atau menghapus data lokal hanya untuk update Store normal.",
-          "search_text": "Download BMP Terbuka Microsoft Edge — Desktop Jalur resmi tetap Microsoft Edge Add-ons. [[EDGE CTA]] Microsoft Edge Add-ons masih menyediakan v1.2.0. Paket GitHub di atas sudah v1.3.0 dan versi Store menyusul setelah listing diperbarui. Instalasi dan update Edge Desktop mengikuti mekanisme Store normal. Update Store biasanya terpasang otomatis, tetapi tidak selalu masuk secara instan setelah package baru dipublikasikan. Kalau ingin mengecek lebih cepat di desktop, buka edge://extensions lalu gunakan tombol Update jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall atau menghapus data lokal hanya untuk update Store normal."
+          "text": "Jalur resmi tetap Microsoft Edge Add-ons.\n\n[[EDGE_CTA]]\n\n**Listing Microsoft Edge Add-ons saat ini menyediakan v1.2.0.2.** Paket GitHub di atas sudah v1.3.0; pembaruan Store **v1.3.0 sedang ditinjau Microsoft** dan tayang otomatis setelah lolos sertifikasi. Instalasi dan update Edge Desktop mengikuti mekanisme Store normal.\n\nUpdate Store biasanya terpasang otomatis, tetapi **tidak selalu masuk secara instan** setelah package baru dipublikasikan. Kalau ingin mengecek lebih cepat di desktop, buka `edge://extensions` lalu gunakan tombol **Update** jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall atau menghapus data lokal hanya untuk update Store normal.",
+          "search_text": "Download BMP Terbuka Microsoft Edge — Desktop Jalur resmi tetap Microsoft Edge Add-ons. [[EDGE CTA]] Listing Microsoft Edge Add-ons saat ini menyediakan v1.2.0.2. Paket GitHub di atas sudah v1.3.0; pembaruan Store v1.3.0 sedang ditinjau Microsoft dan tayang otomatis setelah lolos sertifikasi. Instalasi dan update Edge Desktop mengikuti mekanisme Store normal. Update Store biasanya terpasang otomatis, tetapi tidak selalu masuk secara instan setelah package baru dipublikasikan. Kalau ingin mengecek lebih cepat di desktop, buka edge://extensions lalu gunakan tombol Update jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall atau menghapus data lokal hanya untuk update Store normal."
         },
         {
           "heading": "Microsoft Edge — Android",
@@ -1487,18 +1487,18 @@
           ],
           "anchor": "microsoft-edge-android",
           "url": "https://mentaliss.github.io/bukabmp/id/download/#microsoft-edge-android",
-          "text": "Gunakan **Microsoft Edge Stable + Microsoft Edge Add-ons**.\n\n[[EDGE_CTA]]\n\nEdge Canary hanya fallback/testing.\n\nUntuk update di Edge Android, jalur yang paling aman adalah **menunggu automatic Store update**. Update dapat terlambat dan Edge Android tidak menyediakan tombol Update desktop yang sama praktisnya.\n\nKalau memilih reinstall agar mendapat build terbaru lebih cepat, **WAJIB buat Backup BMP Terbuka terlebih dahulu** bila ingin mempertahankan data lokal. Menghapus/reinstall extension dapat menghapus cache/resume/Quiz source lokal extension. **PDF yang sudah tersimpan di folder Downloads/perangkat tetap aman** karena berada di luar storage extension. Setelah reinstall, lakukan aktivasi lagi bila diminta lalu Restore backup; Restore tetap memakai MERGE.\n\nUntuk v1.2.0, fitur Restore di Android memakai tab restore khusus BMP Terbuka. Detail ada di [Instalasi & Update](docs/install) dan [PDF, Backup, Restore & Penyimpanan](docs/files).",
-          "search_text": "Download BMP Terbuka Microsoft Edge — Android Gunakan Microsoft Edge Stable + Microsoft Edge Add-ons . [[EDGE CTA]] Edge Canary hanya fallback/testing. Untuk update di Edge Android, jalur yang paling aman adalah menunggu automatic Store update . Update dapat terlambat dan Edge Android tidak menyediakan tombol Update desktop yang sama praktisnya. Kalau memilih reinstall agar mendapat build terbaru lebih cepat, WAJIB buat Backup BMP Terbuka terlebih dahulu bila ingin mempertahankan data lokal. Menghapus/reinstall extension dapat menghapus cache/resume/Quiz source lokal extension. PDF yang sudah tersimpan di folder Downloads/perangkat tetap aman karena berada di luar storage extension. Setelah reinstall, lakukan aktivasi lagi bila diminta lalu Restore backup; Restore tetap memakai MERGE. Untuk v1.2.0, fitur Restore di Android memakai tab restore khusus BMP Terbuka. Detail ada di Instalasi & Update docs/install dan PDF, Backup, Restore & Penyimpanan docs/files."
+          "text": "Gunakan **Microsoft Edge Stable + Microsoft Edge Add-ons**.\n\n[[EDGE_CTA]]\n\nEdge Canary hanya fallback/testing.\n\nUntuk update di Edge Android, jalur yang paling aman adalah **menunggu automatic Store update**. Update dapat terlambat dan Edge Android tidak menyediakan tombol Update desktop yang sama praktisnya.\n\nKalau memilih reinstall agar mendapat build terbaru lebih cepat, **WAJIB buat Backup BMP Terbuka terlebih dahulu** bila ingin mempertahankan data lokal. Menghapus/reinstall extension dapat menghapus cache/resume/Quiz source lokal extension. **PDF yang sudah tersimpan di folder Downloads/perangkat tetap aman** karena berada di luar storage extension. Setelah reinstall, lakukan aktivasi lagi bila diminta lalu Restore backup; Restore tetap memakai MERGE.\n\nUntuk v1.3.0, fitur Restore di Android memakai tab restore khusus BMP Terbuka. Detail ada di [Instalasi & Update](docs/install) dan [PDF, Backup, Restore & Penyimpanan](docs/files).",
+          "search_text": "Download BMP Terbuka Microsoft Edge — Android Gunakan Microsoft Edge Stable + Microsoft Edge Add-ons . [[EDGE CTA]] Edge Canary hanya fallback/testing. Untuk update di Edge Android, jalur yang paling aman adalah menunggu automatic Store update . Update dapat terlambat dan Edge Android tidak menyediakan tombol Update desktop yang sama praktisnya. Kalau memilih reinstall agar mendapat build terbaru lebih cepat, WAJIB buat Backup BMP Terbuka terlebih dahulu bila ingin mempertahankan data lokal. Menghapus/reinstall extension dapat menghapus cache/resume/Quiz source lokal extension. PDF yang sudah tersimpan di folder Downloads/perangkat tetap aman karena berada di luar storage extension. Setelah reinstall, lakukan aktivasi lagi bila diminta lalu Restore backup; Restore tetap memakai MERGE. Untuk v1.3.0, fitur Restore di Android memakai tab restore khusus BMP Terbuka. Detail ada di Instalasi & Update docs/install dan PDF, Backup, Restore & Penyimpanan docs/files."
         },
         {
-          "heading": "Microsoft Edge v1.2.0",
+          "heading": "Versi Store Microsoft Edge",
           "heading_path": [
-            "Microsoft Edge v1.2.0"
+            "Versi Store Microsoft Edge"
           ],
-          "anchor": "microsoft-edge-v1-2-0",
-          "url": "https://mentaliss.github.io/bukabmp/id/download/#microsoft-edge-v1-2-0",
-          "text": "**v1.2.0 sudah live melalui listing resmi Microsoft Edge Add-ons** untuk Desktop dan Android. Gunakan listing Store resmi; jangan memasang CRX diagnostic/audit sebagai jalan pintas.",
-          "search_text": "Download BMP Terbuka Microsoft Edge v1.2.0 v1.2.0 sudah live melalui listing resmi Microsoft Edge Add-ons untuk Desktop dan Android. Gunakan listing Store resmi; jangan memasang CRX diagnostic/audit sebagai jalan pintas."
+          "anchor": "versi-store-microsoft-edge",
+          "url": "https://mentaliss.github.io/bukabmp/id/download/#versi-store-microsoft-edge",
+          "text": "**v1.2.0.2 adalah versi yang sedang live di listing resmi Microsoft Edge Add-ons** untuk Desktop dan Android. Pembaruan **v1.3.0 sudah diajukan dan sedang ditinjau Microsoft**; setelah lolos sertifikasi, versi Store akan mengikuti otomatis. Gunakan listing Store resmi; jangan memasang CRX diagnostic/audit sebagai jalan pintas.",
+          "search_text": "Download BMP Terbuka Versi Store Microsoft Edge v1.2.0.2 adalah versi yang sedang live di listing resmi Microsoft Edge Add-ons untuk Desktop dan Android. Pembaruan v1.3.0 sudah diajukan dan sedang ditinjau Microsoft ; setelah lolos sertifikasi, versi Store akan mengikuti otomatis. Gunakan listing Store resmi; jangan memasang CRX diagnostic/audit sebagai jalan pintas."
         },
         {
           "heading": "Tutorial",
@@ -1514,7 +1514,7 @@
     },
     {
       "slug": "features",
-      "title": "Fitur BMP Terbuka v1.2.0",
+      "title": "Fitur BMP Terbuka v1.3.0",
       "url": "https://mentaliss.github.io/bukabmp/id/features/",
       "sections": [
         {
@@ -1525,7 +1525,7 @@
           "anchor": "searchable-pdf",
           "url": "https://mentaliss.github.io/bukabmp/id/features/#searchable-pdf",
           "text": "OCR membuat teks pada PDF hasil dapat dicari.",
-          "search_text": "Fitur BMP Terbuka v1.2.0 Searchable PDF OCR membuat teks pada PDF hasil dapat dicari."
+          "search_text": "Fitur BMP Terbuka v1.3.0 Searchable PDF OCR membuat teks pada PDF hasil dapat dicari."
         },
         {
           "heading": "Local-first processing",
@@ -1535,7 +1535,7 @@
           "anchor": "local-first-processing",
           "url": "https://mentaliss.github.io/bukabmp/id/features/#local-first-processing",
           "text": "OCR, penyusunan PDF, cache, dan export utama berjalan di perangkat.",
-          "search_text": "Fitur BMP Terbuka v1.2.0 Local-first processing OCR, penyusunan PDF, cache, dan export utama berjalan di perangkat."
+          "search_text": "Fitur BMP Terbuka v1.3.0 Local-first processing OCR, penyusunan PDF, cache, dan export utama berjalan di perangkat."
         },
         {
           "heading": "Resume & reuse data lokal",
@@ -1545,7 +1545,7 @@
           "anchor": "resume-dan-reuse-data-lokal",
           "url": "https://mentaliss.github.io/bukabmp/id/features/#resume-dan-reuse-data-lokal",
           "text": "Modul yang sudah selesai dapat dipakai kembali untuk resume, export ulang, dan PDF gabungan tanpa mengulang OCR dari awal.",
-          "search_text": "Fitur BMP Terbuka v1.2.0 Resume & reuse data lokal Modul yang sudah selesai dapat dipakai kembali untuk resume, export ulang, dan PDF gabungan tanpa mengulang OCR dari awal."
+          "search_text": "Fitur BMP Terbuka v1.3.0 Resume & reuse data lokal Modul yang sudah selesai dapat dipakai kembali untuk resume, export ulang, dan PDF gabungan tanpa mengulang OCR dari awal."
         },
         {
           "heading": "PDF gabungan",
@@ -1555,7 +1555,7 @@
           "anchor": "pdf-gabungan",
           "url": "https://mentaliss.github.io/bukabmp/id/features/#pdf-gabungan",
           "text": "Buat PDF gabungan dari range yang lengkap. Jika ada modul yang hilang di tengah range, BMP Terbuka tidak berpura-pura membuat hasil lengkap.",
-          "search_text": "Fitur BMP Terbuka v1.2.0 PDF gabungan Buat PDF gabungan dari range yang lengkap. Jika ada modul yang hilang di tengah range, BMP Terbuka tidak berpura-pura membuat hasil lengkap."
+          "search_text": "Fitur BMP Terbuka v1.3.0 PDF gabungan Buat PDF gabungan dari range yang lengkap. Jika ada modul yang hilang di tengah range, BMP Terbuka tidak berpura-pura membuat hasil lengkap."
         },
         {
           "heading": "Pengelolaan penyimpanan lokal",
@@ -1565,7 +1565,7 @@
           "anchor": "pengelolaan-penyimpanan-lokal",
           "url": "https://mentaliss.github.io/bukabmp/id/features/#pengelolaan-penyimpanan-lokal",
           "text": "Kamu dapat melihat penggunaan penyimpanan lokal, mengelola data per BMP, export/reuse material yang tersimpan, menghapus data BMP tertentu, atau menghapus seluruh data lokal saat memang diperlukan.",
-          "search_text": "Fitur BMP Terbuka v1.2.0 Pengelolaan penyimpanan lokal Kamu dapat melihat penggunaan penyimpanan lokal, mengelola data per BMP, export/reuse material yang tersimpan, menghapus data BMP tertentu, atau menghapus seluruh data lokal saat memang diperlukan."
+          "search_text": "Fitur BMP Terbuka v1.3.0 Pengelolaan penyimpanan lokal Kamu dapat melihat penggunaan penyimpanan lokal, mengelola data per BMP, export/reuse material yang tersimpan, menghapus data BMP tertentu, atau menghapus seluruh data lokal saat memang diperlukan."
         },
         {
           "heading": "Backup & Restore",
@@ -1575,7 +1575,7 @@
           "anchor": "backup-dan-restore",
           "url": "https://mentaliss.github.io/bukabmp/id/features/#backup-dan-restore",
           "text": "Backup membantu menyimpan data lokal BMP Terbuka untuk pemulihan pribadi.\n\nRestore memakai **MERGE**: data dari backup dipulihkan, item lokal yang cocok diperbarui dari backup, dan data lokal lain yang tidak terkait tidak otomatis dihapus.",
-          "search_text": "Fitur BMP Terbuka v1.2.0 Backup & Restore Backup membantu menyimpan data lokal BMP Terbuka untuk pemulihan pribadi. Restore memakai MERGE : data dari backup dipulihkan, item lokal yang cocok diperbarui dari backup, dan data lokal lain yang tidak terkait tidak otomatis dihapus."
+          "search_text": "Fitur BMP Terbuka v1.3.0 Backup & Restore Backup membantu menyimpan data lokal BMP Terbuka untuk pemulihan pribadi. Restore memakai MERGE : data dari backup dipulihkan, item lokal yang cocok diperbarui dari backup, dan data lokal lain yang tidak terkait tidak otomatis dihapus."
         },
         {
           "heading": "Restore Edge Android",
@@ -1585,7 +1585,7 @@
           "anchor": "restore-edge-android",
           "url": "https://mentaliss.github.io/bukabmp/id/features/#restore-edge-android",
           "text": "Di Edge Android, restore berjalan melalui tab restore khusus agar file picker Android dapat dibuka dengan benar. Desktop tetap memilih file restore dari popup.",
-          "search_text": "Fitur BMP Terbuka v1.2.0 Restore Edge Android Di Edge Android, restore berjalan melalui tab restore khusus agar file picker Android dapat dibuka dengan benar. Desktop tetap memilih file restore dari popup."
+          "search_text": "Fitur BMP Terbuka v1.3.0 Restore Edge Android Di Edge Android, restore berjalan melalui tab restore khusus agar file picker Android dapat dibuka dengan benar. Desktop tetap memilih file restore dari popup."
         },
         {
           "heading": "Quiz Telegram",
@@ -1595,7 +1595,7 @@
           "anchor": "quiz-telegram",
           "url": "https://mentaliss.github.io/bukabmp/id/features/#quiz-telegram",
           "text": "Untuk modul yang sudah diproses dan memiliki source Quiz lokal:\n\n**pilih modul → Mulai Quiz Telegram → lanjutkan di Telegram.**\n\nPDF mentah dan gambar halaman tidak dikirim untuk pembuatan Quiz. Source Quiz berasal dari teks yang diekstrak dan disanitasi secara lokal.",
-          "search_text": "Fitur BMP Terbuka v1.2.0 Quiz Telegram Untuk modul yang sudah diproses dan memiliki source Quiz lokal: pilih modul → Mulai Quiz Telegram → lanjutkan di Telegram. PDF mentah dan gambar halaman tidak dikirim untuk pembuatan Quiz. Source Quiz berasal dari teks yang diekstrak dan disanitasi secara lokal."
+          "search_text": "Fitur BMP Terbuka v1.3.0 Quiz Telegram Untuk modul yang sudah diproses dan memiliki source Quiz lokal: pilih modul → Mulai Quiz Telegram → lanjutkan di Telegram. PDF mentah dan gambar halaman tidak dikirim untuk pembuatan Quiz. Source Quiz berasal dari teks yang diekstrak dan disanitasi secara lokal."
         },
         {
           "heading": "Safe stop",
@@ -1605,7 +1605,7 @@
           "anchor": "safe-stop",
           "url": "https://mentaliss.github.io/bukabmp/id/features/#safe-stop",
           "text": "Saat sumber menolak akses, meminta login ulang, atau memberi kondisi yang tidak aman untuk dilanjutkan, BMP Terbuka berhenti tanpa blind retry.",
-          "search_text": "Fitur BMP Terbuka v1.2.0 Safe stop Saat sumber menolak akses, meminta login ulang, atau memberi kondisi yang tidak aman untuk dilanjutkan, BMP Terbuka berhenti tanpa blind retry."
+          "search_text": "Fitur BMP Terbuka v1.3.0 Safe stop Saat sumber menolak akses, meminta login ulang, atau memberi kondisi yang tidak aman untuk dilanjutkan, BMP Terbuka berhenti tanpa blind retry."
         },
         {
           "heading": "Community + Supporter",
@@ -1615,7 +1615,7 @@
           "anchor": "community-supporter",
           "url": "https://mentaliss.github.io/bukabmp/id/features/#community-supporter",
           "text": "Komunitas adalah ruang ngobrol dan aktivitas bersama. Supporter bersifat opsional dan tidak mengubah boundary privasi materi.",
-          "search_text": "Fitur BMP Terbuka v1.2.0 Community + Supporter Komunitas adalah ruang ngobrol dan aktivitas bersama. Supporter bersifat opsional dan tidak mengubah boundary privasi materi."
+          "search_text": "Fitur BMP Terbuka v1.3.0 Community + Supporter Komunitas adalah ruang ngobrol dan aktivitas bersama. Supporter bersifat opsional dan tidak mengubah boundary privasi materi."
         }
       ]
     },
@@ -1648,8 +1648,8 @@
           ],
           "anchor": "",
           "url": "https://mentaliss.github.io/bukabmp/id/privacy/",
-          "text": "BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku **BMP Terbuka v1.2.0**.",
-          "search_text": "Privacy Policy Ringkasan BMP Terbuka dirancang local-first . Dokumen ini menjelaskan perilaku BMP Terbuka v1.2.0 ."
+          "text": "BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku **BMP Terbuka v1.3.0**.",
+          "search_text": "Privacy Policy Ringkasan BMP Terbuka dirancang local-first . Dokumen ini menjelaskan perilaku BMP Terbuka v1.3.0 ."
         },
         {
           "heading": "Ringkasan",
@@ -1678,8 +1678,8 @@
           ],
           "anchor": "backup-dan-restore",
           "url": "https://mentaliss.github.io/bukabmp/id/privacy/#backup-dan-restore",
-          "text": "Backup v1.2.0 dibuat untuk pemulihan data lokal pribadi. File backup dapat mengandung data belajar/material yang sebelumnya tersimpan secara lokal.\n\nKarena itu:\n- simpan backup di tempat yang kamu percaya;\n- jangan membagikan file backup ke group, bot, atau pihak lain tanpa alasan yang jelas;\n- menghapus file backup tidak otomatis menghapus storage extension, dan sebaliknya.\n\nRestore memakai **MERGE semantics**. Data dari backup dipulihkan dan item lokal yang cocok dapat diperbarui; data lokal lain yang tidak terkait tidak otomatis dihapus.",
-          "search_text": "Privacy Policy Backup & Restore Backup v1.2.0 dibuat untuk pemulihan data lokal pribadi. File backup dapat mengandung data belajar/material yang sebelumnya tersimpan secara lokal. Karena itu: - simpan backup di tempat yang kamu percaya; - jangan membagikan file backup ke group, bot, atau pihak lain tanpa alasan yang jelas; - menghapus file backup tidak otomatis menghapus storage extension, dan sebaliknya. Restore memakai MERGE semantics . Data dari backup dipulihkan dan item lokal yang cocok dapat diperbarui; data lokal lain yang tidak terkait tidak otomatis dihapus."
+          "text": "Backup v1.3.0 dibuat untuk pemulihan data lokal pribadi. File backup dapat mengandung data belajar/material yang sebelumnya tersimpan secara lokal.\n\nKarena itu:\n- simpan backup di tempat yang kamu percaya;\n- jangan membagikan file backup ke group, bot, atau pihak lain tanpa alasan yang jelas;\n- menghapus file backup tidak otomatis menghapus storage extension, dan sebaliknya.\n\nRestore memakai **MERGE semantics**. Data dari backup dipulihkan dan item lokal yang cocok dapat diperbarui; data lokal lain yang tidak terkait tidak otomatis dihapus.",
+          "search_text": "Privacy Policy Backup & Restore Backup v1.3.0 dibuat untuk pemulihan data lokal pribadi. File backup dapat mengandung data belajar/material yang sebelumnya tersimpan secara lokal. Karena itu: - simpan backup di tempat yang kamu percaya; - jangan membagikan file backup ke group, bot, atau pihak lain tanpa alasan yang jelas; - menghapus file backup tidak otomatis menghapus storage extension, dan sebaliknya. Restore memakai MERGE semantics . Data dari backup dipulihkan dan item lokal yang cocok dapat diperbarui; data lokal lain yang tidak terkait tidak otomatis dihapus."
         },
         {
           "heading": "Quiz Telegram",
@@ -1826,14 +1826,14 @@
           "search_text": "Security Policy Melaporkan kerentanan Jangan membuka detail kerentanan sensitif sebagai public GitHub Issue. Gunakan GitHub Private Vulnerability Reporting / Security Advisories bila tersedia. Sertakan: - versi/build atau halaman yang terdampak; - browser/OS bila relevan; - langkah reproduksi minimum; - dampak; - proof-of-concept yang tidak menyertakan credential, file backup pribadi, atau materi berhak cipta."
         },
         {
-          "heading": "Prinsip keamanan v1.2.0",
+          "heading": "Prinsip keamanan v1.3.0",
           "heading_path": [
-            "Prinsip keamanan v1.2.0"
+            "Prinsip keamanan v1.3.0"
           ],
-          "anchor": "prinsip-keamanan-v1-2-0",
-          "url": "https://mentaliss.github.io/bukabmp/id/security/#prinsip-keamanan-v1-2-0",
+          "anchor": "prinsip-keamanan-v1-3-0",
+          "url": "https://mentaliss.github.io/bukabmp/id/security/#prinsip-keamanan-v1-3-0",
           "text": "- credential sumber tetap berada pada browser/source service;\n- OCR dan PDF utama local-first;\n- Quiz tidak mengunggah raw PDF atau page image;\n- Backup dapat mengandung data belajar/material lokal sehingga harus diperlakukan sebagai file privat;\n- remote state tidak boleh menyuntikkan arbitrary executable code;\n- 403/429/re-authentication memicu safe stop, bukan blind retry;\n- update normal tidak boleh meminta pengguna menghapus storage sebagai langkah default;\n- Store identity harus menggunakan jalur publikasi resmi, bukan CRX diagnostic/audit.",
-          "search_text": "Security Policy Prinsip keamanan v1.2.0 - credential sumber tetap berada pada browser/source service; - OCR dan PDF utama local-first; - Quiz tidak mengunggah raw PDF atau page image; - Backup dapat mengandung data belajar/material lokal sehingga harus diperlakukan sebagai file privat; - remote state tidak boleh menyuntikkan arbitrary executable code; - 403/429/re-authentication memicu safe stop, bukan blind retry; - update normal tidak boleh meminta pengguna menghapus storage sebagai langkah default; - Store identity harus menggunakan jalur publikasi resmi, bukan CRX diagnostic/audit."
+          "search_text": "Security Policy Prinsip keamanan v1.3.0 - credential sumber tetap berada pada browser/source service; - OCR dan PDF utama local-first; - Quiz tidak mengunggah raw PDF atau page image; - Backup dapat mengandung data belajar/material lokal sehingga harus diperlakukan sebagai file privat; - remote state tidak boleh menyuntikkan arbitrary executable code; - 403/429/re-authentication memicu safe stop, bukan blind retry; - update normal tidak boleh meminta pengguna menghapus storage sebagai langkah default; - Store identity harus menggunakan jalur publikasi resmi, bukan CRX diagnostic/audit."
         },
         {
           "heading": "Out of scope",
@@ -2181,57 +2181,57 @@
         {
           "heading": "Changed",
           "heading_path": [
-            "[1.2.0] - Unreleased",
+            "[1.2.0] - 2026-10-02",
             "Changed"
           ],
           "anchor": "changed-2",
           "url": "https://mentaliss.github.io/bukabmp/id/release-notes/#changed-2",
           "text": "- Candidate version identity updated to 1.2.0.\n- Backup/restore and Quiz V0 release hardening.",
-          "search_text": "Changelog [1.2.0] - Unreleased Changed - Candidate version identity updated to 1.2.0. - Backup/restore and Quiz V0 release hardening."
+          "search_text": "Changelog [1.2.0] - 2026-10-02 Changed - Candidate version identity updated to 1.2.0. - Backup/restore and Quiz V0 release hardening."
         },
         {
           "heading": "Added",
           "heading_path": [
-            "[1.1.0] - Unreleased",
+            "[1.1.0] - 2026-09-23",
             "Added"
           ],
           "anchor": "added-2",
           "url": "https://mentaliss.github.io/bukabmp/id/release-notes/#added-2",
           "text": "- Activation token schema v2 dengan subject Telegram tervalidasi, refresh endpoint, dan signed Supporter snapshot.\n- One-time legacy → v2 re-verification yang mempertahankan token aktif sampai replacement terverifikasi dan tidak boleh memperpendek sisa masa aktif untuk user/install yang sama.\n- Badge BMP Supporter personal dari signed token.\n- Realtime Cloud Surface status + sponsor state.\n- Sponsor card dan delayed sponsor interstitial setelah job berhasil dimulai; fallback house inventory tetap tersedia.\n- Coarse sponsor metrics (impression/click/dismiss) tanpa Telegram ID, install ID, activation token, kode BMP, OCR text, atau PDF.\n- Distribution-aware build/validation untuk GitHub/manual, Android, Chrome Web Store, dan Edge Add-ons.",
-          "search_text": "Changelog [1.1.0] - Unreleased Added - Activation token schema v2 dengan subject Telegram tervalidasi, refresh endpoint, dan signed Supporter snapshot. - One-time legacy → v2 re-verification yang mempertahankan token aktif sampai replacement terverifikasi dan tidak boleh memperpendek sisa masa aktif untuk user/install yang sama. - Badge BMP Supporter personal dari signed token. - Realtime Cloud Surface status + sponsor state. - Sponsor card dan delayed sponsor interstitial setelah job berhasil dimulai; fallback house inventory tetap tersedia. - Coarse sponsor metrics (impression/click/dismiss) tanpa Telegram ID, install ID, activation token, kode BMP, OCR text, atau PDF. - Distribution-aware build/validation untuk GitHub/manual, Android, Chrome Web Store, dan Edge Add-ons."
+          "search_text": "Changelog [1.1.0] - 2026-09-23 Added - Activation token schema v2 dengan subject Telegram tervalidasi, refresh endpoint, dan signed Supporter snapshot. - One-time legacy → v2 re-verification yang mempertahankan token aktif sampai replacement terverifikasi dan tidak boleh memperpendek sisa masa aktif untuk user/install yang sama. - Badge BMP Supporter personal dari signed token. - Realtime Cloud Surface status + sponsor state. - Sponsor card dan delayed sponsor interstitial setelah job berhasil dimulai; fallback house inventory tetap tersedia. - Coarse sponsor metrics (impression/click/dismiss) tanpa Telegram ID, install ID, activation token, kode BMP, OCR text, atau PDF. - Distribution-aware build/validation untuk GitHub/manual, Android, Chrome Web Store, dan Edge Add-ons."
         },
         {
           "heading": "Changed",
           "heading_path": [
-            "[1.1.0] - Unreleased",
+            "[1.1.0] - 2026-09-23",
             "Changed"
           ],
           "anchor": "changed-3",
           "url": "https://mentaliss.github.io/bukabmp/id/release-notes/#changed-3",
           "text": "- Jalur Android utama diarahkan ke Microsoft Edge Stable + Edge Add-ons; Canary tetap fallback/testing.\n- Token-v2 yang sudah tersinkron tidak lagi menampilkan card manajemen Aktivasi komunitas; badge status akses hijau tetap tampil.\n- Realtime sponsor state di-refresh ketika popup terbuka dan saat job dimulai.\n- Interstitial delay dikunci pada jendela 2–5 detik dan tidak boleh menahan OCR/job.\n- Activation/Supporter refresh memakai short retry/backoff agar entitlement baru tidak menunggu token lama kedaluwarsa.",
-          "search_text": "Changelog [1.1.0] - Unreleased Changed - Jalur Android utama diarahkan ke Microsoft Edge Stable + Edge Add-ons; Canary tetap fallback/testing. - Token-v2 yang sudah tersinkron tidak lagi menampilkan card manajemen Aktivasi komunitas; badge status akses hijau tetap tampil. - Realtime sponsor state di-refresh ketika popup terbuka dan saat job dimulai. - Interstitial delay dikunci pada jendela 2–5 detik dan tidak boleh menahan OCR/job. - Activation/Supporter refresh memakai short retry/backoff agar entitlement baru tidak menunggu token lama kedaluwarsa."
+          "search_text": "Changelog [1.1.0] - 2026-09-23 Changed - Jalur Android utama diarahkan ke Microsoft Edge Stable + Edge Add-ons; Canary tetap fallback/testing. - Token-v2 yang sudah tersinkron tidak lagi menampilkan card manajemen Aktivasi komunitas; badge status akses hijau tetap tampil. - Realtime sponsor state di-refresh ketika popup terbuka dan saat job dimulai. - Interstitial delay dikunci pada jendela 2–5 detik dan tidak boleh menahan OCR/job. - Activation/Supporter refresh memakai short retry/backoff agar entitlement baru tidak menunggu token lama kedaluwarsa."
         },
         {
           "heading": "Fixed",
           "heading_path": [
-            "[1.1.0] - Unreleased",
+            "[1.1.0] - 2026-09-23",
             "Fixed"
           ],
           "anchor": "fixed-2",
           "url": "https://mentaliss.github.io/bukabmp/id/release-notes/#fixed-2",
           "text": "- Mencegah replacement token saat re-verification memperpendek entitlement yang masih aktif.\n- Mencegah transfer expiry floor ke Telegram account berbeda pada installation yang sama.\n- Mencegah concurrent START_JOB, stale module/progress message, dan auxiliary popup error mengganggu job OCR aktif.\n- Mencegah module dengan known page count disimpan sebagai PDF terpotong ketika halaman yang seharusnya ada gagal dimuat.\n- Cache clear dan reviewer OCR fixture tidak lagi dapat merusak state OCR job lain.\n- Offscreen detection tetap memiliki feature detection/fallback di atas minimum Chrome 114 (lantai nyata permission `sidePanel`); dokumen offscreen ganda kini ditoleransi agar job tetap bisa mulai.\n- Temporary blob URL direvoke juga ketika browser download gagal.\n- Remote Telegram/update URLs divalidasi sebelum dibuka.\n- Ads metrics hanya dihitung untuk campaign/revision/placement yang sedang aktif; endpoint juga rate-limited.\n- Image-only campaign tidak dianggap aktif sampai renderer image first-party/proxy benar-benar tersedia.",
-          "search_text": "Changelog [1.1.0] - Unreleased Fixed - Mencegah replacement token saat re-verification memperpendek entitlement yang masih aktif. - Mencegah transfer expiry floor ke Telegram account berbeda pada installation yang sama. - Mencegah concurrent START JOB, stale module/progress message, dan auxiliary popup error mengganggu job OCR aktif. - Mencegah module dengan known page count disimpan sebagai PDF terpotong ketika halaman yang seharusnya ada gagal dimuat. - Cache clear dan reviewer OCR fixture tidak lagi dapat merusak state OCR job lain. - Offscreen detection tetap memiliki feature detection/fallback di atas minimum Chrome 114 (lantai nyata permission sidePanel ); dokumen offscreen ganda kini ditoleransi agar job tetap bisa mulai. - Temporary blob URL direvoke juga ketika browser download gagal. - Remote Telegram/update URLs divalidasi sebelum dibuka. - Ads metrics hanya dihitung untuk campaign/revision/placement yang sedang aktif; endpoint juga rate-limited. - Image-only campaign tidak dianggap aktif sampai renderer image first-party/proxy benar-benar tersedia."
+          "search_text": "Changelog [1.1.0] - 2026-09-23 Fixed - Mencegah replacement token saat re-verification memperpendek entitlement yang masih aktif. - Mencegah transfer expiry floor ke Telegram account berbeda pada installation yang sama. - Mencegah concurrent START JOB, stale module/progress message, dan auxiliary popup error mengganggu job OCR aktif. - Mencegah module dengan known page count disimpan sebagai PDF terpotong ketika halaman yang seharusnya ada gagal dimuat. - Cache clear dan reviewer OCR fixture tidak lagi dapat merusak state OCR job lain. - Offscreen detection tetap memiliki feature detection/fallback di atas minimum Chrome 114 (lantai nyata permission sidePanel ); dokumen offscreen ganda kini ditoleransi agar job tetap bisa mulai. - Temporary blob URL direvoke juga ketika browser download gagal. - Remote Telegram/update URLs divalidasi sebelum dibuka. - Ads metrics hanya dihitung untuk campaign/revision/placement yang sedang aktif; endpoint juga rate-limited. - Image-only campaign tidak dianggap aktif sampai renderer image first-party/proxy benar-benar tersedia."
         },
         {
           "heading": "Validation",
           "heading_path": [
-            "[1.1.0] - Unreleased",
+            "[1.1.0] - 2026-09-23",
             "Validation"
           ],
           "anchor": "validation",
           "url": "https://mentaliss.github.io/bukabmp/id/release-notes/#validation",
           "text": "- Source/static regression + Cloud Surface sanitizer.\n- GitHub/manual package build + validation.\n- Chrome Web Store package build + validation.\n- Android compatibility package build + validation.\n- Edge Add-ons package build + validation.\n- Worker characterization/security/activation/Supporter/referral/payment tests.\n- Worker bundle dry-run.\n- Same-listing 1.0.5 → 1.1.0 Store upgrade dan authenticated real-device RBV smoke test tetap menjadi release gate eksternal sebelum publikasi.",
-          "search_text": "Changelog [1.1.0] - Unreleased Validation - Source/static regression + Cloud Surface sanitizer. - GitHub/manual package build + validation. - Chrome Web Store package build + validation. - Android compatibility package build + validation. - Edge Add-ons package build + validation. - Worker characterization/security/activation/Supporter/referral/payment tests. - Worker bundle dry-run. - Same-listing 1.0.5 → 1.1.0 Store upgrade dan authenticated real-device RBV smoke test tetap menjadi release gate eksternal sebelum publikasi."
+          "search_text": "Changelog [1.1.0] - 2026-09-23 Validation - Source/static regression + Cloud Surface sanitizer. - GitHub/manual package build + validation. - Chrome Web Store package build + validation. - Android compatibility package build + validation. - Edge Add-ons package build + validation. - Worker characterization/security/activation/Supporter/referral/payment tests. - Worker bundle dry-run. - Same-listing 1.0.5 → 1.1.0 Store upgrade dan authenticated real-device RBV smoke test tetap menjadi release gate eksternal sebelum publikasi."
         },
         {
           "heading": "Added",
