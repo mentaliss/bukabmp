@@ -1,6 +1,6 @@
 # Privacy Policy
 
-BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku **BMP Terbuka v1.2.0**.
+BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku **BMP Terbuka v1.3.0**.
 
 ## Ringkasan
 
@@ -16,7 +16,7 @@ File di Downloads adalah salinan ekspor dan berbeda dari data yang masih tersimp
 
 ## Backup & Restore
 
-Backup v1.2.0 dibuat untuk pemulihan data lokal pribadi. File backup dapat mengandung data belajar/material yang sebelumnya tersimpan secara lokal.
+Backup v1.3.0 dibuat untuk pemulihan data lokal pribadi. File backup dapat mengandung data belajar/material yang sebelumnya tersimpan secara lokal.
 
 Karena itu:
 - simpan backup di tempat yang kamu percaya;

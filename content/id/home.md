@@ -30,7 +30,7 @@ Source extension dan website publik tersedia di GitHub. BMP Terbuka adalah proye
 
 **v1.3.0** adalah release stabil produk saat ini.
 
-Gunakan [Download](download) untuk jalur instalasi/update dan [Status & Versi](status) untuk melihat kondisi distribusi tiap platform. **v1.3.0 sudah live** melalui package GitHub/manual untuk Chrome Desktop. Microsoft Edge Add-ons masih menyajikan v1.2.0 sampai listing Store diperbarui.
+Gunakan [Download](download) untuk jalur instalasi/update dan [Status & Versi](status) untuk melihat kondisi distribusi tiap platform. **v1.3.0 sudah live** melalui package GitHub/manual untuk Chrome Desktop. Listing Microsoft Edge Add-ons masih menyajikan v1.2.0.2, dan pembaruan v1.3.0 untuk Store sedang ditinjau Microsoft.
 
 ## Komunitas
 

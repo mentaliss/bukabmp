@@ -160,8 +160,8 @@ for (const required of [
 }
 
 for (const required of [
-  "BMP Terbuka v1.2.0",
-  "sudah live di Microsoft Edge Add-ons",
+  "v1.2.0.2",
+  "sedang ditinjau Microsoft",
   "/bukabmp/id/docs/install/"
 ]) {
   if (!idStatus.includes(required)) throw new Error("status page missing expected value: " + required);
@@ -182,8 +182,8 @@ for (const required of [
 }
 
 for (const required of [
-  "BMP Terbuka v1.2.0",
-  "is now live on Microsoft Edge Add-ons",
+  "v1.2.0.2",
+  "in review with Microsoft",
   "/bukabmp/en/docs/install/"
 ]) {
   if (!enStatus.includes(required)) throw new Error("English status page missing expected value: " + required);
@@ -218,7 +218,7 @@ for (const required of [
   "privacy",
   "Chrome Web Store",
   "Microsoft Edge Stable",
-  "v1.2.0",
+  "v1.3.0",
   "https://mentaliss.github.io/bukabmp/id/docs/install/"
 ]) {
   if (!corpusText.includes(required)) {
@@ -248,9 +248,14 @@ for (const stale of [
   "belum boleh dianggap live di Store",
   "belum tersedia di Store",
   "masih mengikuti proses update Store",
+  "masih menyajikan v1.2.0 sampai listing Store diperbarui",
+  "masih menunggu dianggap live di Store",
   "must <strong>not</strong> be treated as Store-live",
   "not yet available in the Store",
-  "still follows the Store update process"
+  "still follows the Store update process",
+  "still serves v1.2.0 until",
+  "is now live on Microsoft Edge Add-ons",
+  "BMP Terbuka v1.2.0 sekarang sudah live"
 ]) {
   if (generatedHtml.includes(stale)) {
     throw new Error("generated site contains stale Edge v1.2 availability copy: " + stale);
@@ -258,11 +263,11 @@ for (const stale of [
 }
 
 for (const required of [
-  "sudah live di Microsoft Edge Add-ons",
-  "is now live on Microsoft Edge Add-ons"
+  "sedang ditinjau Microsoft",
+  "in review with Microsoft"
 ]) {
   if (!generatedHtml.includes(required)) {
-    throw new Error("generated site missing Edge v1.2 live copy: " + required);
+    throw new Error("generated site missing Edge v1.3 in-review copy: " + required);
   }
 }
 

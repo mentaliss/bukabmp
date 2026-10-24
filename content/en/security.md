@@ -6,7 +6,7 @@ Do not post sensitive vulnerability details in a public GitHub issue. Use GitHub
 
 Include the affected version, browser/OS, minimal reproduction steps, impact, and a proof of concept that does not include credentials, private backup files, or copyrighted learning material.
 
-## v1.2.0 security principles
+## v1.3.0 security principles
 
 - source credentials remain with the browser/source service;
 - primary OCR/PDF processing is local-first;

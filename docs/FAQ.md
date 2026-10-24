@@ -6,11 +6,11 @@ Untuk fakta yang dapat berubah seperti versi dan status Store, gunakan [Status &
 
 ### Versi terbaru berapa?
 
-Release stabil produk saat ini adalah **BMP Terbuka v1.2.0**.
+Release stabil produk saat ini adalah **BMP Terbuka v1.3.0**.
 
-Chrome Desktop dapat memakai package manual resmi `BMP-Terbuka-v1.2.0.2-github.zip` dari GitHub Release.
+Chrome Desktop dapat memakai package manual resmi `BMP-Terbuka-v1.3.0-github.zip` dari GitHub Release.
 
-Untuk Edge Desktop/Android, jalur resmi tetap Microsoft Edge Add-ons. **BMP Terbuka v1.2.0 sekarang sudah live di listing resmi Microsoft Edge Add-ons.**
+Untuk Edge Desktop/Android, jalur resmi tetap Microsoft Edge Add-ons. **Listing Microsoft Edge Add-ons saat ini menyajikan BMP Terbuka v1.2.0.2**, dan pembaruan **v1.3.0 sedang ditinjau Microsoft** (tayang otomatis setelah lolos sertifikasi).
 
 ### Di mana update?
 
@@ -55,7 +55,7 @@ Restore memakai **MERGE**:
 
 ### Bagaimana Restore di Android?
 
-Pada Edge Android v1.2.0:
+Pada Edge Android v1.3.0:
 
 **Pulihkan backup → tab restore BMP Terbuka → pilih file → restore berjalan di tab tersebut.**
 

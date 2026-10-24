@@ -6,7 +6,7 @@ This page is the reference for the **stable version, installation paths, and dis
 
 **BMP Terbuka v1.3.0**
 
-Public release: **3 October 2026**
+Public release: **24 October 2026**
 
 GitHub Release:
 
@@ -32,7 +32,7 @@ The official path remains **Microsoft Edge Add-ons**:
 
 https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
 
-**BMP Terbuka v1.2.0 is now live on Microsoft Edge Add-ons** for Desktop and Android.
+**The Microsoft Edge Add-ons listing currently serves BMP Terbuka v1.2.0.2** for Desktop and Android (Store release 3 October 2026). The **v1.3.0 update is in review with Microsoft** and rolls out automatically after Store certification.
 
 Use the official Store listing for installation/update. Do not use diagnostic/audit CRX files as a Store replacement.
 
@@ -62,4 +62,4 @@ Existing videos are still labeled **v1.0.4** and remain references for the older
 
 ## Last Updated
 
-**4 October 2026**
+**24 October 2026**

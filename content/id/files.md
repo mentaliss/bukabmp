@@ -16,7 +16,7 @@ File di folder Downloads adalah **salinan hasil export**. Menghapus file Downloa
 
 ## Storage Manager
 
-Di v1.2.0 kamu dapat menggunakan pengelolaan penyimpanan untuk:
+Di v1.3.0 kamu dapat menggunakan pengelolaan penyimpanan untuk:
 
 - melihat penggunaan storage lokal;
 - melihat data BMP yang tersedia;

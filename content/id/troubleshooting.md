@@ -52,7 +52,7 @@ Backup dapat mengandung data belajar/material lokal. Jangan kirim file backup ke
 
 Di Desktop, **Pulihkan backup** membuka file picker dari popup.
 
-Kalau file tidak dapat dipilih, reload extension dan pastikan kamu memakai v1.2.0 sebelum mencoba langkah destruktif lain.
+Kalau file tidak dapat dipilih, reload extension dan pastikan kamu memakai v1.3.0 sebelum mencoba langkah destruktif lain.
 
 ## Restore Edge Android
 

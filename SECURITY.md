@@ -17,7 +17,7 @@ Sertakan:
 - dampak;
 - proof-of-concept yang tidak menyertakan credential, file backup pribadi, atau materi berhak cipta.
 
-## Prinsip keamanan v1.2.0
+## Prinsip keamanan v1.3.0
 
 - credential sumber tetap berada pada browser/source service;
 - OCR dan PDF utama local-first;

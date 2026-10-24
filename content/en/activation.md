@@ -59,7 +59,7 @@ You **do not need to reinstall BMP Terbuka**.
 
 Refresh or verify access again only when the extension asks for it.
 
-In v1.2.0, the activation-token flow continues to support refresh when eligible. If refresh cannot be completed, the extension may request Telegram re-verification.
+In v1.3.0, the activation-token flow continues to support refresh when eligible. If refresh cannot be completed, the extension may request Telegram re-verification.
 
 ## Re-verification
 
@@ -86,7 +86,7 @@ Supporter Pass is not required for BMP Terbuka's core features.
 
 Each Supporter payment adds a target activation bonus of **+14 days**, capped at a maximum target activation period of **60 days**.
 
-In v1.2.0, Supporter state can still be synchronized through supported token/refresh behavior. A token already stored on a device does not necessarily change at the exact moment of payment; the updated entitlement is applied when refresh or the next token issuance succeeds.
+In v1.3.0, Supporter state can still be synchronized through supported token/refresh behavior. A token already stored on a device does not necessarily change at the exact moment of payment; the updated entitlement is applied when refresh or the next token issuance succeeds.
 
 See [Supporter Pass](supporter) for package and payment rules.
 

@@ -51,7 +51,7 @@ Gunakan listing resmi:
 
 https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
 
-**Microsoft Edge Add-ons masih menyajikan BMP Terbuka v1.2.0** untuk Desktop dan Android; paket GitHub sudah v1.3.0. Instalasi dari Store mengikuti mekanisme update normal Microsoft Edge.
+**Listing Microsoft Edge Add-ons masih menyajikan BMP Terbuka v1.2.0.2** untuk Desktop dan Android; paket GitHub sudah v1.3.0 dan pembaruan Store v1.3.0 sedang ditinjau Microsoft. Instalasi dari Store mengikuti mekanisme update normal Microsoft Edge.
 
 Update Store di desktop biasanya otomatis, tetapi bisa terlambat. Kalau ingin mengecek lebih cepat, buka `edge://extensions` lalu gunakan **Update** jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall untuk update Store normal.
 

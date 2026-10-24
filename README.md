@@ -8,7 +8,7 @@
 
 BMP Terbuka adalah browser extension open-source yang membantu mengubah materi yang sudah dapat kamu akses secara sah menjadi searchable PDF untuk belajar, dengan OCR dan penyusunan PDF yang berjalan lokal di perangkat.
 
-> **Rilis stabil:** **v1.3.0** - 24 Oktober 2026 (aset GitHub). Microsoft Edge Add-ons masih menyajikan v1.2.0 sampai listing Store diperbarui.
+> **Rilis stabil:** **v1.3.0** - 24 Oktober 2026 (aset GitHub). Microsoft Edge Add-ons masih menyajikan v1.2.0.2; pembaruan v1.3.0 untuk Store sedang ditinjau Microsoft.
 
 ## Website resmi
 

@@ -22,13 +22,13 @@ Semua perubahan penting pada source extension publik dicatat di sini.
 - Bank Quiz berstatus READY bisa dibuka walau sumber lokalnya sudah tidak valid.
 - Kebocoran memori kecil: blob ekspor PDF di-revoke setelah download, `ResizeObserver` di-disconnect saat keluar dari viewer, dan slot sponsor dibersihkan sebelum dirender ulang.
 
-## [1.2.0] - Unreleased
+## [1.2.0] - 2026-10-02
 
 ### Changed
 - Candidate version identity updated to 1.2.0.
 - Backup/restore and Quiz V0 release hardening.
 
-## [1.1.0] - Unreleased
+## [1.1.0] - 2026-09-23
 
 ### Added
 - Activation token schema v2 dengan subject Telegram tervalidasi, refresh endpoint, dan signed Supporter snapshot.

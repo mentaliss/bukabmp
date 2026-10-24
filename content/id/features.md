@@ -1,4 +1,4 @@
-# Fitur BMP Terbuka v1.2.0
+# Fitur BMP Terbuka v1.3.0
 
 ## Searchable PDF
 

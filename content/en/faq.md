@@ -10,7 +10,7 @@ The current stable product release is **BMP Terbuka v1.3.0**.
 
 Chrome Desktop can use the official manual `BMP-Terbuka-v1.3.0-github.zip` package from GitHub Releases.
 
-The official Edge Desktop/Android path remains Microsoft Edge Add-ons. **Microsoft Edge Add-ons still serves BMP Terbuka v1.2.0**; the GitHub package above is already v1.3.0.
+The official Edge Desktop/Android path remains Microsoft Edge Add-ons. **The Microsoft Edge Add-ons listing currently serves BMP Terbuka v1.2.0.2**, and the **v1.3.0 update is in review with Microsoft** (it rolls out automatically after certification).
 
 ### Where should I update?
 
@@ -26,7 +26,7 @@ Backup is for personal recovery of BMP Terbuka local data and can contain locall
 
 Restore uses **MERGE semantics**. Backup data is restored and matching local items may be updated; unrelated local data is not automatically erased.
 
-On Edge Android v1.2.0:
+On Edge Android v1.3.0:
 
 **Restore backup → BMP Terbuka restore tab → select file → restore runs in that tab.**
 

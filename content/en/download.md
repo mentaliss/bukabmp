@@ -28,7 +28,7 @@ The official path remains Microsoft Edge Add-ons.
 
 [[EDGE_CTA]]
 
-**Microsoft Edge Add-ons still serves v1.2.0.** The GitHub package above is already v1.3.0; the Store listing will follow. Edge Desktop installs and updates through the normal Store mechanism.
+**The Microsoft Edge Add-ons listing currently serves v1.2.0.2.** The GitHub package above is already v1.3.0; the **v1.3.0 Store update is in review with Microsoft** and rolls out automatically after certification. Edge Desktop installs and updates through the normal Store mechanism.
 
 Store updates are normally automatic, but they are **not always delivered immediately** after a new package is published. To check sooner on desktop, open `edge://extensions` and use **Update** when available. Developer mode may need to be enabled temporarily. Do not uninstall/reinstall or clear local extension data for a normal Store update.
 
@@ -46,9 +46,9 @@ If you choose to reinstall to get the newest build immediately, **create a BMP T
 
 In v1.3.0, Android Restore uses a dedicated BMP Terbuka restore tab. See [Installation & Updates](docs/install) and [PDF, Backup, Restore & Storage](docs/files).
 
-## Microsoft Edge v1.2.0
+## Microsoft Edge Store version
 
-**v1.2.0 is live through the official Microsoft Edge Add-ons listing** for Desktop and Android. Use the official Store listing; do not install diagnostic/audit CRX packages as a shortcut.
+**v1.2.0.2 is the version currently live on the official Microsoft Edge Add-ons listing** for Desktop and Android. The **v1.3.0 update has been submitted and is in review with Microsoft**; after certification the Store version follows automatically. Use the official Store listing; do not install diagnostic/audit CRX packages as a shortcut.
 
 ## Tutorials
 

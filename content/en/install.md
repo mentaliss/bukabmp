@@ -51,7 +51,7 @@ Use the official listing:
 
 https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
 
-**Microsoft Edge Add-ons still serves BMP Terbuka v1.2.0** for Desktop and Android; the GitHub package above is already v1.3.0. Store installations follow the normal Microsoft Edge update mechanism.
+**The Microsoft Edge Add-ons listing still serves BMP Terbuka v1.2.0.2** for Desktop and Android; the GitHub package is already v1.3.0 and the v1.3.0 Store update is in review with Microsoft. Store installations follow the normal Microsoft Edge update mechanism.
 
 Desktop Store updates are normally automatic, but delivery can be delayed. To check sooner, open `edge://extensions` and use **Update** when available. Developer mode may need to be enabled temporarily. Do not uninstall/reinstall for a normal Store update.
 

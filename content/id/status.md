@@ -6,7 +6,7 @@ Halaman ini adalah acuan untuk **versi stabil, jalur instalasi, dan status distr
 
 **BMP Terbuka v1.3.0**
 
-Release publik: **3 Oktober 2026**
+Release publik: **24 Oktober 2026**
 
 GitHub Release:
 
@@ -34,7 +34,7 @@ Jalur resmi tetap **Microsoft Edge Add-ons**:
 
 https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
 
-**BMP Terbuka v1.2.0 sudah live di Microsoft Edge Add-ons** untuk Desktop dan Android.
+**Listing Microsoft Edge Add-ons saat ini menyajikan BMP Terbuka v1.2.0.2** untuk Desktop dan Android (rilis Store 3 Oktober 2026). Pembaruan **v1.3.0 sedang ditinjau Microsoft** dan akan tayang otomatis setelah lolos sertifikasi Store.
 
 Gunakan listing resmi Store untuk instalasi/update. Jangan memakai package CRX diagnostic/audit sebagai pengganti Store.
 
@@ -82,4 +82,4 @@ https://t.me/c/4381494564/18
 
 ## Terakhir Diperbarui
 
-**4 Oktober 2026**
+**24 Oktober 2026**

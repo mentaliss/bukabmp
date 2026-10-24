@@ -24,7 +24,7 @@ Jalur utama adalah **Microsoft Edge Add-ons**.
 4. Buka popup BMP Terbuka dan selesaikan aktivasi komunitas.
 5. Login ke portal reader dengan akun Anda sendiri dan gunakan extension.
 
-Release stabil produk saat ini adalah **v1.2.0**, dan **v1.2.0 sudah live di Microsoft Edge Add-ons** untuk Desktop dan Android.
+Release stabil produk saat ini adalah **v1.3.0**, dan pembaruan **v1.3.0 untuk Microsoft Edge Add-ons sedang ditinjau Microsoft** (listing Store masih menyajikan v1.2.0.2) untuk Desktop dan Android.
 
 ## Microsoft Edge — Android
 
@@ -54,7 +54,7 @@ Untuk Chrome desktop, gunakan package manual dari GitHub Releases.
 8. Pilih folder hasil extract yang berisi `manifest.json`.
 9. Pastikan BMP Terbuka muncul dan aktif.
 
-Release manual stabil saat ini adalah **v1.2.0**. Gunakan asset build `BMP-Terbuka-v1.2.0.2-github.zip`.
+Release manual stabil saat ini adalah **v1.3.0**. Gunakan asset build `BMP-Terbuka-v1.3.0-github.zip`.
 
 ## Browser Chromium Lain
 
