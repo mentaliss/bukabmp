@@ -1,26 +1,22 @@
 # Contributing
 
-Kontribusi repository publik BMP Terbuka mencakup **browser extension**, public website, build/release tooling, dan dokumentasi publik.
+Kontribusi ke repo **publik** `mentaliss/bukabmp` dibatasi pada **Chrome extension BMP Terbuka**, build/release tooling extension, dan dokumentasi publik terkait extension.
 
 ## Diterima
 
 - perbaikan OCR/PDF;
-- UX/accessibility extension atau website;
+- UX/accessibility;
 - reliability dan safe-stop;
 - compatibility fix yang tetap menggunakan akses sah user;
-- privacy/security hardening pada extension atau public website;
-- test/build tooling;
-- dokumentasi pengguna/developer;
-- perbaikan bilingual content, broken link, atau accessibility website.
+- privacy/security hardening pada extension;
+- test/build tooling extension;
+- dokumentasi pengguna dan developer extension.
 
-## Di luar scope repository publik
+## Di luar scope repo publik
 
-- implementation/deployment production Worker;
-- Telegram bot/backend implementation;
-- Control Center;
-- D1 migrations/private operational schema;
-- private infrastructure/server operations;
-- production secrets atau private signing material.
+- implementation atau deployment activation service;
+- infrastructure/server operations;
+- website/landing page source.
 
 Jangan membuka PR yang menambahkan:
 - fingerprint spoofing/stealth;
@@ -29,13 +25,11 @@ Jangan membuka PR yang menambahkan:
 - pemalsuan credential/cookie/token keamanan sumber;
 - credential theft/sharing;
 - penghapusan watermark;
-- distribusi materi yang diambil;
-- private backend code atau secret ke repository publik.
+- distribusi materi yang diambil.
 
 ## Pull request
 
 1. Jelaskan masalah dan perubahan.
 2. Jalankan `npm run validate`.
-3. Untuk perubahan website, jalankan `npm run build:site` dan `npm run validate:site`.
-4. Jangan commit secret, token privat, private signing key, credential, atau materi berhak cipta.
-5. Untuk perubahan kompatibilitas sumber, gunakan sampel sintetis bila memungkinkan.
+3. Jangan commit secret, token privat, private signing key, credential, atau materi berhak cipta.
+4. Untuk perubahan kompatibilitas sumber, gunakan sampel sintetis bila memungkinkan.

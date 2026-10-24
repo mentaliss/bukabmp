@@ -1,5 +1,49 @@
 function el(id){return document.getElementById(id)}
+function controlSurfaceActive(){return self.BMP_CONTROL_SURFACE?.active!==false}
+// Rendering/polling must follow document visibility, not the transient lease.
+// The lease only gates interaction (body.inert); a visible-but-unleased surface
+// still renders status so switching surfaces can never leave a blank shell.
+function surfaceVisible(){return document.visibilityState!=="hidden"}
+// Side panel shares this document with the toolbar popup. Quiz is MyBMP-only
+// (extension/my-bmp.js); neither surface renders Quiz UI.
+const IS_SIDE_PANEL=new URL(location.href).searchParams.get("surface")==="sidepanel";
+if(IS_SIDE_PANEL)document.documentElement.dataset.surface="sidepanel";
 async function send(type, extra={}){return await chrome.runtime.sendMessage({type,...extra})}
+
+async function claimUiLocalOperation(){
+  const token=crypto.randomUUID();
+  let port,finished=false,claimed=false;
+  let retries=0;
+  const reconnect=()=>{
+    if(finished||retries++>=20)return;
+    setTimeout(()=>{if(!finished)connect().catch(reconnect)},Math.min(100*retries,1000));
+  };
+  const connect=()=>new Promise((resolve,reject)=>{
+    port=chrome.runtime.connect({name:"bmp-ui-local-operation-v1"});
+    port.onMessage.addListener(message=>{
+      if(message?.type==="ready"){
+        if(message.ok){retries=0;resolve();}
+        else reject(new Error("Operasi lokal tidak dapat disambungkan ulang."));
+      }
+    });
+    port.onDisconnect.addListener(()=>{
+      if(finished)return;
+      if(!claimed){reject(new Error("Port operasi terputus."));return;}
+      reconnect();
+    });
+    port.postMessage({type:"hello",token,resume:claimed});
+  });
+  try{
+    await connect();
+    const result=await send("BEGIN_UI_LOCAL_OPERATION",{token});
+    if(!result?.ok)throw new Error(result?.error||"Operasi data lokal belum dapat dimulai.");
+    claimed=true;
+    return {claim:result.claim,token,async release(){
+      finished=true;
+      try{await send("END_UI_LOCAL_OPERATION",{claim:result.claim,token})}finally{port.disconnect();}
+    }};
+  }catch(error){finished=true;port?.disconnect();throw error;}
+}
 
 const ACTIVATION_LONG_WAIT_MS = 90_000;
 let activationChecking = false;
@@ -9,11 +53,6 @@ let latestCloudState = null;
 let latestState = null;
 let latestCacheInfo = {modules:[],bytes:0,totalBytes:0,detectedLastModule:null};
 let latestStorageInfo = {totalBytes:0,pdfCount:0,code:"",codeBytes:0};
-let latestQuizSourceStatus = null;
-let latestQuizBankStatus = null;
-let latestQuizLifecycle = null;
-let latestQuizCapacity = null;
-let latestQuizDeviceGeneration = null;
 let latestCacheCode = "";
 let cacheRefreshTimer = null;
 let draftSaveTimer = null;
@@ -31,6 +70,7 @@ const RESTORE_ENGINE = self.BMP_RESTORE_ENGINE;
 const RESTORE_SESSION = self.BMP_RESTORE_SESSION;
 const LOCAL_BACKUP_STATE_KEY = "bmpLocalBackupOperationV1";
 let localBackupOperationInFlight = false;
+if(self.BMP_CONTROL_SURFACE)self.BMP_CONTROL_SURFACE.handoffBlocked=()=>localBackupOperationInFlight;
 let localBackupOperationCancelled = false;
 let activeRestoreEngineSession = null;
 let activeLocalBackupWritable = null;
@@ -129,11 +169,19 @@ async function localBackupTempDirectory(){
 }
 
 async function cleanupOrphanedLocalBackupTemps(directory=null){
+  if(!localBackupOperationInFlight && (await send("GET_UI_LOCAL_OPERATION_STATUS"))?.live)return;
   let dir=directory;
   try{
     if(!dir)dir=await localBackupTempDirectory();
     for await(const [name,handle] of dir.entries()){
+      if(!controlSurfaceActive()&&!localBackupOperationInFlight)return;
       if(!String(name).startsWith("backup-")||handle?.kind!=="file")continue;
+      // Never remove a temp this document is actively writing, and re-check
+      // shared operation liveness so an operation that started between the
+      // initial status check and this delete is never deleted out from under
+      // its backup writer.
+      if(activeLocalBackupTemp?.name===String(name))continue;
+      if(!localBackupOperationInFlight && (await send("GET_UI_LOCAL_OPERATION_STATUS"))?.live)return;
       try{await dir.removeEntry(name)}catch(_){}
     }
   }catch(_){}
@@ -204,7 +252,6 @@ const CACHE_CONSISTENCY = self.BMP_CACHE_CONSISTENCY;
 const cacheRefreshGuard = CACHE_CONSISTENCY.createLatestRequestGuard();
 
 const DRAFT_KEY = "bmpDraftV105";
-let restoredQuizModule = null;
 
 function normalizedCode(){return el("code").value.trim().toUpperCase()}
 function validCode(value){return /^[A-Z0-9_-]{3,32}$/.test(String(value||""))}
@@ -292,6 +339,15 @@ function androidRestoreRunning(){
   return isAndroidPlatform()&&RESTORE_SESSION.isRunning(latestAndroidRestoreState);
 }
 
+function refreshLibraryCard(){
+  // Gate Android dilepas 2026-10-21 (keputusan Owner): Pustaka Lokal kini
+  // tampil juga di Android; pembaca PDF di my-bmp.html memakai renderer
+  // lokal (Batch reader-UX) sehingga tidak bergantung PDF viewer bawaan
+  // browser dan setting "Selalu unduh file PDF".
+  const card=document.getElementById("libraryCard");
+  if(card)card.style.display="block";
+}
+
 function applyRestoreMutationGuardUi(){
   const running=androidRestoreRunning();
   if(isAndroidPlatform()){
@@ -344,10 +400,9 @@ async function readLocalBackupOperation(){
 }
 
 async function writeLocalBackupOperation(patch){
-  const current=await readLocalBackupOperation();
-  const next={...current,...patch,schemaVersion:1,updatedAt:Date.now()};
-  await chrome.storage.local.set({[LOCAL_BACKUP_STATE_KEY]:next});
-  return next;
+  const result=await send("WRITE_UI_LOCAL_OPERATION",{patch});
+  if(!result?.ok)throw new Error(result?.error||"Status operasi lokal tidak dapat disimpan.");
+  return result.state;
 }
 
 function localBackupNoticeText(state){
@@ -361,16 +416,16 @@ function localBackupNoticeText(state){
 }
 
 async function refreshLocalBackupOperation(){
+  if(!controlSurfaceActive())return;
   const androidState=await refreshAndroidRestoreGuard();
   const androidRunning=RESTORE_SESSION.isRunning(androidState);
   let state=await readLocalBackupOperation();
-  if(localBackupPhaseBusy(String(state.phase||""))&&!localBackupOperationInFlight&&!androidRunning){
-    state=await writeLocalBackupOperation({
-      phase:"error",
-      progress:"Operasi sebelumnya terputus sebelum selesai.",
-      lastError:"Coba ulang dari popup BMP Terbuka.",
-      interruptedAt:Date.now()
-    });
+  if(!controlSurfaceActive())return state;
+  const ownerStatus=await send("GET_UI_LOCAL_OPERATION_STATUS");
+  if(!controlSurfaceActive())return state;
+  if(localBackupPhaseBusy(String(state.phase||""))&&!localBackupOperationInFlight&&!androidRunning&&ownerStatus?.ok&&!ownerStatus.live){
+    const recovered=await send("RECOVER_UI_LOCAL_OPERATION",{expected:{id:state.id,ownerToken:state.ownerToken,updatedAt:state.updatedAt}});
+    if(recovered?.ok)state=recovered.state;
   }
   const busy=localBackupOperationInFlight;
   el("backupLocalData").disabled=busy||Boolean(latestState?.running)||androidRunning;
@@ -735,7 +790,7 @@ async function scheduleJobStartedInterstitial(){
   // but can never delay or block the running BMP job.
   adInterstitialTimer=setTimeout(()=>{
     adInterstitialTimer=null;
-    showAdInterstitial(creative);
+    if(controlSurfaceActive())showAdInterstitial(creative);
   },delay);
 
   try{
@@ -757,6 +812,10 @@ function renderCloudSurface(state){
   const sponsorRoot=el("sponsorSlot");
   const cloudBadge=el("cloudStatusBadge");
   root.textContent="";
+  // Audit ronde 2 (R2-EXT-B-007): kartu sponsor bisa memuat media (banner) yang
+  // blob URL-nya dikelola ads-media.js. Mengosongkan host dengan textContent
+  // saja membuang node-nya tanpa revoke → blob bocor tiap re-render (10 dtk).
+  ADS_MEDIA?.clear?.(sponsorRoot);
   sponsorRoot.textContent="";
 
   const badge=state?.statusBadge||null;
@@ -787,7 +846,7 @@ function renderCloudSurface(state){
       }catch(e){
         button.textContent=String(e?.message||e).slice(0,80);
       }finally{
-        setTimeout(()=>{button.disabled=false;button.textContent=section.action.label},1400);
+        setTimeout(()=>{if(controlSurfaceActive()){button.disabled=false;button.textContent=section.action.label}},1400);
       }
     });
     card.append(button);
@@ -813,7 +872,7 @@ function renderCloudSurface(state){
       }catch(e){
         contact.textContent=String(e?.message||e).slice(0,80);
       }finally{
-        setTimeout(()=>{contact.disabled=false;contact.textContent=action.label},1400);
+        setTimeout(()=>{if(controlSurfaceActive()){contact.disabled=false;contact.textContent=action.label}},1400);
       }
     });
     card.append(contact);
@@ -874,7 +933,7 @@ function renderCloudSurface(state){
         }catch(e){
           button.textContent=String(e?.message||e).slice(0,80);
         }finally{
-          setTimeout(()=>{button.disabled=false;button.textContent=cardAd.cta.label},1400);
+          setTimeout(()=>{if(controlSurfaceActive()){button.disabled=false;button.textContent=cardAd.cta.label}},1400);
         }
       });
       card.append(button);
@@ -989,9 +1048,6 @@ async function loadDraft(){
   if(Number.isInteger(Number(d.maxModule))&&Number(d.maxModule)>=1)el("maxModule").value=String(Number(d.maxModule));
   el("redownload").checked=Boolean(d.redownload);
   el("mergePdf").checked=Boolean(d.mergeRequested);
-  restoredQuizModule=Number.isInteger(Number(d.quizModule))&&Number(d.quizModule)>=1
-    ?Number(d.quizModule)
-    :null;
 }
 async function saveDraft(){
   const range=selectedRange();
@@ -1001,16 +1057,13 @@ async function saveDraft(){
       startModule:range.valid?range.first:1,
       maxModule:range.valid?range.last:9,
       redownload:el("redownload").checked,
-      mergeRequested:el("mergePdf").checked,
-      quizModule:Number.isInteger(Number(el("quizModule").value))
-        ?Number(el("quizModule").value)
-        :null
+      mergeRequested:el("mergePdf").checked
     }
   });
 }
 function scheduleDraftSave(){
   clearTimeout(draftSaveTimer);
-  draftSaveTimer=setTimeout(()=>saveDraft().catch(()=>{}),180);
+  draftSaveTimer=setTimeout(()=>{if(controlSurfaceActive())saveDraft().catch(()=>{})},180);
 }
 function cacheRefreshSelectionKey(){
   const range=selectedRange();
@@ -1024,7 +1077,7 @@ function cacheRefreshSelectionKey(){
 function scheduleCacheRefresh(){
   cacheRefreshGuard.invalidate();
   clearTimeout(cacheRefreshTimer);
-  cacheRefreshTimer=setTimeout(()=>refreshCachePreview().catch(()=>{}),180);
+  cacheRefreshTimer=setTimeout(()=>{if(controlSurfaceActive())refreshCachePreview().catch(()=>{})},180);
 }
 
 function currentPlan(){
@@ -1032,13 +1085,24 @@ function currentPlan(){
   if(!range.valid)return {valid:false,selected:[],available:[],process:[],effectiveLast:null};
   const cacheMatches=latestCacheCode===normalizedCode();
   const detected=cacheMatches?latestCacheInfo.detectedLastModule:null;
-  const effectiveLast=detected?Math.min(range.last,detected):range.last;
-  const selected=effectiveLast>=range.first?modulesBetween(range.first,effectiveLast):[];
+  // Historical terminal evidence is informational only. An explicit user
+  // range must remain probeable so newly published modules can be discovered.
+  const selected=modulesBetween(range.first,range.last);
   const cached=new Set(cacheMatches?latestCacheInfo.modules:[]);
   const redownload=el("redownload").checked;
   const available=selected.filter(m=>cached.has(m));
   const process=redownload?selected:selected.filter(m=>!cached.has(m));
-  return {valid:true,range,selected,available,process,effectiveLast,redownload,cached};
+  return {
+    valid:true,
+    range,
+    selected,
+    available,
+    process,
+    effectiveLast:range.last,
+    detectedLastModule:detected,
+    redownload,
+    cached
+  };
 }
 
 function checkedExportModules(){
@@ -1080,252 +1144,6 @@ function selectExportModules(modules){
   updateExportControls();
 }
 
-function quizLifecycleActive(){
-  return Boolean(latestQuizLifecycle?.active);
-}
-function normalizeQuizCapacity(raw){
-  if(!raw||typeof raw!=="object")return null;
-  const capacity=Math.max(0,Number(raw.capacity||0));
-  if(!capacity)return null;
-  const activeGenerations=Math.max(0,Math.min(capacity,Number(raw.activeGenerations??raw.active_generations??0)));
-  const availableSlots=Math.max(0,Math.min(capacity,Number(raw.availableSlots??raw.available_slots??(capacity-activeGenerations))));
-  const generationEnabled=raw.generationEnabled??raw.generation_enabled;
-  return{
-    capacity,
-    activeGenerations,
-    availableSlots,
-    full:availableSlots<=0,
-    slotReady:(generationEnabled!==false)&&availableSlots>0,
-    generationEnabled:generationEnabled!==false,
-    leaseMs:Math.max(0,Number(raw.leaseMs??raw.lease_ms??0))
-  };
-}
-function selectedQuizIdentity(){
-  return{code:normalizedCode(),module:Number(el("quizModule").value)};
-}
-function quizDeviceGenerationBlocksSelected(){
-  if(!latestQuizDeviceGeneration?.active||latestQuizBankStatus?.ready===true)return false;
-  return true;
-}
-function quizDefaultButtonLabel(){
-  const quality=latestQuizSourceStatus?.quality||null;
-  const pages=Number(latestQuizSourceStatus?.pageCount||quality?.pageCount||0);
-  return quality?.level==="limited"
-    ?(pages>0&&pages<=2?"Tetap gunakan":"Tetap buat Quiz")
-    :"Mulai Quiz Telegram";
-}
-function renderQuizSlotStatus(){
-  const box=el("quizSlotStatus");
-  if(!box)return;
-  const capacity=latestQuizCapacity;
-  if(!capacity){
-    box.textContent="Slot pembuatan Quiz: memeriksa...";
-    return;
-  }
-  if(!capacity.generationEnabled){
-    box.textContent="Pembuatan bank Quiz baru sedang dinonaktifkan.";
-    return;
-  }
-  box.textContent=capacity.availableSlots>0
-    ?`🟢 Slot pembuatan Quiz tersedia • ${capacity.availableSlots}/${capacity.capacity} kosong`
-    :`🟡 Semua ${capacity.capacity} slot pembuatan Quiz sedang digunakan`;
-}
-function renderQuizSourceState(){
-  const r=latestQuizSourceStatus;
-  el("startQuiz").textContent=quizDefaultButtonLabel();
-  if(!r){
-    el("redownloadQuizModule").style.display="none";
-    return;
-  }
-  const quality=r?.quality||null;
-  const pages=Number(r?.pageCount||quality?.pageCount||0);
-  el("redownloadQuizModule").style.display=(!r?.sourceAvailable||quality?.level==="invalid"||quality?.level==="limited")?"block":"none";
-  if(!r?.sourceAvailable){
-    el("quizNotice").textContent=`M${Number(el("quizModule").value)} belum siap untuk Quiz. Unduh ulang modul ini sekali untuk menyiapkan materi Quiz lokal.`;
-  }else if(quality?.level==="invalid"){
-    el("quizNotice").textContent=pages===1
-      ?"⛔ Hanya 1 halaman yang terbaca. Coba unduh ulang modul."
-      :`⛔ Modul terdeteksi tidak lengkap${pages?` • ${pages} halaman terbaca`:""}. Coba unduh ulang modul.`;
-  }else if(quality?.level==="limited"){
-    if(pages>0&&pages<=2){
-      el("quizNotice").textContent=
-        `⚠️ Hanya ${pages} halaman yang terbaca, tetapi materinya masih dapat digunakan. Quiz mungkin lebih pendek.`;
-    }else{
-      const detail=quality?.reason==="reference_heavy"
-        ?"Materi yang terbaca banyak berupa daftar pustaka/referensi."
-        :quality?.reason==="repetitive_text"
-          ?"Materi yang terbaca banyak berisi teks berulang."
-          :"Materi yang terbaca terlihat sedikit.";
-      el("quizNotice").textContent=`⚠️ ${detail} Quiz mungkin memiliki lebih sedikit soal.`;
-    }
-  }else{
-    el("quizNotice").textContent=`✓ Materi cukup${pages?` • ${pages} halaman terbaca`:""}. Quiz siap dimainkan di Telegram.`;
-  }
-}
-function renderQuizAvailabilityState(){
-  if(latestQuizLifecycle)return;
-  const moduleNo=Number(el("quizModule").value);
-  if(!Number.isInteger(moduleNo))return;
-  if(latestQuizBankStatus?.ready===true){
-    el("redownloadQuizModule").style.display="none";
-    el("startQuiz").textContent="Mulai Quiz Telegram";
-    el("quizNotice").textContent=`✓ Bank soal M${moduleNo} sudah tersedia. Quiz bisa langsung dimainkan.`;
-    return;
-  }
-  if(latestQuizBankStatus?.ready===false&&latestQuizBankStatus?.generationAvailable===false){
-    el("startQuiz").textContent="Mulai Quiz Telegram";
-    el("quizNotice").textContent=`Bank soal M${moduleNo} belum tersedia dan pembuatan bank baru sedang dinonaktifkan.`;
-    return;
-  }
-  if(latestQuizBankStatus?.ready===false&&quizDeviceGenerationBlocksSelected()){
-    const activeModule=Number(latestQuizDeviceGeneration?.module||0);
-    el("startQuiz").textContent="Menunggu proses lain...";
-    el("quizNotice").textContent=activeModule===moduleNo
-      ?`Bank soal M${moduleNo} sedang disiapkan. Kamu bisa memilih modul lain yang bank soalnya sudah tersedia.`
-      :`Bank soal M${activeModule||"lain"} masih disiapkan. Kamu tetap bisa memainkan modul yang bank soalnya sudah tersedia.`;
-    return;
-  }
-  if(latestQuizBankStatus?.ready===false&&latestQuizCapacity?.full){
-    el("startQuiz").textContent="Menunggu slot...";
-    el("quizNotice").textContent=`Semua ${latestQuizCapacity.capacity} slot pembuatan Quiz sedang digunakan. Tombol akan aktif saat slot tersedia.`;
-    return;
-  }
-  renderQuizSourceState();
-}
-function updateQuizControls(){
-  const hasModule=Number.isInteger(Number(el("quizModule").value));
-  const locked=Boolean(latestState?.running)||Boolean(latestVersionPolicy?.updateRequired);
-  const lifecycleLocked=quizLifecycleActive();
-  const invalidSource=latestQuizSourceStatus?.quality?.level==="invalid";
-  const needsGeneration=latestQuizBankStatus?.ready===false;
-  const generationDisabled=needsGeneration&&latestQuizBankStatus?.generationAvailable===false;
-  const capacityBlocked=needsGeneration&&Boolean(latestQuizCapacity?.full);
-  const deviceBlocked=needsGeneration&&quizDeviceGenerationBlocksSelected();
-  el("quizModule").disabled=locked||!latestCacheInfo.modules.length;
-  el("startQuiz").disabled=locked||lifecycleLocked||!hasModule||invalidSource||generationDisabled||capacityBlocked||deviceBlocked;
-  el("redownloadQuizModule").disabled=locked||lifecycleLocked||Boolean(latestQuizDeviceGeneration?.active)||!hasModule;
-}
-function renderQuizModules(modules){
-  const select=el("quizModule");
-  const previous=Number(select.value)||Number(restoredQuizModule)||0;
-  select.textContent="";
-  for(const moduleNo of modules){
-    const option=document.createElement("option");
-    option.value=String(moduleNo);
-    option.textContent=`M${moduleNo}`;
-    select.append(option);
-  }
-  if(modules.includes(previous))select.value=String(previous);
-  if(Number.isInteger(Number(select.value)))restoredQuizModule=Number(select.value);
-  el("quizCard").style.display=modules.length?"block":"none";
-  if(!modules.length){
-    el("quizNotice").textContent="";
-    if(el("quizSlotStatus"))el("quizSlotStatus").textContent="";
-  }
-  updateQuizControls();
-}
-function renderQuizLifecycle(lifecycle){
-  latestQuizLifecycle=lifecycle&&typeof lifecycle==="object"?lifecycle:null;
-  if(!latestQuizLifecycle){
-    renderQuizAvailabilityState();
-    updateQuizControls();
-    return false;
-  }
-  const phase=String(latestQuizLifecycle.phase||"");
-  let message=String(latestQuizLifecycle.message||"");
-  if(
-    phase==="generating_bank"&&
-    Number(latestQuizLifecycle.updatedAt||0)>0&&
-    Date.now()-Number(latestQuizLifecycle.updatedAt)>=120000
-  ){
-    message=`Bank soal M${latestQuizLifecycle.module} masih disiapkan. Proses membutuhkan waktu lebih lama dari biasanya dan dapat berlangsung hingga sekitar 10 menit.`;
-  }
-  el("quizNotice").textContent=message;
-  if(latestQuizLifecycle.active){
-    el("startQuiz").textContent=phase==="generating_bank"?"Menyiapkan Quiz...":"Memproses Quiz...";
-  }else{
-    el("startQuiz").textContent="Mulai Quiz Telegram";
-  }
-  updateQuizControls();
-  return true;
-}
-
-async function refreshQuizLifecycleStatus(){
-  const code=normalizedCode();
-  const moduleNo=Number(el("quizModule").value);
-  if(!validCode(code)||!Number.isInteger(moduleNo)){
-    latestQuizLifecycle=null;
-    return false;
-  }
-  const r=await send("GET_QUIZ_LIFECYCLE",{code,module:moduleNo});
-  if(!r?.ok)throw new Error(r?.error||"Status proses Quiz tidak dapat dibaca.");
-  if(!r.lifecycle){
-    latestQuizLifecycle=null;
-    renderQuizAvailabilityState();
-    updateQuizControls();
-    return false;
-  }
-  return renderQuizLifecycle(r.lifecycle);
-}
-
-async function refreshQuizBankStatus(){
-  const code=normalizedCode();
-  const moduleNo=Number(el("quizModule").value);
-  if(!validCode(code)||!Number.isInteger(moduleNo)){
-    latestQuizBankStatus=null;
-    return null;
-  }
-  const r=await send("GET_QUIZ_BANK_STATUS",{code,module:moduleNo});
-  if(!r?.ok)throw new Error(r?.error||"Status bank soal tidak dapat diperiksa.");
-  latestQuizBankStatus=r;
-  latestQuizCapacity=normalizeQuizCapacity(r.generationCapacity)||latestQuizCapacity;
-  latestQuizDeviceGeneration=r.deviceGeneration||null;
-  renderQuizSlotStatus();
-  renderQuizAvailabilityState();
-  updateQuizControls();
-  return r;
-}
-
-async function refreshQuizGenerationStatus(){
-  if(el("quizCard").style.display==="none")return null;
-  const r=await send("GET_QUIZ_GENERATION_STATUS");
-  if(!r?.ok)throw new Error(r?.error||"Status slot Quiz tidak dapat dibaca.");
-  latestQuizCapacity=normalizeQuizCapacity(r.generationCapacity)||latestQuizCapacity;
-  latestQuizDeviceGeneration=r.deviceGeneration||null;
-  renderQuizSlotStatus();
-  renderQuizAvailabilityState();
-  updateQuizControls();
-  return r;
-}
-
-async function refreshQuizSourceStatus(){
-  const code=normalizedCode();
-  const moduleNo=Number(el("quizModule").value);
-  latestQuizSourceStatus=null;
-  latestQuizBankStatus=null;
-  latestQuizLifecycle=null;
-  el("startQuiz").textContent="Mulai Quiz Telegram";
-  el("redownloadQuizModule").textContent="Unduh ulang modul ini";
-  if(!validCode(code)||!Number.isInteger(moduleNo)){
-    el("quizNotice").textContent="";
-    updateQuizControls();
-    return;
-  }
-  el("quizNotice").textContent=`Memeriksa kesiapan Quiz M${moduleNo}...`;
-  try{
-    const r=await send("GET_QUIZ_SOURCE_STATUS",{code,module:moduleNo});
-    latestQuizSourceStatus=r||null;
-    renderQuizSourceState();
-  }catch(e){
-    latestQuizSourceStatus=null;
-    el("redownloadQuizModule").style.display="none";
-    el("startQuiz").textContent="Mulai Quiz Telegram";
-    el("quizNotice").textContent=String(e?.message||e);
-  }
-  await refreshQuizBankStatus().catch(()=>{});
-  await refreshQuizLifecycleStatus().catch(()=>{});
-  updateQuizControls();
-}
 
 function updatePrimaryAction(){
   const button=el("start");
@@ -1333,11 +1151,15 @@ function updatePrimaryAction(){
   const plan=currentPlan();
   const locked=Boolean(latestState?.running)||Boolean(latestVersionPolicy?.updateRequired);
   let action="process",label="Mulai",disabled=locked;
-  if(!validCode(code)||!plan.valid){
+  // Batch 16 lanjutan (2026-10-13): saat login wall, tombol utama popup harus
+  // sejalan dengan launcher — label eksplisit "Lanjutkan setelah login",
+  // bukan label generik, supaya pesan status tidak menunjuk ke tombol fiktif.
+  // Perilaku klik tetap jalur Batch 3/4: konteks loginResume memaksa
+  // redownload FALSE dan rentang tersimpan yang dipakai.
+  if(latestState?.status==="LOGIN_REQUIRED"&&latestState?.loginResume?.code){
+    label="Lanjutkan setelah login";
+  }else if(!validCode(code)||!plan.valid){
     label="Mulai";
-  }else if(!plan.selected.length){
-    label=latestCacheInfo.detectedLastModule?`Modul tersedia sampai M${latestCacheInfo.detectedLastModule}`:"Mulai";
-    disabled=true;
   }else if(plan.redownload){
     label="Download ulang modul dipilih";
   }else if(plan.process.length){
@@ -1361,7 +1183,6 @@ function setFormLocked(locked){
   el("clearAllCache").disabled=locked||latestStorageInfo.totalBytes<=0;
   updateExportControls();
   updatePrimaryAction();
-  updateQuizControls();
   applyRestoreMutationGuardUi();
 }
 
@@ -1378,11 +1199,9 @@ function renderOptionHints(){
     redHint.textContent="";
   }
   if(el("mergePdf").checked&&plan.selected.length&&validCode(code)){
-    const detected=latestCacheInfo.detectedLastModule;
-    const full=Boolean(detected&&plan.range.first===1&&plan.range.last>=detected);
-    const filename=full
-      ? `${code}_FULL_Searchable.pdf`
-      : `${code}_M${plan.selected[0]}-M${plan.selected[plan.selected.length-1]}_Searchable.pdf`;
+    // Historical terminal evidence is only a hint; do not preview a FULL
+    // filename until a fresh run has actually reconfirmed the terminal.
+    const filename=`${code}_M${plan.selected[0]}-M${plan.selected[plan.selected.length-1]}_Searchable.pdf`;
     mergeHint.style.display="block";
     mergeHint.textContent=`Hasil gabungan: ${filename}`;
   }else{
@@ -1428,7 +1247,6 @@ async function refreshCachePreview(){
     el("currentStorageTools").style.display="none";
     el("storageTools").style.display="block";
     renderExportGrid([]);
-    renderQuizModules([]);
     renderOptionHints();
     setFormLocked(Boolean(latestState?.running));
     return true;
@@ -1443,7 +1261,7 @@ async function refreshCachePreview(){
   latestCacheCode=code;
 
   el("cacheTitle").textContent=code;
-  const lastText=latestCacheInfo.detectedLastModule?` • modul terakhir M${latestCacheInfo.detectedLastModule}`:"";
+  const lastText=latestCacheInfo.detectedLastModule?` • deteksi terakhir M${latestCacheInfo.detectedLastModule}`:"";
   el("cacheSummary").textContent=modules.length
     ? `${modules.length} modul • ${formatBytes(latestCacheInfo.bytes)} tersimpan lokal${lastText}`
     : `Belum ada modul tersimpan lokal${lastText}`;
@@ -1475,10 +1293,8 @@ async function refreshCachePreview(){
     ? `Kosongkan ${formatBytes(latestCacheInfo.bytes)} data lokal ${code} jika sudah tidak diperlukan. PDF yang sudah ada di folder Downloads tidak ikut dihapus.`
     : "";
   renderExportGrid(modules);
-  renderQuizModules(modules);
   renderOptionHints();
   setFormLocked(Boolean(latestState?.running));
-  if(modules.length)refreshQuizSourceStatus().catch(()=>{});
   return true;
 }
 
@@ -1494,7 +1310,7 @@ function formatElapsed(ms){
 }
 function humanStatus(s){
   const x=s.status||"IDLE";
-  if(!s.running&&x==="IDLE")return["Siap","Pilih BMP dan modul yang ingin kamu proses atau ekspor."];
+  if(!s.running&&x==="IDLE")return["Siap","Pilih BMP & rentang modul untuk diproses."];
   if(x==="STARTING")return["Menyiapkan","Menyiapkan dokumen..."];
   if(x.startsWith("OPENING_M"))return["Membuka modul",s.progress||""];
   if(x.startsWith("DOWNLOADING_M"))return["Sedang diproses",s.progress||""];
@@ -1504,8 +1320,8 @@ function humanStatus(s){
   if(x==="DONE"||x==="MAX_MODULE_REACHED")return["Selesai",s.progress||"Semua modul selesai."];
   if(x==="END_CANDIDATE")return["Selesai",s.progress||"Modul terakhir terdeteksi."];
   if(x==="MISSING_GAP")return["Belum lengkap",s.progress||"Ada modul yang belum tersedia."];
-  if(x==="LOGIN_REQUIRED")return["Perlu login","Sesi sumber meminta login ulang. Login kembali lalu mulai lagi."];
-  if(x==="BLOCKED")return["Akses dihentikan","Server menolak permintaan. Proses dihentikan tanpa mencoba ulang."];
+  if(x==="LOGIN_REQUIRED")return["Perlu login","Login diperlukan. Klik “Lanjutkan setelah login” di bawah (tanpa download ulang)."];
+  if(x==="BLOCKED")return["Akses dihentikan","Ditolak server. Proses dihentikan."];
   if(x==="STOPPED_BY_USER")return["Dihentikan","Proses dihentikan."];
   if(x==="ERROR")return["Terjadi kendala",s.progress||"Proses tidak dapat dilanjutkan."];
   return["Sedang berjalan",s.progress||""];
@@ -1530,6 +1346,7 @@ function renderPendingActivation(a){
   el("pairBox").style.display=isPending?"block":"none";
   el("checkActivation").style.display=isPending?"block":"none";
   el("activationWait").style.display=isPending?"block":"none";
+  el("openTelegramAgain").style.display=isPending?"block":"none";
   el("pairCode").textContent=pending?.pairId||"";
 
   if(!isPending){
@@ -1540,7 +1357,7 @@ function renderPendingActivation(a){
   const started=Number(pending.startedAt||0);
   const elapsed=started?Date.now()-started:0;
   el("activationWaitTitle").textContent=
-    activationChecking?"Memeriksa aktivasi...":"Menunggu verifikasi Telegram";
+    activationChecking?"Memeriksa aktivasi...":"Menunggu verifikasi";
   el("activationWaitMeta").textContent=
     `${activationChecking?"Menghubungi layanan aktivasi":"Memeriksa otomatis"} • ${formatElapsed(elapsed)}`;
 
@@ -1566,22 +1383,32 @@ async function refreshAccess(){
 
   renderPendingActivation(a);
 
-  if(!a.configReady){
+  if(a.active){
+    el("activationText").textContent="";
+    setUxState("activationText","");
+  }else if(!a.configReady){
     el("activationText").textContent="Build ini belum dikonfigurasi oleh pengelola.";
-  }else if(a.pending&&!a.active){
+    setUxState("activationText","warning");
+  }else if(a.pending){
+    // Sesi pairing aktif: error lama sudah tidak relevan.
+    setUxState("activationText","");
     const started=Number(a.pending.startedAt||0);
     const elapsed=started?Date.now()-started:0;
     if(elapsed<ACTIVATION_LONG_WAIT_MS){
       el("activationText").textContent=
         "Setelah bot menyatakan aktivasi berhasil, popup akan mendeteksinya otomatis. Jika Telegram tidak membawa kode, salin kode aktivasi di atas lalu kirim ke bot.";
     }
+  }else if(el("activationText").classList.contains("state-error")){
+    // Kesalahan verifikasi terakhir dipertahankan sampai user mencoba lagi —
+    // jangan ditimpa hint generik, nanti tombol terlihat "diam tanpa alasan".
   }else if(!a.active){
     el("activationText").textContent=
       "Aktivasi berlaku terbatas waktu dan dapat diperbarui selama kamu masih menjadi anggota komunitas.";
+    setUxState("activationText","");
   }
 
   if(a.active&&a.expiresAt){
-    el("accessBadge").textContent=`● Akses komunitas aktif hingga ${formatDate(a.expiresAt)}`;
+    el("accessBadge").textContent=`Akses aktif hingga ${formatDate(a.expiresAt)}`;
   }
 
   const supporterBadge=el("supporterBadge");
@@ -1675,6 +1502,19 @@ async function refreshState(){
   }
   el("stop").disabled=!s.running;
   el("stop").style.display=s.running?"block":"none";
+  const pending=r?.pendingResume||null;
+  const range=selectedRange();
+  const waitingReader=!s.running&&Boolean(
+    pending&&
+    String(pending.code||"")===normalizedCode()&&
+    range.valid&&
+    Number(pending.startModule)===range.first&&
+    Number(pending.maxModule)===range.last
+  );
+  if(waitingReader){
+    el("statusTitle").textContent="Menunggu reader";
+    el("statusText").textContent="Lanjut otomatis begitu reader siap.";
+  }
   el("runReviewSample").disabled=Boolean(s.running);
   setFormLocked(Boolean(s.running));
 
@@ -1695,7 +1535,7 @@ async function refreshVersion(){
     el("updateTitle").textContent=required
       ? "Update BMP Terbuka diperlukan"
       : "Update BMP Terbuka tersedia";
-    el("openUpdate").textContent=required?"Update sekarang":"Lihat update";
+    el("openUpdate").textContent=required?"Update sekarang":"Buka update";
     if(show){
       const target=p.minimumVersion||p.latestVersion||"versi terbaru";
       el("updateText").textContent=required
@@ -1708,24 +1548,6 @@ async function refreshVersion(){
     latestVersionPolicy=null;
     el("updateNotice").style.display="none";
   }
-}
-
-function showShareNotice(message,{manualText=""}={}){
-  el("shareNoticeText").textContent=message;
-  el("shareNotice").style.display="block";
-  const manual=el("shareManual");
-  if(manualText){
-    el("shareManualText").value=manualText;
-    manual.style.display="block";
-  }else{
-    el("shareManualText").value="";
-    manual.style.display="none";
-  }
-}
-
-function hideShareNotice(){
-  el("shareNotice").style.display="none";
-  el("shareManual").style.display="none";
 }
 
 function legacyCopyText(value){
@@ -1756,63 +1578,14 @@ async function copyTextRobust(value){
   return legacyCopyText(value);
 }
 
-async function shareBmp(){
-  const a=latestAccess||await send("GET_ACCESS_STATUS");
-  const url=a?.channelUrl||"https://t.me/bukabmp";
-  const text="BMP Terbuka — ubah materi BMP yang sudah dapat kamu akses menjadi searchable PDF untuk belajar lebih nyaman.";
-  const shareText=`${text}\n${url}`;
-  const payload={title:"BMP Terbuka",text:shareText};
-  hideShareNotice();
-
-  if(typeof navigator.share==="function"){
-    try{
-      if(typeof navigator.canShare!=="function"||navigator.canShare(payload)){
-        await navigator.share(payload);
-        return;
-      }
-    }catch(e){
-      // Some Edge Android extension popups reject Web Share (including AbortError)
-      // before a native sheet is actually shown. Always continue to the fallback.
-    }
-  }
-
-  if(await copyTextRobust(shareText)){
-    const b=el("share");
-    const old=b.textContent;
-    b.textContent="Tersalin";
-    showShareNotice("Share sheet tidak tersedia di popup ini. Teks + link sudah disalin dan siap ditempel.");
-    setTimeout(()=>{b.textContent=old},1600);
-    return;
-  }
-
-  showShareNotice(
-    "Share sheet dan salin otomatis tidak tersedia. Salin teks + link di bawah secara manual.",
-    {manualText:shareText}
-  );
-}
-
 el("joinChannel").addEventListener("click",()=>send("OPEN_CHANNEL"));
-el("channelLink").addEventListener("click",()=>send("OPEN_CHANNEL"));
 el("joinGroup").addEventListener("click",()=>send("OPEN_GROUP"));
-el("groupLink").addEventListener("click",()=>send("OPEN_GROUP"));
-el("share").addEventListener("click",shareBmp);
 const SUPPORT_DEEP_LINK="https://t.me/bukabmp_bot?start=support";
 el("donateLink").addEventListener("click",()=>send("EXECUTE_CLOUD_ACTION",{
   action:{type:"OPEN_URL",label:"Donasi",url:SUPPORT_DEEP_LINK}
 }));
-
-el("copyShareManual").addEventListener("click",async()=>{
-  const value=el("shareManualText").value;
-  if(await copyTextRobust(value)){
-    showShareNotice("Teks + link berhasil disalin.");
-  }else{
-    el("shareManualText").focus();
-    el("shareManualText").select();
-    showShareNotice(
-      "Salin otomatis tetap tidak tersedia. Teks sudah dipilih; gunakan menu Salin dari Android.",
-      {manualText:value}
-    );
-  }
+el("helpLink").addEventListener("click",()=>{
+  chrome.tabs.create({url:chrome.runtime.getURL("bantuan.html")});
 });
 el("openUpdate").addEventListener("click",()=>send("OPEN_UPDATE"));
 
@@ -1839,7 +1612,7 @@ el("copyPairCode").addEventListener("click",async()=>{
   if(!code)return;
   if(await copyTextRobust(code)){
     el("copyPairCode").textContent="Tersalin";
-    setTimeout(()=>{el("copyPairCode").textContent="Salin kode"},1200);
+    setTimeout(()=>{if(controlSurfaceActive())el("copyPairCode").textContent="Salin"},1200);
   }else{
     el("activationText").textContent="Gagal menyalin otomatis. Pilih kode aktivasi lalu salin manual.";
   }
@@ -1862,12 +1635,14 @@ async function checkPendingActivation({quiet=false}={}){
     }
     if(r?.ok&&r.result?.status==="expired"){
       el("activationText").textContent="Sesi verifikasi kedaluwarsa. Pilih Ulangi untuk membuat sesi baru.";
+      setUxState("activationText","error");
       await refreshAccess();
     }
   }catch(e){
     if(!quiet){
       el("activationText").textContent=
         `Belum bisa memeriksa aktivasi: ${String(e?.message||e)}. Coba lagi sebentar.`;
+      setUxState("activationText","error");
     }
   }finally{
     activationChecking=false;
@@ -1880,16 +1655,23 @@ async function checkPendingActivation({quiet=false}={}){
 async function beginPairing(){
   if(latestVersionPolicy?.updateRequired){
     el("activationText").textContent="Update BMP Terbuka diperlukan sebelum membuat aktivasi baru.";
+    setUxState("activationText","warning");
     return;
   }
   el("verifyTelegram").disabled=true;
   el("activationText").textContent="Menyiapkan verifikasi...";
+  setUxState("activationText","waiting");
   try{
     const r=await send("START_PAIRING");
     if(!r?.ok)throw new Error(r?.error||"Verifikasi tidak dapat dimulai.");
+    el("activationText").textContent="";
+    setUxState("activationText","");
     await refreshAccess();
   }catch(e){
+    // Error ditampilkan mencolok dan dipertahankan (refreshAccess tidak boleh
+    // menimpa state-error) supaya kegagalan tidak pernah terlihat "diam".
     el("activationText").textContent=String(e?.message||e);
+    setUxState("activationText","error");
   }finally{
     await refreshAccess();
   }
@@ -1898,7 +1680,10 @@ async function beginPairing(){
 el("verifyTelegram").addEventListener("click",beginPairing);
 el("openTelegramAgain").addEventListener("click",async()=>{
   try{await send("OPEN_PENDING_TELEGRAM")}
-  catch(e){el("activationText").textContent=String(e?.message||e)}
+  catch(e){
+    el("activationText").textContent=String(e?.message||e);
+    setUxState("activationText","error");
+  }
 });
 el("retryActivation").addEventListener("click",async()=>{
   el("retryActivation").disabled=true;
@@ -2011,14 +1796,6 @@ el("start").addEventListener("click",async()=>{
     el("statusText").textContent="Modul terakhir harus sama atau lebih besar dari modul pertama (maksimal 99).";
     return;
   }
-  if(!plan.selected.length){
-    el("statusTitle").textContent="Rentang tidak tersedia";
-    el("statusText").textContent=latestCacheInfo.detectedLastModule
-      ? `BMP ini terdeteksi sampai Modul ${latestCacheInfo.detectedLastModule}.`
-      : "Tidak ada modul pada rentang tersebut.";
-    return;
-  }
-
   const action=el("start").dataset.action||"process";
   if(action==="export"){
     el("storageTools").open=true;
@@ -2028,37 +1805,59 @@ el("start").addEventListener("click",async()=>{
     return;
   }
 
-  let tabId=null;
-  const needsReader=plan.process.length>0;
-  if(needsReader){
-    const tabs=await chrome.tabs.query({active:true,currentWindow:true});
-    const tab=tabs[0];
-    if(!tab?.id||!tab.url?.startsWith("https://pustaka.ut.ac.id/reader/")){
-      el("statusTitle").textContent="Buka reader terlebih dahulu";
-      el("statusText").textContent="Ada modul yang perlu diproses. Buka halaman reader BMP pada tab aktif lalu coba lagi.";
-      return;
-    }
-    tabId=tab.id;
-  }
-
   el("code").value=code;
   el("start").disabled=true;
   try{
     await saveDraft();
-    const res=await send("START_JOB",{
-      tabId,
-      code,
-      startModule:range.first,
-      maxModule:range.last,
-      redownload:el("redownload").checked,
-      mergeRequested:el("mergePdf").checked
-    });
-    if(!res?.ok){
-      el("statusTitle").textContent="Gagal memulai";
-      el("statusText").textContent=res?.error||"Terjadi kesalahan.";
-    }else{
-      scheduleJobStartedInterstitial().catch(()=>{});
+    const tabs=await chrome.tabs.query({active:true,currentWindow:true});
+    const tab=tabs[0];
+    let tabCode="";
+    const activeReader=tab?.id!=null&&tab.url?.startsWith("https://pustaka.ut.ac.id/reader/");
+    if(activeReader){
+      try{
+        tabCode=String(new URL(tab.url).searchParams.get("subfolder")||"").trim().replace(/\/+$/,"").toUpperCase();
+      }catch(_){}
     }
+    const directTabId=activeReader&&tabCode===code?tab.id:null;
+    const loginResume=latestState?.status==="LOGIN_REQUIRED"?latestState.loginResume:null;
+    const needsReader=plan.process.length>0;
+    // A pending login context must always take the reader-ready resume path so
+    // the saved range is honored and redownload stays forced off, even when the
+    // right reader tab is already active (Batch 3 contract, blueprint 4.4).
+    if((directTabId!=null&&!loginResume)||!needsReader){
+      // The active tab is the right UT reader, or the job only needs the local
+      // cache (merge / fully cached range): start the job directly.
+      const res=await send("START_JOB",{
+        tabId:directTabId,
+        code,
+        startModule:range.first,
+        maxModule:range.last,
+        redownload:loginResume?false:el("redownload").checked,
+        mergeRequested:el("mergePdf").checked
+      });
+      if(!res?.ok){
+        el("statusTitle").textContent="Gagal memulai";
+        el("statusText").textContent=res?.error||"Terjadi kesalahan.";
+      }else{
+        scheduleJobStartedInterstitial().catch(()=>{});
+      }
+      return;
+    }
+    // Reader not ready yet: persist the plan, open/focus the reader, and let
+    // READER_READY resume the job seamlessly.
+    const startModule=Number(loginResume?.startModule||range.first);
+    const maxModule=Number(loginResume?.maxModule||range.last);
+    const nextModule=plan.process.length
+      ?Math.min(Math.max(plan.process[0],startModule),maxModule)
+      :startModule;
+    await openReaderAndResume({
+      code,
+      startModule,
+      maxModule,
+      nextModule,
+      redownload:loginResume?false:el("redownload").checked,
+      mergeRequested:loginResume?Boolean(loginResume.mergeRequested):el("mergePdf").checked
+    });
   }catch(e){
     el("statusTitle").textContent="Gagal memulai";
     el("statusText").textContent=String(e?.message||e);
@@ -2067,139 +1866,40 @@ el("start").addEventListener("click",async()=>{
   }
 });
 
-el("quizModule").addEventListener("change",()=>{
-  restoredQuizModule=Number(el("quizModule").value)||null;
-  latestQuizSourceStatus=null;
-  latestQuizBankStatus=null;
-  latestQuizLifecycle=null;
-  el("startQuiz").textContent="Mulai Quiz Telegram";
-  el("redownloadQuizModule").style.display="none";
-  scheduleDraftSave();
-  refreshQuizSourceStatus().catch(()=>{});
-});
-el("redownloadQuizModule").addEventListener("click",()=>{
-  const moduleNo=Number(el("quizModule").value);
-  if(!Number.isInteger(moduleNo))return;
-  el("startModule").value=String(moduleNo);
-  el("maxModule").value=String(moduleNo);
-  el("redownload").checked=true;
-  renderOptionHints();
-  updatePrimaryAction();
-  el("quizNotice").textContent=`M${moduleNo} dipilih untuk diunduh ulang. Tekan “Download ulang modul dipilih”.`;
-  el("start").focus();
-});
-el("startQuiz").addEventListener("click",async()=>{
-  const code=normalizedCode();
-  const moduleNo=Number(el("quizModule").value);
-  if(!validCode(code)||!Number.isInteger(moduleNo))return;
-  const selectionMatches=()=>normalizedCode()===code&&Number(el("quizModule").value)===moduleNo;
-  if(selectionMatches()){
-    el("startQuiz").disabled=true;
-    el("quizNotice").textContent=`Memeriksa bank soal M${moduleNo}...`;
-  }
+// Batch 4: one contextual start button. The reader is opened/focused and the
+// pending plan resumes automatically via READER_READY; when the session expired
+// the saved login context is used with redownload forced off (Batch 3 contract).
+async function openReaderAndResume(ctx){
   try{
-    const bank=await send("GET_QUIZ_BANK_STATUS",{code,module:moduleNo});
-    if(!bank?.ok)throw new Error(bank?.error||"Status bank soal tidak dapat diperiksa.");
-
-    if(selectionMatches()){
-      latestQuizBankStatus=bank;
-      latestQuizCapacity=normalizeQuizCapacity(bank.generationCapacity)||latestQuizCapacity;
-      latestQuizDeviceGeneration=bank.deviceGeneration||null;
-      renderQuizSlotStatus();
-    }
-
-    if(bank.ready){
-      if(selectionMatches()){
-        el("startQuiz").textContent="Membuka Quiz...";
-        el("quizNotice").textContent=`✓ Bank soal M${moduleNo} tersedia. Membuka Quiz di Telegram...`;
-      }
+    const res=await send("OPEN_READER_AND_RESUME",ctx);
+    if(!res?.ok){
+      el("statusTitle").textContent="Gagal menyiapkan reader";
+      el("statusText").textContent=res?.error||"Terjadi kesalahan.";
     }else{
-      const capacity=normalizeQuizCapacity(bank.generationCapacity);
-      const activeGeneration=bank.deviceGeneration;
-      if(activeGeneration?.active){
-        if(selectionMatches()){
-          latestQuizDeviceGeneration=activeGeneration;
-          renderQuizAvailabilityState();
-          updateQuizControls();
-        }
-        return;
-      }
-      if(capacity?.full){
-        if(selectionMatches()){
-          latestQuizCapacity=capacity;
-          renderQuizSlotStatus();
-          renderQuizAvailabilityState();
-          updateQuizControls();
-        }
-        return;
-      }
-      if(bank.generationAvailable){
-        if(selectionMatches()){
-          el("startQuiz").textContent="Menyiapkan Quiz...";
-          el("quizNotice").textContent=
-            `Bank soal M${moduleNo} belum tersedia. Sedang menyiapkan bank soal dari materi modul. Biasanya selesai dalam 1–2 menit, tetapi pada kondisi tertentu dapat memakan waktu hingga sekitar 10 menit.`;
-        }
-      }else{
-        throw new Error("Bank soal belum tersedia dan pembuatan bank baru sedang dinonaktifkan.");
-      }
-    }
-
-    const r=await send("START_TELEGRAM_QUIZ",{code,module:moduleNo});
-    if(!r?.ok){
-      if(r?.activeGeneration?.active&&selectionMatches()){
-        latestQuizDeviceGeneration=r.activeGeneration;
-      }
-      throw new Error(r?.error||"Quiz Telegram tidak dapat dimulai.");
-    }
-    if(selectionMatches()){
-      await refreshQuizLifecycleStatus().catch(()=>{});
-      el("quizNotice").textContent=r.queued
-        ?r.alreadyQueued
-          ?`Quiz ${code} M${moduleNo} sudah menunggu di antrian #${r.queuePosition||1}.`
-          :`Quiz ${code} M${moduleNo} masuk antrian #${r.queuePosition||1}. Menunggu slot Quiz kosong.`
-        :r.alreadyActive
-          ?"Quiz modul ini sudah sedang berjalan. Ronde yang aktif dibuka di Telegram."
-          :r.bankCreated
-            ?"✓ Quiz siap. Soal baru dibuat dan ronde dibuka di Telegram."
-            :"✓ Quiz siap. Soal yang sudah tersedia dipakai lagi. Ronde dibuka di Telegram.";
+      el("statusTitle").textContent="Menunggu reader";
+      el("statusText").textContent="Menyiapkan reader. Lanjut otomatis begitu siap.";
     }
   }catch(e){
-    if(selectionMatches()){
-      await refreshQuizLifecycleStatus().catch(()=>{});
-      const message=String(e?.message||e);
-      if(latestQuizLifecycle?.message){
-        el("quizNotice").textContent=latestQuizLifecycle.message;
-      }else if(message==="quiz_generation_device_busy"){
-        renderQuizAvailabilityState();
-      }else{
-        el("quizNotice").textContent=
-          message==="quiz_disabled"||message==="quiz_gameplay_disabled"
-            ?"Quiz V0 belum diaktifkan oleh pengelola."
-            :message==="quiz_audience_denied"
-              ?"Akun Telegram ini belum mendapat akses uji coba Quiz."
-              :message==="quiz_source_hash_mismatch"
-                ?"Materi Quiz perlu disiapkan ulang. Coba download ulang modul ini sekali."
-                :message;
-      }
-    }
-  }finally{
-    await refreshQuizGenerationStatus().catch(()=>{});
-    if(selectionMatches()){
-      await refreshQuizBankStatus().catch(()=>{});
-      await refreshQuizLifecycleStatus().catch(()=>{});
-      if(!latestQuizLifecycle)renderQuizAvailabilityState();
-    }
-    updateQuizControls();
+    el("statusTitle").textContent="Gagal menyiapkan reader";
+    el("statusText").textContent=String(e?.message||e);
   }
-});
+}
 
 el("backupLocalData").addEventListener("click",async()=>{
   if(!await requireNoActiveAndroidRestore({surface:"utility"}))return;
   localBackupOperationCancelled=false;
   localBackupOperationInFlight=true;
+  let localOperationClaim;
+  try{localOperationClaim=await claimUiLocalOperation()}
+  catch(error){
+    localBackupOperationInFlight=false;
+    setBackupNoticeState(String(error?.message||error),"warning");
+    return;
+  }
   el("backupLocalData").disabled=true;
   el("restoreLocalData").disabled=true;
   setBackupNoticeState("Menyiapkan backup data lokal...","waiting");
+  try{
   await writeLocalBackupOperation({
     id:`backup:${crypto.randomUUID()}`,
     kind:"backup",
@@ -2208,7 +1908,6 @@ el("backupLocalData").addEventListener("click",async()=>{
     lastError:"",
     startedAt:Date.now()
   });
-  try{
     const result=await createLocalBackup();
     const progress=`Backup v${result.backupVersion} siap: ${result.pdfs} PDF • ${formatBytes(result.bytes)} data lokal. Token aktivasi/session tidak ikut. Simpan file ini secara pribadi karena berisi salinan materi lokal.`;
     await writeLocalBackupOperation({phase:"completed",progress,lastError:"",completedAt:Date.now(),result});
@@ -2218,6 +1917,7 @@ el("backupLocalData").addEventListener("click",async()=>{
     await writeLocalBackupOperation({phase:"error",progress:"Backup gagal.",lastError:error,failedAt:Date.now()});
     setBackupNoticeState(error,"error");
   }finally{
+    await localOperationClaim.release().catch(()=>{});
     localBackupOperationInFlight=false;
     await refreshLocalBackupOperation().catch(()=>{});
     await refreshStorageProtection().catch(()=>{});
@@ -2243,6 +1943,15 @@ el("restoreLocalFile").addEventListener("change",async()=>{
   if(!file)return;
   localBackupOperationCancelled=false;
   localBackupOperationInFlight=true;
+  let localOperationClaim;
+  try{localOperationClaim=await claimUiLocalOperation()}
+  catch(error){
+    localBackupOperationInFlight=false;
+    el("restoreLocalFile").value="";
+    setBackupNoticeState(String(error?.message||error),"warning");
+    return;
+  }
+  try{
   activeRestoreEngineSession=RESTORE_ENGINE.createSession();
   el("backupLocalData").disabled=true;
   el("restoreLocalData").disabled=true;
@@ -2258,7 +1967,6 @@ el("restoreLocalFile").addEventListener("change",async()=>{
     startedAt:Date.now()
   });
   setBackupNoticeState("Memvalidasi backup...","waiting");
-  try{
     const result=await activeRestoreEngineSession.restore(file,{
       onProgress:async progress=>{
         await writeLocalBackupOperation({phase:"restoring",progress,lastError:""});
@@ -2282,6 +1990,7 @@ el("restoreLocalFile").addEventListener("change",async()=>{
     setBackupNoticeState(cancelled?"Restore dihentikan.":error,cancelled?"warning":"error");
   }finally{
     await send("LOCAL_CACHE_MUTATED").catch(()=>{});
+    await localOperationClaim.release().catch(()=>{});
     activeRestoreEngineSession=null;
     localBackupOperationInFlight=false;
     el("restoreLocalFile").value="";
@@ -2372,49 +2081,59 @@ el("code").addEventListener("blur",()=>{
 });
 
 el("stop").addEventListener("click",async()=>{await send("STOP_JOB");await refreshState()});
-el("securityLink").addEventListener("click",()=>chrome.tabs.create({url:"https://mentaliss.github.io/bukabmp/id/security/"}));
-el("privacyLink").addEventListener("click",()=>chrome.tabs.create({url:"https://mentaliss.github.io/bukabmp/id/privacy/"}));
-el("responsibleUseLink").addEventListener("click",()=>chrome.tabs.create({url:"https://mentaliss.github.io/bukabmp/id/responsible-use/"}));
-el("termsLink").addEventListener("click",()=>chrome.tabs.create({url:"https://mentaliss.github.io/bukabmp/id/terms/"}));
+document.getElementById("openLibrary")?.addEventListener("click",()=>{
+  chrome.tabs.create({url:chrome.runtime.getURL("my-bmp.html")});
+});
 
 (async()=>{
+  await self.BMP_CONTROL_SURFACE?.ready;
   reportTelemetry("extension_open");
-  await resolvePlatformOnce();
-  await refreshAndroidRestoreGuard();
-  latestStorageProtection=await storageProtectionSnapshot({requestPersistence:true}).catch(()=>null);
-  renderStorageProtection(latestStorageProtection);
-  await cleanupOrphanedLocalBackupTemps();
-  await refreshStorageProtection().catch(()=>{});
-  await loadDraft();
-  await refreshCloudSurface({force:true});
-  await refreshAccess();
-  await refreshVersion();
-  if(latestAccess?.active&&latestAccess?.refreshEligible&&!latestAccess?.reviewer){
-    await refreshActivationNow({quiet:true,force:false});
-  }
-  await refreshState();
-  await refreshCachePreview();
-  await refreshLocalBackupOperation();
-  setInterval(async()=>{await refreshAccess();await refreshState();await refreshLocalBackupOperation();await refreshAndroidRestoreGuard()},1000);
-  setInterval(()=>{
-    if(el("quizCard").style.display!=="none"){
-      refreshQuizLifecycleStatus().catch(()=>{});
-    }
-  },1500);
-  setInterval(()=>{
-    if(el("quizCard").style.display!=="none"){
-      refreshQuizGenerationStatus().catch(()=>{});
-    }
-  },2000);
-  // While the popup is open, keep campaign/card control near-realtime.
-  // Popup open/focus always bypasses cache; periodic refresh is a light safety net.
-  setInterval(()=>refreshCloudSurface({force:true}).catch(()=>{}),10_000);
-  window.addEventListener("focus",()=>refreshCloudSurface({force:true}).catch(()=>{}));
+  // Install polling immediately so a transient boot error can never leave the
+  // surface as a blank shell; each tick self-gates on document visibility.
+  setInterval(async()=>{
+    if(!surfaceVisible())return;
+    await refreshAccess().catch(()=>{});
+    if(!surfaceVisible())return;
+    await refreshState().catch(()=>{});
+    if(!surfaceVisible())return;
+    await refreshLocalBackupOperation().catch(()=>{});
+    if(!surfaceVisible())return;
+    await refreshAndroidRestoreGuard().catch(()=>{});
+  },1000);
+  // While the surface is open, keep campaign/card control near-realtime.
+  // Open/focus always bypasses cache; periodic refresh is a light safety net.
+  setInterval(()=>{if(surfaceVisible())refreshCloudSurface({force:true}).catch(()=>{})},10_000);
+  window.addEventListener("focus",()=>{if(surfaceVisible())refreshCloudSurface({force:true}).catch(()=>{})});
   document.addEventListener("visibilitychange",()=>{
     if(document.visibilityState==="visible")refreshCloudSurface({force:true}).catch(()=>{});
   });
   setInterval(async()=>{
-    const a=await send("GET_ACCESS_STATUS");
-    if(a?.pending)await checkPendingActivation({quiet:true});
+    if(!surfaceVisible())return;
+    const a=await send("GET_ACCESS_STATUS").catch(()=>null);
+    if(surfaceVisible()&&a?.pending)await checkPendingActivation({quiet:true}).catch(()=>{});
   },2000);
+
+  // Initial render is best-effort; the poll loop above repopulates on recovery.
+  try{
+    await resolvePlatformOnce();
+    refreshLibraryCard();
+    if(!surfaceVisible())return;
+    await refreshAndroidRestoreGuard();
+    if(!surfaceVisible())return;
+    latestStorageProtection=await storageProtectionSnapshot({requestPersistence:true}).catch(()=>null);
+    if(!surfaceVisible())return;
+    renderStorageProtection(latestStorageProtection);
+    await cleanupOrphanedLocalBackupTemps().catch(()=>{});
+    await refreshStorageProtection().catch(()=>{});
+    await loadDraft().catch(()=>{});
+    await refreshCloudSurface({force:true}).catch(()=>{});
+    await refreshAccess().catch(()=>{});
+    await refreshVersion().catch(()=>{});
+    if(latestAccess?.active&&latestAccess?.refreshEligible&&!latestAccess?.reviewer){
+      await refreshActivationNow({quiet:true,force:false}).catch(()=>{});
+    }
+    await refreshState().catch(()=>{});
+    await refreshCachePreview().catch(()=>{});
+    await refreshLocalBackupOperation().catch(()=>{});
+  }catch(_){}
 })();

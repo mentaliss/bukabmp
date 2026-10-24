@@ -5,19 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>BMP Terbuka — Pulihkan Backup</title>
   <style>
+    /* E-ink "ledger kertas" (fase bebas redesign, keputusan Owner 2026-10-16/17).
+       Presentasi saja: id/class hook JS & teks tidak berubah. Tint semantik
+       .state-* BEKU persis dari checkpoint cfc1f17 (dikunci eink-presentation). */
     *{box-sizing:border-box}
-    body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#fff;color:#161616}
+    body{font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#fff;color:#161616}
     main{max-width:640px;margin:0 auto;padding:24px 20px 36px}
-    h1{font-size:22px;margin:0}.sub{font-size:13px;color:#666;margin-top:5px}
-    .card{margin-top:18px;padding:16px;border:1px solid #ddd;border-radius:12px;background:#fafafa}
-    label{display:block;font-size:13px;font-weight:700}
-    input[type=file]{display:block;width:100%;margin-top:8px;padding:11px;border:1px solid #bbb;border-radius:8px;background:#fff;font:inherit}
-    .status{margin-top:14px;padding:10px 11px;border:1px solid #e0e0e0;border-radius:9px;background:#fff;white-space:pre-wrap;font-size:13px;line-height:1.5}.state-waiting{background:#fff9ed;border-color:#eadbb8}.state-success{background:#f4f8f3;border-color:#d6e2d5}.state-warning{background:#fff8e8;border-color:#ead3a5}.state-error{background:#fcf3f4;border-color:#ead7da}.state-info{background:#f4f7f9;border-color:#d8e0e5}
-    .warning{display:none;margin-top:12px;padding:11px;border:1px solid #ead3a5;border-radius:9px;background:#fff8e8;font-size:12px;line-height:1.45}
+    h1{font-size:19px;margin:0;letter-spacing:-.01em}.sub{font-size:12px;color:#6f6f6f;margin-top:5px}
+    .card{margin-top:18px;padding:16px;border:1px solid #d8d8d8;border-radius:2px;background:#fafafa}
+    label{display:block;font-size:12.5px;font-weight:700}
+    input[type=file]{display:block;width:100%;margin-top:8px;padding:11px;border:1px solid #c9c9c9;border-radius:2px;background:#fff;font:inherit;font-size:12px}
+    .status{margin-top:14px;padding:10px 11px;border:1px solid #e0e0e0;border-radius:2px;background:#fff;white-space:pre-wrap;font-size:12.5px;line-height:1.55}.state-waiting{background:#fff9ed;border-color:#eadbb8}.state-success{background:#f4f8f3;border-color:#d6e2d5}.state-warning{background:#fff8e8;border-color:#ead3a5}.state-error{background:#fcf3f4;border-color:#ead7da}.state-info{background:#f4f7f9;border-color:#d8e0e5}
+    .warning{display:none;margin-top:12px;padding:11px;border:1px solid #ead3a5;border-radius:2px;background:#fff8e8;font-size:12px;line-height:1.45}
     .actions{display:flex;gap:9px;margin-top:14px}
-    button{flex:1;padding:10px 12px;border:1px solid #c7c7c7;border-radius:8px;background:#fff;font:inherit;font-weight:700}
-    button:disabled,input:disabled{opacity:.5}
+    button{flex:1;padding:10px 12px;border:1px solid #161616;border-radius:2px;background:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+    button#close{background:#161616;color:#fff}
+    button:disabled,input:disabled{opacity:.45}
+    @media (prefers-reduced-motion:reduce){*{transition:none!important}}
   </style>
+  <link rel="stylesheet" href="eink.css">
 </head>
 <body>
   <main>

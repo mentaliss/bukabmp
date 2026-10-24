@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BMP Terbuka</title>
+<link rel="stylesheet" href="launcher.css">
+</head>
+<body inert>
+  <main>
+    <header class="brand">
+      <div class="brandMark"><img src="icons/icon48.png" width="18" height="18" alt=""></div>
+      <div class="brandName">BMP Terbuka</div>
+      <button id="alternatePopup" class="maximize" type="button" title="Buka Side Panel" aria-label="Buka Side Panel">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
+      </button>
+    </header>
+
+    <section class="status" aria-live="polite">
+      <div class="statusHead">
+        <span id="launcherDot" class="dot" aria-hidden="true"></span>
+        <strong id="launcherStatus">Menghubungkan…</strong>
+      </div>
+      <div id="launcherContext" class="context"></div>
+      <div id="launcherProgressWrap" class="progressWrap" hidden>
+        <div class="progressMeta">
+          <span id="launcherPages">Halaman 0 / 0</span>
+          <span id="launcherPercent"></span>
+        </div>
+        <div class="track"><div id="launcherBar" class="bar"></div></div>
+        <div id="launcherOcr" class="ocr"></div>
+      </div>
+      <div id="controlSurfaceNotice" class="notice" role="status"></div>
+    </section>
+
+    <section class="resume" hidden id="resumeWrap">
+      <button id="resumeJob" class="resumeButton" type="button">Lanjutkan proses</button>
+      <div id="launcherNotice" class="notice" role="status"></div>
+    </section>
+
+    <button id="stop" class="stop" type="button" hidden title="Hentikan proses">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg>
+      <span>Hentikan</span>
+    </button>
+  </main>
+  <script src="control-surface.js"></script>
+  <script src="launcher.js"></script>
+</body>
+</html>

@@ -108,11 +108,35 @@
     };
   }
 
+  // Batch 29 (label halaman hasil pencarian MyBMP): batas halaman dihitung
+  // dengan pipeline penggabungan yang SAMA dengan finishModule di
+  // offscreen.js — sort nomor halaman naik, trim, buang kosong, join "\n\n",
+  // lalu slice(0, MAX_QUIZ_SOURCE_CHARS). Hasil: daftar {page,start} dengan
+  // start = offset karakter pertama teks halaman itu di sanitizedText
+  // gabungan; halaman yang seluruhnya terpotong oleh slice tidak muncul.
+  // Additif murni: sanitizedText/contentHash tidak berubah sama sekali.
+  function pageBoundsForSanitizedText(entries){
+    const ordered=[...(entries||[])]
+      .sort((a,b)=>Number(a[0])-Number(b[0]))
+      .map(([page,text])=>({page:Number(page),text:String(text||"").trim()}))
+      .filter(item=>item.text);
+    const bounds=[];
+    let offset=0;
+    for(let i=0;i<ordered.length;i++){
+      if(i>0)offset+=2;
+      if(offset>=MAX_QUIZ_SOURCE_CHARS)break;
+      bounds.push({page:ordered[i].page,start:offset});
+      offset+=ordered[i].text.length;
+    }
+    return bounds;
+  }
+
   root.BMP_QUIZ_LOCAL=Object.freeze({
     MAX_QUIZ_SOURCE_CHARS,
     sanitizeQuizSourceText,
     analyzeQuizSourcePages,
     sha256Hex,
-    fingerprintSanitizedText
+    fingerprintSanitizedText,
+    pageBoundsForSanitizedText
   });
 })(typeof self!=="undefined"?self:globalThis);

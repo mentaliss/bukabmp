@@ -1,0 +1,62 @@
+/* Launcher — redesain e-ink "ledger kertas" (fase bebas redesign, keputusan
+   Owner 2026-10-16/17; mockup disetujui). Presentasi saja: semua id/class
+   hook JS dan perilaku tidak berubah. Warna dot status TETAP semantik
+   (fungsional); sisanya kertas + tinta, radius tajam 2px, tanpa shadow. */
+:root{color-scheme:light;font:13px/1.55 "Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+body{margin:0;min-width:240px;background:#fff;color:#161616}
+main{display:flex;flex-direction:column;gap:14px;padding:14px}
+
+/* Header */
+.brand{display:flex;align-items:center;gap:9px}
+.brandMark{display:grid;place-items:center;width:30px;height:30px;border-radius:2px;background:#fafafa;border:1px solid #161616}
+.brandMark img{width:18px;height:18px;display:block}
+.brandName{flex:1;font-size:13.5px;font-weight:700;letter-spacing:-.01em}
+button.maximize{flex:0 0 auto;display:grid;place-items:center;width:30px;height:30px;margin:0;padding:5px;background:#fff;border:1px solid #c9c9c9;border-radius:2px;color:#161616;cursor:pointer}
+button.maximize:hover{border-color:#161616}
+button.maximize:active{background:#fafafa}
+button.maximize:focus-visible{outline:2px solid #161616;outline-offset:2px}
+svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9}
+
+/* Status */
+.status{display:flex;flex-direction:column;gap:6px;overflow-wrap:anywhere}
+.statusHead{display:flex;align-items:center;gap:7px}
+/* Warna dot = sinyal status fungsional, dipertahankan. */
+.dot{width:8px;height:8px;border-radius:50%;background:#9aa0a6;flex:0 0 auto}
+.dot.run{background:#2f9e63}
+.dot.done{background:#2f9e63}
+.dot.error{background:#d64545}
+.dot.warn{background:#d98719}
+#launcherStatus{font-size:13px;font-weight:700;letter-spacing:-.01em}
+.context{font-size:11.5px;color:#6f6f6f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Progress */
+.progressWrap{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.progressMeta{display:flex;justify-content:space-between;font-size:11px;color:#4c4c4c}
+#launcherPercent{font-variant-numeric:tabular-nums;font-weight:700;color:#161616}
+.track{height:7px;border-radius:2px;border:1px solid #c9c9c9;background:#fff;overflow:hidden}
+.bar{height:100%;width:0;border-radius:0;background:#161616;transition:width .2s ease}
+.ocr{font-size:11px;color:#6f6f6f;line-height:1.45}
+.notice{font-size:11px;color:#6f6f6f;line-height:1.45}
+.notice:empty{display:none}
+
+/* Stop — bahaya tetap terlihat jelas tapi tidak bersaing dengan aksi utama */
+button.stop{display:flex;align-items:center;justify-content:center;gap:7px;padding:9px 12px;margin:0;border:1px solid #8a1f1f;border-radius:2px;background:#fff;color:#8a1f1f;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+button.stop[hidden]{display:none}
+button.stop:hover{background:#fcf3f4}
+button.stop:active{background:#f6e4e6}
+button.stop:focus-visible{outline:2px solid #8a1f1f;outline-offset:2px}
+button.stop svg{width:12px;height:12px}
+
+/* Item 10: tombol kontekstual "Lanjutkan proses" di launcher */
+.resume{display:flex;flex-direction:column;gap:6px}
+.resume[hidden]{display:none}
+button.resumeButton{padding:9px 12px;margin:0;border:1px solid #161616;border-radius:2px;background:#161616;color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+button.resumeButton:hover{background:#000}
+button.resumeButton:active{transform:translateY(1px)}
+button.resumeButton:focus-visible{outline:2px solid #161616;outline-offset:2px}
+button.resumeButton:disabled{opacity:.45;cursor:default}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important}
+}

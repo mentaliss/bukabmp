@@ -185,6 +185,16 @@ function git(args){
 const sourceCommit=git(["rev-parse","HEAD"]);
 const commitEpoch=git(["show","-s","--format=%ct","HEAD"]);
 
+// The package is built from the live working tree (including extension/config.js).
+// If that tree is dirty, HEAD no longer represents the packaged bytes, so a receipt
+// that only reported source_commit would attest a commit that is not the real source.
+// Kemasan tetap boleh dibuat (alur lokal Owner: bump versi -> package -> commit),
+// tetapi receipt harus mengaku jujur bahwa sumbernya kotor (R2-OPS-012).
+const sourceDirty=git(["status","--porcelain"]).length>0;
+if(sourceDirty){
+  console.warn("[package-extension] PERINGATAN: worktree kotor (git status --porcelain tidak kosong). Paket dibangun dari file kerja, jadi receipt menandai source_dirty=true dan source_commit (HEAD) TIDAK merepresentasikan isi paket.");
+}
+
 const env={...process.env,SOURCE_DATE_EPOCH:commitEpoch};
 execFileSync(process.execPath,[
   path.join(ROOT,"tools","build-release.mjs"),
@@ -217,6 +227,7 @@ const packageFiles=listFiles(packageDir).map(rel=>{
 const receipt={
   schema_version:1,
   source_commit:sourceCommit,
+  source_dirty:sourceDirty,
   source_commit_epoch:Number(commitEpoch),
   distribution_channel:channel,
   manifest_version:version,
@@ -241,6 +252,7 @@ console.log(JSON.stringify({
   integrity:receiptPath,
   sha256:receipt.zip_sha256,
   source_commit:sourceCommit,
+  source_dirty:sourceDirty,
   zip_compression:"deflate",
   files:packageFiles.length
 },null,2));

@@ -3,8 +3,6 @@
   window.__BMP_TERBUKA__ = true;
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const PAGE_FETCH_MAX_ATTEMPTS = 3;
-  const PAGE_FETCH_RETRY_BASE_MS = 750;
 
   function passwordVisible() {
     const elems = [...document.querySelectorAll('input[type="password"]')];
@@ -23,17 +21,18 @@
   }
 
   function positivePageCount(value, maxPages) {
-    const n = Number.parseInt(String(value ?? "").trim(), 10);
+    if (!/^[1-9]\d*$/.test(String(value ?? "").trim())) return null;
+    const n = Number(String(value).trim());
     if (!Number.isInteger(n) || n < 1 || n > maxPages) return null;
     return n;
   }
 
-  function detectTotalPages(maxPages) {
+  function detectTotalPages(maxPages, strict = false) {
     const candidates = [];
     const seen = new Set();
 
     const addCandidate = (value, score, source) => {
-      const n = positivePageCount(value, maxPages);
+      const n = positivePageCount(value, strict ? Number.MAX_SAFE_INTEGER : maxPages);
       if (!n) return;
       const key = `${n}:${score}:${source}`;
       if (seen.has(key)) return;
@@ -107,32 +106,11 @@
       addCandidate(total, score, "visible-page-counter");
     }
 
+    if (strict && (new Set(candidates.map(c => c.pages)).size > 1 || candidates.some(c => c.pages > maxPages))) {
+      throw new Error("Jumlah halaman reader bertentangan atau melebihi batas; modul tidak disimpan.");
+    }
     candidates.sort((a, b) => b.score - a.score);
     return candidates[0] || null;
-  }
-
-  async function detectTotalPagesWithRetry(maxPages) {
-    let previousPages = null;
-    let stableReads = 0;
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const found = detectTotalPages(maxPages);
-      if (found) {
-        if (found.pages === previousPages) {
-          stableReads++;
-          if (stableReads >= 2) return found;
-        } else {
-          previousPages = found.pages;
-          stableReads = 0;
-        }
-      } else {
-        previousPages = null;
-        stableReads = 0;
-      }
-      await sleep(250);
-    }
-    // No stable count: use safe sentinel probing instead of trusting a
-    // transient toolbar value such as an initial "1 / 1".
-    return null;
   }
 
   function pageRejected() {
@@ -151,370 +129,257 @@
     });
   }
 
-  async function fetchPage(code, moduleNo, pageNo) {
-    const url =
-      `/reader/services/view.php?doc=M${moduleNo}` +
-      `&format=jpg&subfolder=${encodeURIComponent(code)}/&page=${pageNo}`;
-
-    let resp;
-    try {
-      resp = await fetch(url, {
-        method: "GET",
-        credentials: "include",
-        redirect: "follow",
-        cache: "no-store"
-      });
-    } catch (e) {
-      return {kind: "network_error", retryable: true, reason: String(e)};
+  function renderedPageAssociation(el) {
+    const candidates = new Set();
+    for (let node = el, depth = 0; node && depth < 6; node = node.parentElement, depth++) {
+      for (const attr of ["data-page-number", "data-page", "data-pagenum"]) {
+        const value = node.getAttribute?.(attr);
+        if (/^[1-9]\d{0,2}$/.test(value || "")) candidates.add(Number(value));
+      }
+      const match = String(node.id || "").match(/^(?:page|pagecontainer|pagecanvas|canvaspage)[_-]?(\d+)$/i);
+      if (match && Number(match[1]) > 0) candidates.add(Number(match[1]));
     }
-
-    const contentType = (resp.headers.get("content-type") || "").toLowerCase();
-
-    if (resp.status === 403 || resp.status === 429) {
-      return {
-        kind: "blocked",
-        status: resp.status,
-        reason: `HTTP ${resp.status}`
-      };
-    }
-
-    if (resp.status === 401) {
-      return {
-        kind: "login_required",
-        status: resp.status,
-        reason: "HTTP 401"
-      };
-    }
-
-    if (resp.status >= 500 || resp.status === 408 || resp.status === 425) {
-      return {
-        kind: "network_error",
-        retryable: true,
-        status: resp.status,
-        reason: `HTTP ${resp.status}`
-      };
-    }
-
-    if (resp.status >= 400 && resp.status !== 404) {
-      return {
-        kind: "network_error",
-        retryable: false,
-        status: resp.status,
-        reason: `HTTP ${resp.status}`
-      };
-    }
-
-    if (!contentType.startsWith("image/")) {
-      let text = "";
+    if (el.tagName === "IMG") {
       try {
-        text = (await resp.text()).toLowerCase();
+        const u = new URL(el.currentSrc || el.src, location.href);
+        if (u.origin === new URL(location.href).origin && u.pathname === "/reader/services/view.php") {
+          const page = u.searchParams.get("page");
+          if (/^[1-9]\d{0,2}$/.test(page || "")) candidates.add(Number(page));
+        }
       } catch (_) {}
-
-      if (text.includes("request rejected") ||
-          text.includes("support id") ||
-          text.includes("403 akses ditolak") ||
-          text.includes("akses ditolak")) {
-        return {
-          kind: "blocked",
-          status: resp.status,
-          reason: "Request Rejected / response blokir"
+    }
+    return {page: candidates.size === 1 ? [...candidates][0] : null,
+      mapping: candidates.size === 1 ? "DOM_OR_RENDERED_IMAGE" : candidates.size ? "CONFLICT" : "UNKNOWN"};
+  }
+  // Load each official page through browser IMG, never fetch/XHR.
+  async function loadBrowserPageImage(cfg, page, stillActive) {
+    verifyRenderedDocument(cfg);
+    const image = document.createElement("img");
+    image.style.cssText = "position:fixed;left:-10000px;top:0;width:1px;height:1px;pointer-events:none";
+    image.alt = "";
+    const url = `/reader/services/view.php?doc=M${cfg.module}&format=jpg&subfolder=${encodeURIComponent(cfg.code + "/")}&page=${page}`;
+    try {
+      await new Promise((resolve, reject) => {
+        let settled = false;
+        const finish = error => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          clearInterval(cancelTimer);
+          image.onload = image.onerror = null;
+          if (error) reject(error); else resolve();
         };
+        const timer = setTimeout(() => finish(new Error(`Pemuatan gambar halaman ${page} melewati batas waktu.`)), 20000);
+        const cancelTimer = setInterval(() => {
+          if (!stillActive()) finish(new Error("Pemrosesan dibatalkan."));
+        }, 100);
+        image.onload = () => finish();
+        image.onerror = () => finish(new Error(`Reader tidak memuat gambar halaman ${page}; tidak ada retry fetch/XHR.`));
+        try {
+          document.body.append(image);
+          image.src = url;
+        } catch (_) {
+          finish(new Error("Pemasangan gambar reader gagal."));
+        }
+      });
+      if (!stillActive()) throw new Error("Pemrosesan dibatalkan.");
+      verifyRenderedDocument(cfg, image);
+      if (renderedPageAssociation(image).page !== page || !image.complete ||
+          image.naturalWidth < 600 || image.naturalHeight < 600 ||
+          image.naturalWidth * image.naturalHeight > 16000000) {
+        throw new Error(`Gambar halaman ${page} salah atau masih placeholder.`);
       }
-
-      if (text.includes("password") &&
-          (text.includes("username") ||
-           text.includes("single sign-on") ||
-           text.includes("login"))) {
-        return {
-          kind: "login_required",
-          status: resp.status,
-          reason: "Response login"
-        };
-      }
-
-      return {
-        kind: "not_image",
-        status: resp.status,
-        contentType
-      };
+      return image;
+    } catch (error) {
+      image.remove();
+      throw error;
     }
-
-    if (!resp.ok) {
-      return {
-        kind: "not_image",
-        status: resp.status,
-        contentType
-      };
-    }
-
-    const blob = await resp.blob();
-    if (blob.size < 300) {
-      return {
-        kind: "not_image",
-        status: resp.status,
-        contentType,
-        reason: "Image terlalu kecil"
-      };
-    }
-
-    return {
-      kind: "image",
-      status: resp.status,
-      contentType,
-      size: blob.size,
-      dataUrl: await blobToDataUrl(blob)
-    };
   }
 
-  async function fetchPageWithRetry(code, moduleNo, pageNo, shouldContinue = () => true) {
-    let last = null;
-    for (let attempt = 1; attempt <= PAGE_FETCH_MAX_ATTEMPTS; attempt++) {
-      last = await fetchPage(code, moduleNo, pageNo);
-      if (last.kind !== "network_error" || last.retryable === false) {
-        return last;
+  function verifyRenderedDocument(cfg, image = null) {
+    const expectedFolder = `${String(cfg.code || "").toUpperCase()}/`;
+    for (const value of [location.href, ...(image ? [image.currentSrc || image.src] : [])]) {
+      const url = new URL(value, location.href);
+      const doc = url.searchParams.get("doc");
+      if (url.origin !== "https://pustaka.ut.ac.id" ||
+          !["/reader/index.php", "/reader/services/view.php"].includes(url.pathname) ||
+          ![`M${cfg.module}`, `M${cfg.module}.pdf`].includes(doc) ||
+          url.searchParams.get("subfolder")?.toUpperCase() !== expectedFolder) {
+        throw new Error("Identitas modul reader belum sesuai job; proses dihentikan.");
       }
-      if (attempt >= PAGE_FETCH_MAX_ATTEMPTS || !shouldContinue()) {
-        return {
-          ...last,
-          attempts: attempt,
-          reason: `${last.reason || "Gangguan jaringan"} setelah ${attempt} percobaan`
-        };
-      }
-      await sleep(PAGE_FETCH_RETRY_BASE_MS * attempt);
     }
-    return last;
+  }
+
+  async function captureRenderedImage(image, page, seen, stillActive) {
+    const width = image.naturalWidth, height = image.naturalHeight;
+    const source = image.currentSrc || image.src;
+    const canvas = document.createElement("canvas");
+    canvas.width = width; canvas.height = height;
+    try {
+      const ctx = canvas.getContext("2d", {willReadFrequently: true});
+      ctx.drawImage(image, 0, 0);
+      const pixels = ctx.getImageData(0, 0, width, height).data;
+      let uniform = true, transparent = true;
+      for (let i = 0; i < pixels.length; i += 4) {
+        if (pixels[i + 3] !== 0) transparent = false;
+        if (pixels[i] !== pixels[0] || pixels[i + 1] !== pixels[1] ||
+            pixels[i + 2] !== pixels[2] || pixels[i + 3] !== pixels[3]) uniform = false;
+        if (!uniform && !transparent) break;
+      }
+      // An intentional blank also needs review, not silent omission.
+      if (uniform || transparent) throw new Error(`Halaman ${page} tampak blank; proses dihentikan untuk pemeriksaan.`);
+      const hashBytes = new Uint8Array(await crypto.subtle.digest("SHA-256", pixels));
+      const hash = `${width}x${height}:` + [...hashBytes].map(n => n.toString(16).padStart(2, "0")).join("");
+      if (!stillActive()) return null;
+      if (seen.has(hash)) throw new Error(`Halaman ${page} identik dengan halaman ${seen.get(hash)}; proses dihentikan.`);
+      const blob = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("Ekspor gambar melewati batas waktu.")), 5000);
+        canvas.toBlob(value => {
+          clearTimeout(timer);
+          if (value?.size) resolve(value); else reject(new Error("Ekspor gambar gagal."));
+        }, "image/png");
+      });
+      const dataUrl = await blobToDataUrl(blob);
+      if (!stillActive()) return null;
+      if (!image.complete || image.naturalWidth !== width || image.naturalHeight !== height ||
+          (image.currentSrc || image.src) !== source || renderedPageAssociation(image).page !== page) {
+        throw new Error(`Gambar halaman ${page} berubah saat disalin; proses dihentikan.`);
+      }
+      seen.set(hash, page);
+      return dataUrl;
+    } catch (e) {
+      if (e?.name === "SecurityError") throw new Error("Reader tidak mengizinkan pembacaan piksel gambar.");
+      throw e;
+    } finally {
+      canvas.width = 0; canvas.height = 0;
+    }
   }
 
   let activeRunId = "";
 
-  async function runModule(cfg) {
-    const {runId, code, module, delayMs, maxPages} = cfg;
+  async function runRenderedModule(cfg) {
+    const {runId, module, maxPages, delayMs} = cfg;
     const stillActive = () => Boolean(runId) && activeRunId === runId;
-    if (!stillActive()) return;
-
-    if (pageRejected()) {
-      await chrome.runtime.sendMessage({
-        type: "MODULE_RESULT",
-        runId,
-        module,
-        result: "blocked",
-        page: 0,
-        reason: "Halaman viewer sudah Request Rejected"
-      });
-      return;
+    const seen = new Map();
+    // Terminal module outcomes are reported as typed signals so the background
+    // can arm the LOGIN_REQUIRED resume context (Batch 3 contract) or stop
+    // safely on server rejection; a generic "error" would hide both and kill
+    // the auto-resume chain. Clearing the active run lets READER_READY re-arm
+    // after re-login.
+    let terminated = false;
+    async function reportTerminal(result) {
+      if (terminated || !stillActive()) return;
+      terminated = true;
+      activeRunId = "";
+      activeRunKey = "";
+      await chrome.runtime.sendMessage({type: "MODULE_RESULT", runId, module, result});
     }
-
-    if (passwordVisible()) {
-      await chrome.runtime.sendMessage({
-        type: "MODULE_RESULT",
-        runId,
-        module,
-        result: "login_required"
-      });
-      return;
-    }
-
-    let downloaded = 0;
-    const detected = await detectTotalPagesWithRetry(maxPages);
-    const totalPages = detected?.pages || null;
-    const pageLimit = totalPages || maxPages;
-
-    for (let page = 1; page <= pageLimit; page++) {
+    try {
+      let totalPages = null, previousTotal = null, stableTotal = 0;
+      for (let attempt = 0; attempt < 120 && stillActive(); attempt++) {
+        if (passwordVisible()) return reportTerminal("login_required");
+        if (pageRejected()) return reportTerminal("blocked");
+        verifyRenderedDocument(cfg);
+        const detected = detectTotalPages(maxPages, true);
+        if (detected?.pages && detected.pages === previousTotal) stableTotal++;
+        else { previousTotal = detected?.pages || null; stableTotal = 0; }
+        if (stableTotal >= 2) { totalPages = detected.pages; break; }
+        await sleep(500);
+      }
       if (!stillActive()) return;
-      await chrome.runtime.sendMessage({
-        type: "PAGE_PROGRESS",
-        runId,
-        module,
-        page,
-        totalPages
-      });
-
-      const r = await fetchPageWithRetry(code, module, page, stillActive);
-      if (!stillActive()) return;
-
-      if (r.kind === "blocked") {
-        await chrome.runtime.sendMessage({
-          type: "MODULE_RESULT",
-          runId,
-          module,
-          result: "blocked",
-          page,
-          reason: r.reason || `HTTP ${r.status}`
-        });
-        return;
-      }
-
-      if (r.kind === "login_required") {
-        await chrome.runtime.sendMessage({
-          type: "MODULE_RESULT",
-          runId,
-          module,
-          result: "login_required",
-          page
-        });
-        return;
-      }
-
-      if (r.kind === "network_error") {
-        await chrome.runtime.sendMessage({
-          type: "MODULE_RESULT",
-          runId,
-          module,
-          result: "error",
-          page,
-          reason: r.reason
-        });
-        return;
-      }
-
-      if (r.kind !== "image") {
-        if (totalPages) {
-          await chrome.runtime.sendMessage({
-            type: "MODULE_RESULT",
-            runId,
-            module,
-            result: "error",
-            page,
-            reason:
-              `Halaman ${page}/${totalPages} tidak menghasilkan image ` +
-              `(HTTP ${r.status || 0}, ${r.contentType || "no content-type"}). ` +
-              "Modul tidak disimpan agar PDF tidak terpotong."
-          });
-          return;
-        }
-
-        if (page === 1 && downloaded === 0) {
-          await chrome.runtime.sendMessage({
-            type: "MODULE_RESULT",
-            runId,
-            module,
-            result: "missing_module",
-            page: 1,
-            reason:
-              `Page 1 bukan image (HTTP ${r.status}, ` +
-              `${r.contentType || "no content-type"})`
-          });
-          return;
-        }
-
-        // With no trusted page count, one missing/non-image response is not
-        // enough to declare end-of-module: a single missing page in the middle
-        // would silently produce a truncated PDF. Confirm the sentinel with the
-        // following page. Known page-count modules never need this extra probe.
-        const nextProbe = await fetchPageWithRetry(code, module, page + 1, stillActive);
+      if (!totalPages) throw new Error("Jumlah halaman belum dapat dipastikan; modul tidak disimpan.");
+      for (let page = 1; page <= totalPages && stillActive(); page++) {
+        await chrome.runtime.sendMessage({type: "PAGE_PROGRESS", runId, module, page, totalPages});
         if (!stillActive()) return;
-
-        if (nextProbe.kind === "blocked") {
-          await chrome.runtime.sendMessage({
-            type: "MODULE_RESULT",
-            runId,
-            module,
-            result: "blocked",
-            page: page + 1,
-            reason: nextProbe.reason || `HTTP ${nextProbe.status}`
-          });
-          return;
+        if (passwordVisible()) return reportTerminal("login_required");
+        if (pageRejected()) return reportTerminal("blocked");
+        const image = await loadBrowserPageImage(cfg, page, stillActive);
+        if (!stillActive()) { image.remove(); return; }
+        let dataUrl;
+        try {
+          verifyRenderedDocument(cfg, image);
+          if (detectTotalPages(maxPages, true)?.pages !== totalPages) throw new Error("Jumlah halaman reader berubah; modul tidak disimpan.");
+          dataUrl = await captureRenderedImage(image, page, seen, stillActive);
         }
-        if (nextProbe.kind === "login_required") {
-          await chrome.runtime.sendMessage({
-            type: "MODULE_RESULT",
-            runId,
-            module,
-            result: "login_required",
-            page: page + 1
-          });
-          return;
-        }
-        if (nextProbe.kind === "network_error") {
-          await chrome.runtime.sendMessage({
-            type: "MODULE_RESULT",
-            runId,
-            module,
-            result: "error",
-            page: page + 1,
-            reason: nextProbe.reason
-          });
-          return;
-        }
-        if (nextProbe.kind === "image") {
-          await chrome.runtime.sendMessage({
-            type: "MODULE_RESULT",
-            runId,
-            module,
-            result: "error",
-            page,
-            reason:
-              `Halaman ${page} tidak tersedia tetapi halaman ${page + 1} masih ada. ` +
-              "Modul tidak disimpan agar PDF tidak terpotong."
-          });
-          return;
-        }
-
-        await chrome.runtime.sendMessage({
-          type: "MODULE_RESULT",
-          runId,
-          module,
-          result: "complete",
-          pages: downloaded
-        });
-        return;
+        finally { image.remove(); }
+        if (!stillActive() || !dataUrl) return;
+        verifyRenderedDocument(cfg, image);
+        if (detectTotalPages(maxPages, true)?.pages !== totalPages) throw new Error("Jumlah halaman reader berubah; modul tidak disimpan.");
+        const ocr = await chrome.runtime.sendMessage({type: "OCR_PAGE", runId, module, page, dataUrl});
+        if (!stillActive()) return;
+        if (!ocr?.ok) throw new Error(ocr?.error || "OCR halaman gagal.");
+        verifyRenderedDocument(cfg);
+        if (detectTotalPages(maxPages, true)?.pages !== totalPages) throw new Error("Jumlah halaman reader berubah; modul tidak disimpan.");
+        if (page < totalPages) await sleep(Math.max(700, delayMs || 0));
       }
-
-      // OCR is intentionally awaited page-by-page:
-      // no giant in-memory queue, no request burst to BMP.
-      const ocr = await chrome.runtime.sendMessage({
-        type: "OCR_PAGE",
-        runId,
-        module,
-        page,
-        dataUrl: r.dataUrl
-      });
-
-      if (!ocr?.ok) {
-        await chrome.runtime.sendMessage({
-          type: "MODULE_RESULT",
-          runId,
-          module,
-          result: "error",
-          page,
-          reason: ocr?.error || "OCR page gagal"
-        });
-        return;
-      }
-
-      if (!stillActive()) return;
-      downloaded++;
-
-      if (totalPages && page === pageLimit) {
-        await chrome.runtime.sendMessage({
-          type: "MODULE_RESULT",
-          runId,
-          module,
-          result: "complete",
-          pages: downloaded,
-          totalPages
-        });
-        return;
-      }
-
-      await sleep(Math.max(700, delayMs));
+      if (stillActive()) await chrome.runtime.sendMessage({type: "MODULE_RESULT", runId, module, result: "complete", pages: totalPages, totalPages});
+    } catch (e) {
+      if (stillActive()) await chrome.runtime.sendMessage({type: "MODULE_RESULT", runId, module, result: "error", reason: e?.message || "Pemrosesan gambar reader gagal."});
     }
+  }
 
-    if (!stillActive()) return;
-    await chrome.runtime.sendMessage({
-      type: "MODULE_RESULT",
-      runId,
-      module,
-      result: "error",
-      page: maxPages,
-      reason:
-        `Mencapai maxPages=${maxPages}; modul tidak dianggap selesai.`
-    });
+  async function runModule(cfg) {
+    return runRenderedModule(cfg);
   }
 
   let activeRunKey = "";
 
+  // Reader readiness: the page must be interactive, not on a login wall, and
+  // not rejected before a pending job may auto-resume on this tab. READY is
+  // fired once per reader load; background re-arms it per navigation.
+  let readySent = false;
+  let wallSent = false;
+  const sendReady = () => {
+    if (readySent || activeRunId) return;
+    if (pageRejected()) return;
+    if (passwordVisible()) {
+      // Keputusan Owner (Batch 18, 2026-10-13): login wall TIDAK BOLEH diam.
+      // READY yang ditahan tanpa kabar membuat plan pendingResume tetap hidup
+      // dan memicu auto-resume begitu user login — jalur auto yang sudah
+      // dibatalkan. Lapor wall sekali supaya background membuang plan dan
+      // menuntun ke tombol manual.
+      if (!wallSent) {
+        wallSent = true;
+        // Batch 25: sendMessage bisa THROW sinkron bila tab ini masih memegang
+        // context ekstensi generasi lama (ekstensi di-update/reload saat tab
+        // terbuka) — "Extension context invalidated". .catch() pada nilai balik
+        // tidak menangkap throw sinkron, jadi dibungkus try/catch. Sinyal wall
+        // hilang, tapi background punya plan watchdog yang akan memuat ulang
+        // tab ini sehingga content script segar terinjeksi.
+        try {
+          chrome.runtime.sendMessage({
+            type: "READER_LOGIN_WALL",
+            url: location.href
+          }).catch(() => {});
+        } catch (_) {}
+      }
+      return;
+    }
+    readySent = true;
+    // Batch 25: alasan sama seperti WALL di atas — READY yang gagal terkirim
+    // karena context stale dipulihkan oleh plan watchdog background (reload tab).
+    try {
+      chrome.runtime.sendMessage({
+        type: "READER_READY",
+        url: location.href
+      }).catch(() => {});
+    } catch (_) {}
+  };
+  if (document.readyState === "complete") setTimeout(sendReady, 350);
+  else window.addEventListener("load", () => setTimeout(sendReady, 350), {once: true});
+  new MutationObserver(sendReady).observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.type === "BMP_RESET_READY") {
+      readySent = false;
+      wallSent = false;
+      setTimeout(sendReady, 350);
+      sendResponse({ok: true});
+      return;
+    }
     if (msg.type === "STOP_MODULE") {
       const runId = String(msg.runId || "");
       if (!runId || activeRunId === runId) {

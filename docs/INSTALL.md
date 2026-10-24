@@ -1,80 +1,49 @@
 # Instalasi BMP Terbuka
 
-Panduan pengguna yang paling lengkap tersedia di website: https://mentaliss.github.io/bukabmp/id/docs/install/
-
-Untuk versi stabil dan status Store terbaru, gunakan: https://mentaliss.github.io/bukabmp/id/status/
-
 ## Persyaratan
 
-- Microsoft Edge Desktop atau Android untuk jalur utama Microsoft Edge Add-ons.
-- Google Chrome Desktop untuk jalur manual dari package ZIP release resmi.
+- Desktop: Google Chrome atau Microsoft Edge yang mendukung Manifest V3.
+- Android: Microsoft Edge Stable dengan dukungan extension melalui Microsoft Edge Add-ons. Edge Canary tetap menjadi jalur fallback/testing bila Stable belum kompatibel pada perangkat tertentu.
 - Akun Anda sendiri pada portal reader yang didukung.
 - Telegram untuk aktivasi komunitas.
-- Internet saat mengakses sumber dan aktivasi.
+- Internet saat mengakses sumber dan saat aktivasi.
 
-OCR sudah dibundel di package release.
+OCR sudah ada di dalam paket release.
 
-## Microsoft Edge — Desktop
+## Desktop — Chrome / Edge
 
-Jalur utama adalah **Microsoft Edge Add-ons**.
+1. Buka halaman **Releases** repo `mentaliss/bukabmp` dan download `BMP-Terbuka-v<VERSION>.zip`.
+2. Extract ZIP ke folder tetap.
+3. Buka `chrome://extensions` atau `edge://extensions`.
+4. Aktifkan **Developer mode**.
+5. Klik **Load unpacked** dan pilih folder hasil extract yang berisi `manifest.json`.
+6. Buka popup **BMP Terbuka** dan selesaikan aktivasi Telegram.
+7. Login ke portal reader dengan akun Anda sendiri, isi kode BMP + rentang modul, lalu tekan **Mulai**.
 
-1. Buka listing BMP Terbuka di Microsoft Edge Add-ons: https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
-2. Pasang extension melalui mekanisme normal Edge.
-3. Pastikan BMP Terbuka aktif pada daftar extension.
-4. Buka popup BMP Terbuka dan selesaikan aktivasi komunitas.
-5. Login ke portal reader dengan akun Anda sendiri dan gunakan extension.
+## Android — Microsoft Edge Stable
 
-Release stabil produk saat ini adalah **v1.2.0**, dan **v1.2.0 sudah live di Microsoft Edge Add-ons** untuk Desktop dan Android.
+Jalur utama 1.1.0 adalah **Microsoft Edge Stable + Microsoft Edge Add-ons**.
 
-## Microsoft Edge — Android
+1. Install/update **Microsoft Edge** dari Google Play. Pada sebagian listing, nama yang tampil dapat berupa **Microsoft Edge: Ekstensi / Microsoft Edge: Extensions**; itu tetap channel Edge Stable.
+2. Buka listing resmi **BMP Terbuka** di Microsoft Edge Add-ons melalui Edge.
+3. Tekan **Dapatkan**, lalu konfirmasi pemasangan extension.
+4. Buka popup **BMP Terbuka**, selesaikan aktivasi Telegram, lalu kembali ke Edge.
+5. Login ke portal reader, isi kode BMP + modul, lalu tekan **Mulai**.
 
-Jalur utama adalah **Microsoft Edge Stable + Microsoft Edge Add-ons**.
+Jika Edge Stable pada perangkat tertentu belum dapat memasang/menjalankan BMP Terbuka dengan benar, gunakan **Edge Canary** hanya sebagai fallback/testing.
 
-1. Install/update Microsoft Edge Stable.
-2. Buka listing resmi BMP Terbuka di Microsoft Edge Add-ons melalui Edge.
-3. Tekan Dapatkan dan konfirmasi pemasangan.
-4. Selesaikan aktivasi komunitas.
-5. Login ke reader dengan akun Anda sendiri.
+**Chrome Android bukan jalur instalasi resmi BMP Terbuka.** Paket GitHub/manual ditujukan sementara untuk desktop Chromium non-Edge, bukan untuk Chrome Android.
 
-Edge Canary tetap fallback/testing bila diperlukan. **Chrome Android bukan target instalasi resmi BMP Terbuka.**
+Panduan Android lengkap, screenshot, dan troubleshooting tersedia melalui komunitas **Buka BMP** di Telegram.
 
-## Google Chrome — Desktop
+## Aktivasi komunitas
 
-**Chrome Web Store belum menjadi jalur instalasi aktif BMP Terbuka saat ini.**
-
-Untuk Chrome desktop, gunakan package manual dari GitHub Releases.
-
-1. Buka https://github.com/mentaliss/bukabmp/releases/latest
-2. Download asset build resmi yang tercantum pada release.
-3. Jangan gunakan GitHub **Source code (zip)** atau **Source code (tar.gz)** sebagai package instalasi.
-4. Extract ZIP ke folder tetap.
-5. Buka `chrome://extensions`.
-6. Aktifkan **Developer mode**.
-7. Tekan **Load unpacked**.
-8. Pilih folder hasil extract yang berisi `manifest.json`.
-9. Pastikan BMP Terbuka muncul dan aktif.
-
-Release manual stabil saat ini adalah **v1.2.0**. Gunakan asset build `BMP-Terbuka-v1.2.0.2-github.zip`.
-
-## Browser Chromium Lain
-
-Browser Chromium lain bukan target dukungan resmi utama.
-
-Package manual dapat bergantung pada kompatibilitas Manifest V3 dan kemampuan Load unpacked browser tersebut. Dokumentasi dan pengujian utama difokuskan pada Google Chrome dan Microsoft Edge.
-
-## Firefox
-
-Firefox belum didukung resmi.
-
-Gunakan Google Chrome atau Microsoft Edge pada desktop.
+Aktivasi hanya memeriksa keanggotaan komunitas dan tidak meminta password/NIM/cookie portal sumber. Masa aktivasi dapat diperbarui selama syarat komunitas terpenuhi.
 
 ## Update
 
-- Instalasi Edge Add-ons mengikuti mekanisme update extension milik browser/store. Update biasanya otomatis tetapi tidak selalu instan. Di desktop, gunakan tombol **Update** dari halaman Extensions jika tersedia; Developer mode mungkin perlu diaktifkan sementara.
-- Di Edge Android, tunggu automatic Store update adalah pilihan yang direkomendasikan. Jika memilih reinstall agar lebih cepat, buat Backup BMP Terbuka dulu bila ingin mempertahankan data lokal. PDF yang sudah tersimpan di Downloads/perangkat tetap aman.
-- Instalasi manual Chrome **tidak mengunduh update saat tombol Reload ditekan**. Download ZIP release baru, extract ke folder sementara, lalu ganti/overwrite isi folder yang sama yang sebelumnya dipilih lewat **Load unpacked**. Setelah file baru berada di folder tersebut, buka `chrome://extensions` dan tekan **Reload**.
-- Pertahankan folder/path extension yang sama untuk update manual. Jangan Remove lalu Load unpacked dari folder lain hanya untuk update normal.
-- Update in-place dengan extension identity yang sama biasanya mempertahankan token, draft, dan cache lokal.
-- Uninstall atau instalasi dengan identity berbeda dapat diperlakukan sebagai instalasi baru dan dapat kehilangan storage lokal.
+BMP Terbuka memeriksa kebijakan versi secara berkala. Jika versi yang dipasang sudah tidak didukung, popup akan meminta update sebelum proses atau aktivasi baru dapat dimulai. Proses OCR yang sudah berjalan tidak diputus di tengah hanya karena kebijakan versi berubah.
 
-Jangan uninstall extension hanya untuk melakukan update normal.
+- Instalasi dari **Edge Add-ons** mengikuti mekanisme update extension milik Edge.
+- Instalasi **GitHub/manual** perlu diperbarui manual menggunakan paket release baru.
+- Update in-place dengan extension ID yang sama mempertahankan storage extension, termasuk token aktivasi, draft, dan cache lokal. Pindah ke instalasi dengan extension ID berbeda dianggap instalasi baru dan storage tidak otomatis ikut pindah.

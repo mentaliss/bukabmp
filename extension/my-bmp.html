@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pustaka Lokal — BMP Terbuka</title>
+  <link rel="stylesheet" href="my-bmp.css">
+  <link rel="stylesheet" href="eink.css">
+</head>
+<body>
+  <header class="top">
+    <div class="head">
+      <img class="logo" src="icons/icon48.png" alt="">
+      <div>
+        <h1>Pustaka Lokal</h1>
+        <div class="sub">BMP Terbuka · hasil download di perangkat ini</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="view" id="dashboard">
+      <div class="dashHead">
+        <input id="materialFilter" class="searchBox" type="search" placeholder="Cari kode atau nama materi…" aria-label="Cari kode atau nama materi" autocomplete="off">
+      </div>
+      <div id="dashboardEmpty" class="empty" hidden></div>
+      <div id="dashboardGrid" class="dashGrid" aria-live="polite"></div>
+    </section>
+
+    <section class="view detail" id="detail" hidden></section>
+  </main>
+
+  <div id="undoBar" class="undoBar" hidden role="status" aria-live="polite"></div>
+
+  <footer class="foot"><a href="bantuan.html">Bantuan</a><a href="https://t.me/bukabmp_bot?start=support" target="_blank" rel="noopener">Donasi ❤️</a><p class="footPriv">Semua data BMP tetap di perangkat ini. Tidak ada data pribadi yang diunggah; untuk Quiz, hanya teks materi yang sudah dibersihkan (tanpa identitas).</p></footer>
+
+  <script src="vendor/pdf.min.js"></script>
+  <script src="my-bmp-store.js"></script>
+  <script src="my-bmp.js"></script>
+</body>
+</html>

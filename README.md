@@ -1,59 +1,115 @@
 <p align="center">
-  <img src="extension/icons/icon128.png" width="150" alt="BMP Terbuka">
+  <img src="extension/icons/icon128.png" width="170" alt="BMP Terbuka">
 </p>
 
 <h1 align="center">BMP Terbuka</h1>
 
-<p align="center"><strong>Scanner & pengunduh BMP ke PDF.</strong></p>
+<p align="center"><strong>Materi yang dapat kamu akses, lebih nyaman untuk kamu pelajari.</strong></p>
 
-BMP Terbuka adalah browser extension open-source yang membantu mengubah materi yang sudah dapat kamu akses secara sah menjadi searchable PDF untuk belajar, dengan OCR dan penyusunan PDF yang berjalan lokal di perangkat.
+BMP Terbuka adalah extension Chrome komunitas yang membantu pengguna mengubah materi BMP yang **sudah dapat mereka akses dengan akun mereka sendiri** menjadi **searchable PDF** untuk belajar pribadi/offline.
 
-> **Rilis stabil:** **v1.2.0** — 2 Oktober 2026.
+## Scope repository
 
-## Website resmi
+Repo ini adalah **repo privat/kanonik** BMP Terbuka (`bukabmp-private`). Repo publik
+`mentaliss/bukabmp` hanya mempublikasikan **source Chrome extension BMP Terbuka**,
+build/release tooling extension, dan dokumentasi publik yang diperlukan untuk
+membangun serta meninjau extension.
 
-**[Buka website BMP Terbuka](https://mentaliss.github.io/bukabmp/)**
+Yang ada di repo privat ini:
+- `extension/` — source extension Manifest V3 (bagian yang juga dipublikasikan);
+- `worker/` — source Cloudflare Worker untuk aktivasi, version policy, Telegram bot, Supporter, dan realtime extension state/ads — **private**, tidak dipublikasikan ke repo publik;
+- `tools/` — validator dan release builder extension;
+- `tests/`, `docs/internal/`, migrasi D1, dan dokumentasi operasional internal;
+- dokumentasi penggunaan, kontribusi, privasi, keamanan, dan responsible use.
 
-Website adalah pintu utama untuk pengguna, sponsor, partner, dan investor. Repository ini tetap menjadi sumber untuk source code, release, dan dokumentasi publik.
+Yang **tidak** dipublikasikan (juga tidak ada di repo publik):
+- source `worker/` dan implementasi/deployment activation service;
+- secret produksi, private signing key, Telegram bot token, reviewer secret, atau credential operator;
+- nilai konfigurasi operasional yang bersifat rahasia;
+- private signing pipeline/key untuk jalur Android CRX;
+- dashboard/account provider dan konfigurasi deployment.
 
-## Download
+Public endpoint, protocol values, dan public verification key dapat dilihat dari client yang dipublikasikan. Secret dan authority produksi tetap berada di environment/provider, bukan di package extension.
 
-- **Microsoft Edge — Desktop:** melalui [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm).
-- **Microsoft Edge — Android:** Microsoft Edge Stable + [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm).
-- **Google Chrome — Desktop:** Chrome Web Store belum menjadi jalur instalasi aktif; gunakan asset ZIP hasil build di GitHub Releases dan pasang dengan Developer mode + Load unpacked.
+## Karakteristik utama
 
-Untuk instalasi manual, gunakan asset resmi `BMP-Terbuka-v1.2.0.2-github.zip` dari GitHub Release v1.2.0, bukan asset otomatis Source code (zip).
+- OCR dan penyusunan PDF dilakukan **lokal di perangkat**.
+- Release resmi membawa Tesseract.js/WASM, model bahasa Indonesia, dan pdf-lib secara lokal.
+- Extension **tidak meminta atau menyimpan** password, NIM, atau cookie sumber.
+- Watermark sumber **tidak dihapus atau dimodifikasi**.
+- Saat sumber menolak akses (`403`, `429`, login ulang, `Request Rejected`), proses berhenti tanpa blind retry.
+- Aktivasi komunitas menggunakan **Buka BMP** dan **Group Terbuka**.
+- Mendukung desktop Chromium dan jalur Android utama melalui **Microsoft Edge Stable + Microsoft Edge Add-ons**. Edge Canary tetap menjadi fallback/testing.
 
-Panduan pengguna: [Instalasi & Update](https://mentaliss.github.io/bukabmp/id/docs/install/) · [Status & Versi](https://mentaliss.github.io/bukabmp/id/status/)
+## Instalasi
 
-Dokumentasi repository: [Panduan Instalasi](docs/INSTALL.md), [Compatibility](docs/COMPATIBILITY.md), dan [Release Process](docs/RELEASE.md).
+Gunakan paket dari **GitHub Releases**, bukan Source code ZIP.
 
-## Local-first, bukan zero-network
+### Desktop — Chrome / Edge
 
-Halaman materi, OCR, cache PDF, penggabungan PDF, dan ekspor PDF diproses di perangkat. Backend BMP Terbuka tidak digunakan untuk mengunggah gambar halaman, teks OCR, atau PDF hasil.
+1. Download asset `BMP-Terbuka-v<VERSION>.zip` dari Releases.
+2. Extract ZIP.
+3. Buka `chrome://extensions` atau `edge://extensions`.
+4. Aktifkan **Developer mode**.
+5. Klik **Load unpacked** dan pilih folder hasil extract yang berisi `manifest.json`.
+6. Buka popup BMP Terbuka dan selesaikan aktivasi Telegram.
 
-Extension tetap melakukan request jaringan untuk fungsi yang memang membutuhkan layanan eksternal: aktivasi komunitas, version/realtime state, telemetry pseudonymous, serta sponsor/advertising state dan metrics yang terbatas.
+### Android — Microsoft Edge Stable
 
-Baca [Privacy](PRIVACY.md), [Security](SECURITY.md), dan [Responsible Use](RESPONSIBLE_USE.md).
+1. Install/update **Microsoft Edge** dari Google Play.
+2. Buka listing BMP Terbuka di **Microsoft Edge Add-ons** melalui Edge.
+3. Tekan **Dapatkan** dan konfirmasi pemasangan.
+4. Buka popup BMP Terbuka dan selesaikan aktivasi Telegram.
+5. Login ke portal reader dengan akun Anda sendiri, isi kode BMP + modul, lalu tekan **Mulai**.
 
-## Open source dan batasnya
+Pada sebagian listing Google Play, Edge Stable dapat tampil sebagai **Microsoft Edge: Ekstensi / Microsoft Edge: Extensions**. Edge Canary dipertahankan sebagai fallback/testing, bukan jalur utama user umum.
 
-Repository publik ini berisi source extension Manifest V3, public tooling, source website publik, dokumentasi publik, dan release metadata.
+Desktop Chromium non-Edge sementara menggunakan paket GitHub/manual. Chrome Android bukan target instalasi resmi.
 
-Repository publik ini tidak memuat implementation Worker produksi, bot/backend Telegram, Control Center, D1 migration/schema privat, secret produksi, private signing key, atau material deployment privat.
+Panduan Android yang lebih detail, screenshot, dan troubleshooting dipusatkan di komunitas **Buka BMP** di Telegram.
 
-Source yang dipublikasikan di repository ini menggunakan **GPL-3.0**. Hak atas nama/logo/branding BMP Terbuka tidak otomatis diberikan oleh GPL; lihat [TRADEMARK.md](TRADEMARK.md). Dependency pihak ketiga tetap memakai lisensinya masing-masing; lihat [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+Tidak perlu Python, BAT, Tesseract desktop, F12/DevTools, HAR, atau copy-paste cookie.
 
-## Sponsor, iklan, dan partnership
+Lihat [Panduan Instalasi](docs/INSTALL.md) dan [FAQ](docs/FAQ.md).
 
-BMP Terbuka terbuka terhadap sponsorship/advertising yang legal, non-deceptive, non-malicious, dan sesuai aturan platform/distribusi. Pendanaan tidak membeli akses ke data pengguna atau kontrol atas keputusan privasi, keamanan, moderasi, dan core product.
+## Community activation
 
-- [Sponsorship & Advertising](SPONSORSHIP.md)
-- [Advertiser Terms](ADVERTISER_TERMS.md)
-- [Funding Transparency](FUNDING_TRANSPARENCY.md)
-- [Ethics & Independence](ETHICS_INDEPENDENCE.md)
+Dari sudut pandang extension:
 
-Harga iklan/sponsorship belum dipublikasikan.
+```text
+Extension
+  → membuat pairing sementara
+  → membuka Telegram untuk verifikasi komunitas
+  → menerima signed activation token dari activation API
+  → memverifikasi signature token secara lokal
+```
+
+Public verification key berada di client. Private signing material tidak berada di repository ini.
+
+Activation service tidak digunakan untuk mengunggah materi, gambar halaman, teks OCR, atau PDF hasil. Pengecualiannya jalur Quiz: bila bank soal sebuah modul belum ada, extension mengirim teks materi yang sudah dibersihkan dari identitas ke endpoint pembuatan Quiz (lihat `PRIVACY.md`).
+
+## Build
+
+Source checkout tidak membawa binary OCR besar. Release builder mengambil dependency yang dipin **saat build** lalu memasukkannya ke ZIP sehingga end-user tidak menjalankan OCR JavaScript dari CDN.
+
+```bash
+npm run validate
+
+BMP_API_BASE_URL="https://community.bukabmp.workers.dev" \
+BMP_TELEGRAM_CHANNEL_URL="https://t.me/bukabmp" \
+BMP_TELEGRAM_GROUP_URL="https://t.me/+0pAg9ymEhWdkZmNl" \
+npm run build:release
+```
+
+Lihat [docs/RELEASE.md](docs/RELEASE.md).
+
+## Responsible use
+
+BMP Terbuka **tidak memberikan hak akses maupun hak redistribusi**. Gunakan hanya untuk materi yang memang dapat Anda akses dan sesuai hak/izin yang berlaku.
+
+Project ini sengaja tidak menyediakan fingerprint spoofing, IP rotation, pemalsuan cookie/token keamanan sumber, blind retry terhadap blokir, atau penghapusan watermark.
+
+Baca [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md).
 
 ## Komunitas
 
@@ -61,13 +117,12 @@ Harga iklan/sponsorship belum dipublikasikan.
 - **Group:** [Group Terbuka](https://t.me/+0pAg9ymEhWdkZmNl)
 - **Bot aktivasi:** [@bukabmp_bot](https://t.me/bukabmp_bot)
 
-## Developer / contributor
+## Lisensi
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [Contributing](CONTRIBUTING.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md)
-- [Changelog](CHANGELOG.md)
+Source BMP Terbuka yang dipublikasikan di repository ini: **GPL-3.0**. Dependency pihak ketiga tetap menggunakan lisensinya masing-masing; lihat [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+
+Komponen eksternal yang tidak berada di repository ini tidak otomatis termasuk dalam lisensi repository ini.
 
 ## Independensi
 
-BMP Terbuka adalah proyek komunitas independen. Pencantuman layanan atau platform yang kompatibel tidak berarti afiliasi, dukungan resmi, atau endorsement dari pemilik layanan tersebut.
+BMP Terbuka adalah proyek komunitas independen. Project ini tidak berafiliasi dengan atau mewakili institusi maupun penyedia layanan yang kompatibel dengannya.

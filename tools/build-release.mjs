@@ -72,6 +72,14 @@ copyDir(EXT_SRC,out);
 // Development-only network mock stays in source/tests and must never ship.
 fs.rmSync(path.join(out,"vendor","adsonbread-test-sdk.js"),{force:true});
 
+// Android retains the existing popup workflow, with no Side Panel capability.
+if(channel==="android"){
+  const androidManifest={...manifest};
+  androidManifest.permissions=(manifest.permissions||[]).filter(p=>p!=="sidePanel");
+  delete androidManifest.side_panel;
+  fs.writeFileSync(path.join(out,"manifest.json"),JSON.stringify(androidManifest,null,2)+"\n");
+}
+
 // CWS gets a minimum-permission manifest without changing the shared source manifest.
 // The GitHub/manual and Android packages keep their existing permission profile.
 if(storeChannels.has(channel)){
@@ -111,7 +119,13 @@ const assets=[
   ["https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/tesseract-core-simd-lstm.wasm.js","core/tesseract-core-simd-lstm.wasm.js",1000000,"9d7c43fb206dc9f48475228b46bf35f888fa9e6259da2e67d5a75c77049f2dc7"],
   ["https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/LICENSE.md","licenses/LICENSE-tesseract-js.md",5000,"b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"],
   ["https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/LICENSE","licenses/LICENSE-tesseract-core.txt",5000,"c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"],
-  ["https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/LICENSE.md","licenses/LICENSE-pdf-lib.md",500,"f2c9fc00fdb66eb99ac156ba52d734af66d8d309f65753ae809ad34ee2883bcb"]
+  ["https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/LICENSE.md","licenses/LICENSE-pdf-lib.md",500,"f2c9fc00fdb66eb99ac156ba52d734af66d8d309f65753ae809ad34ee2883bcb"],
+  // PDF.js 3.11.174 (Mozilla, Apache-2.0): renderer PDF lokal Pustaka Lokal —
+  // tidak bergantung PDF viewer bawaan browser (masalah Edge Canary Android:
+  // "Pembaca PDF dinonaktifkan"). UMD build, tanpa runtime CDN.
+  ["https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js","pdf.min.js",100000,"5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946"],
+  ["https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js","pdf.worker.min.js",1000000,"feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b"],
+  ["https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/LICENSE","licenses/LICENSE-pdfjs.txt",500,"0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"]
 ];
 
 for(const [url,rel,min,expectedSha256] of assets){
@@ -145,6 +159,41 @@ function hardenTesseractForMv3(outDir){
 }
 
 hardenTesseractForMv3(out);
+
+// PDF.js MV3 hardening (Batch 33): CSP extension pages menolak eval/new
+// Function, jadi semua jalur dynamic code dipatch keluar dari OUTPUT package
+// (source upstream tetap dipin SHA-256; hash final direkam VENDOR_MANIFEST).
+// isEvalSupported dipaksa false sehingga probe runtime & semua cabang
+// kompilasi dynamic (glyph compile, PostScript) menjadi dead code yang aman:
+// pdf.js memakai interpreter murni. Salinan dev-lokal extension/vendor tidak
+// dipatch — probe new Function di sana gagal oleh CSP (ditangkap try/catch)
+// dan menghasilkan perilaku sama (eval disabled).
+function hardenPdfjsForMv3(dir){
+  const pdfMain=path.join(dir,"vendor","pdf.min.js");
+  const pdfWorker=path.join(dir,"vendor","pdf.worker.min.js");
+  replaceExact(pdfMain,
+    'function isEvalSupported(){try{new Function("");return!0}catch{return!1}}',
+    'function isEvalSupported(){return!1}',
+    "PDF.js eval capability probe");
+  replaceExact(pdfWorker,
+    'function isEvalSupported(){try{new Function("");return!0}catch{return!1}}',
+    'function isEvalSupported(){return!1}',
+    "PDF.js worker eval capability probe");
+  replaceExact(pdfMain,
+    'if(_util.isNodeJS&&"function"==typeof require){const worker=eval("require")(this.workerSrc);return worker.WorkerMessageHandler}',
+    'if(_util.isNodeJS&&"function"==typeof require){return void 0}',
+    "PDF.js Node worker eval-require path");
+  replaceExact(pdfMain,
+    'return this.compiledGlyphs[e]=new Function("c","size",t.join(""))',
+    'return this.compiledGlyphs[e]=void 0',
+    "PDF.js glyph compile branch");
+  replaceExact(pdfWorker,
+    'if(e)return new Function("src","srcOffset","dest","destOffset",e)',
+    'if(e)return null',
+    "PDF.js PostScript compile branch");
+}
+
+hardenPdfjsForMv3(out);
 
 // Indonesian fast traineddata is pinned to an immutable upstream commit.
 const trainedRaw=path.join(CACHE,"lang",`ind-${TESSDATA_FAST_COMMIT}.traineddata`);

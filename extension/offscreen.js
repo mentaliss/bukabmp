@@ -161,19 +161,23 @@ async function quizSourceInfo(code, moduleNo, {includeText = false} = {}) {
   const key = `${normalized}:M${mod}`;
   const value = await dbGetQuizSource(key);
   if (!value || value.schemaVersion !== 1) {
-    return {available: false, contentHash: "", charCount: 0};
+    return {available: false, reason: "no_record", contentHash: "", charCount: 0};
   }
   const sanitizedText = String(value.sanitizedText || "");
   const contentHash = String(value.contentHash || "").toLowerCase();
   if (!/^[0-9a-f]{64}$/.test(contentHash)) {
-    return {available: false, contentHash: "", charCount: 0};
+    return {available: false, reason: "invalid_hash", contentHash: "", charCount: 0};
   }
   const actualHash = await QUIZ_LOCAL.sha256Hex(sanitizedText);
   if (actualHash !== contentHash) {
-    throw new Error("Fingerprint source quiz lokal tidak cocok.");
+    // R2-EXT-A-004: satu record rusak tidak boleh mematikan fitur. Kembalikan
+    // status tidak tersedia (degradasi) supaya klien memaksa unduh ulang modul,
+    // bukan melempar error yang memblokir Generate Quiz selamanya.
+    return {available: false, reason: "hash_mismatch", contentHash: "", charCount: 0};
   }
   return {
     available: true,
+    reason: "",
     contentHash,
     charCount: sanitizedText.length,
     pageCount: Number(value.pageCount || value.quality?.pageCount || 0) || null,
@@ -434,6 +438,10 @@ async function finishModule(code, moduleNo, pages, runId) {
     .filter(Boolean)
     .join("\n\n")
     .slice(0, QUIZ_LOCAL.MAX_QUIZ_SOURCE_CHARS);
+  // Batch 29: label halaman untuk hasil pencarian MyBMP. Dihitung dari
+  // pipeline penggabungan yang sama (lihat pageBoundsForSanitizedText);
+  // field additif — sanitizedText, contentHash, dan kontrak Quiz tidak berubah.
+  const pageBounds = QUIZ_LOCAL.pageBoundsForSanitizedText(currentQuizPageText.entries());
   const quizPageTexts = [...currentQuizPageText.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([, text]) => String(text || "").trim());
@@ -445,6 +453,7 @@ async function finishModule(code, moduleNo, pages, runId) {
         contentHash: await QUIZ_LOCAL.sha256Hex(sanitizedText),
         charCount: sanitizedText.length,
         pageCount: Number(pages),
+        pageBounds,
         quality,
         createdAt: Date.now()
       }

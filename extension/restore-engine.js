@@ -47,6 +47,67 @@
     });
   }
 
+  async function highestPdfModuleByCode(){
+    const db=await openDb();
+    try{
+      return await new Promise((resolve,reject)=>{
+        const highest={};
+        const tx=db.transaction("pdfs","readonly");
+        const req=tx.objectStore("pdfs").openKeyCursor();
+        req.onsuccess=()=>{
+          const cur=req.result;
+          if(!cur)return;
+          const match=String(cur.key||"").match(/^([A-Z0-9_-]{3,32}):M(\d+)$/);
+          if(match){
+            const moduleNo=Number.parseInt(match[2],10);
+            if(Number.isInteger(moduleNo)&&moduleNo>=1&&moduleNo<=99){
+              highest[match[1]]=Math.max(Number(highest[match[1]]||0),moduleNo);
+            }
+          }
+          cur.continue();
+        };
+        tx.oncomplete=()=>resolve(highest);
+        tx.onerror=()=>reject(tx.error);
+      });
+    }finally{
+      db.close();
+    }
+  }
+
+  async function reconcileRestoredLastModuleMetadata(){
+    const highest=await highestPdfModuleByCode();
+    const current=await chrome.storage.local.get("bmpCacheMeta");
+    const map=current.bmpCacheMeta&&typeof current.bmpCacheMeta==="object"
+      ?{...current.bmpCacheMeta}
+      :{};
+    let changed=false;
+
+    for(const [code,higher] of Object.entries(highest)){
+      const previous=map[code];
+      if(!previous||typeof previous!=="object")continue;
+      const next={...previous};
+      const detected=Number(previous.detectedLastModule);
+      const candidate=Number(previous.lastModuleCandidate);
+
+      if(Number.isInteger(detected)&&detected>=1&&detected<higher){
+        next.detectedLastModule=null;
+        next.detectedAt=0;
+        next.detectedEvidenceVersion=0;
+        changed=true;
+      }
+      if(Number.isInteger(candidate)&&candidate>=1&&candidate<higher){
+        next.lastModuleCandidate=null;
+        next.lastModuleCandidateAt=0;
+        next.lastModuleCandidateRunId="";
+        changed=true;
+      }
+      map[code]=next;
+    }
+
+    if(changed)await chrome.storage.local.set({bmpCacheMeta:map});
+    return {changed,highest};
+  }
+
   function createSession(){
     let cancelled=false;
     let activeTransaction=null;
@@ -98,6 +159,9 @@
       }
       assertActive();
       await chrome.storage.local.set(write);
+      assertActive();
+      await reconcileRestoredLastModuleMetadata();
+      assertActive();
     }
 
     async function restoreLegacyV1(file,onProgress){
