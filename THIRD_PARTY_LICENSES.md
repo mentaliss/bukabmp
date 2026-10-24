@@ -8,8 +8,10 @@ Release BMP Terbuka membundel dependency berikut pada waktu build:
 | tesseract.js-core | 6.0.0 | Apache-2.0 |
 | pdf-lib | 1.17.1 | MIT |
 | Indonesian traineddata | `tesseract-ocr/tessdata_fast`, `ind.traineddata` | Apache-2.0 |
+| Atkinson Hyperlegible | Braille Institute, `extension/fonts/*.woff2` + `site/fonts/*.woff2` | SIL OFL 1.1 (`LICENSE-OFL.txt`) |
 
 File lisensi dependency disertakan di dalam `vendor/licenses/` pada release build bila tersedia.
+Font Atkinson Hyperlegible dipakai extension dan situs; teks lisensi lengkap disimpan di `extension/fonts/LICENSE-OFL.txt` dan `site/fonts/LICENSE-OFL.txt`.
 
 BMP Terbuka sendiri dilisensikan di bawah GPL-3.0.
 

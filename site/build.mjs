@@ -145,6 +145,10 @@ function sitePath(relative = "") {
   return (BASE_PATH || "") + suffix;
 }
 
+function assetPath(relative) {
+  return sitePath(relative).replace(/\/$/, "");
+}
+
 function normalizeRepoPath(url) {
   return String(url).replace(/^\.\.\//, "").replace(/^\.\//, "").replace(/^\//, "");
 }
@@ -444,14 +448,24 @@ function nav(lang, slug = "") {
     link(sitePath(lang + "/docs"), lang === "id" ? "Panduan" : "Guides", "docs") +
     link(sitePath(lang + "/status"), "Status", "status") +
     link(sitePath(lang + "/faq"), "FAQ", "faq");
-  return '<nav><a class="brand" href="' + home + '">BMP Terbuka</a><div class="navlinks">' +
+  const icon = assetPath("assets/icon128.png");
+  const brand =
+    '<a class="brand" href="' + home + '">' +
+    '<img class="logo" src="' + icon + '" width="34" height="34" alt="" aria-hidden="true">' +
+    '<span><span class="brandName">BMP Terbuka</span>' +
+    '<span class="brandSub">' + (lang === "id" ? "Searchable PDF lokal" : "Local searchable PDF") + "</span></span></a>";
+  return '<header class="top"><div class="topInner">' + brand +
+    '<span class="headSpacer"></span>' +
+    '<span class="chip">v' + SITE_VERSION + "</span>" +
+    '<span class="lang"><a href="' + sitePath("id") + '"' + (lang === "id" ? ' aria-current="page"' : "") + ">ID</a><i>|</i><a href=\"" + sitePath("en") + '"' + (lang === "en" ? ' aria-current="page"' : "") + ">EN</a></span>" +
+    '</div><div class="navBar"><nav class="navInner" aria-label="' + (lang === "id" ? "Navigasi utama" : "Main navigation") + '"><div class="navlinks">' +
     link(home, lang === "id" ? "Beranda" : "Home", "") +
     link(sitePath(lang + "/download"), "Download", "download") +
     helpLinks +
     link(sitePath(lang + "/features"), lang === "id" ? "Fitur" : "Features", "features") +
     link(sitePath(lang + "/sponsor"), "Sponsor", "sponsor") +
-    link(investor, lang === "id" ? "Investor / Partnership" : "Investors / Partnership", lang === "id" ? "investor" : "investors") +
-    '</div><span class="lang"><a href="' + sitePath("id") + '"' + (lang === "id" ? ' aria-current="page"' : "") + ">ID</a> | <a href=\"" + sitePath("en") + '"' + (lang === "en" ? ' aria-current="page"' : "") + ">EN</a></span></nav>";
+    link(investor, lang === "id" ? "Investor" : "Investors", lang === "id" ? "investor" : "investors") +
+    "</div></nav></div></header>";
 }
 
 function footer(lang) {
@@ -486,7 +500,7 @@ function footer(lang) {
     ["Status & Version", "status"]
   ]]);
 
-  let html = "<footer>";
+  let html = '<footer><div class="footCols">';
   for (const [name, items] of groups) {
     html += "<section><h3>" + name + "</h3>";
     for (const [label, target] of items) {
@@ -497,7 +511,8 @@ function footer(lang) {
     }
     html += "</section>";
   }
-  return html + '<div class="colophon"><span>BMP Terbuka &middot; v' + SITE_VERSION + ' &middot; GPL-3.0</span><span><a href="' + esc(GITHUB_ZIP_URL || sitePath(lang + "/download")) + '">' + (lang === "id" ? "Aset GitHub" : "GitHub asset") + "</a> &middot; <a href=\"https://github.com/mentaliss/bukabmp\">GitHub</a> &middot; <a href=\"" + sitePath(lang + "/status") + '">' + (lang === "id" ? "Status kanal" : "Channel status") + "</a></span></div></footer>";
+  html += "</div>";
+  return html + '<div class="colophon"><span>BMP Terbuka v' + SITE_VERSION + " &middot; " + (lang === "id" ? "lisensi GPL-3.0" : "GPL-3.0 license") + ' &middot; ' + (lang === "id" ? "font Atkinson Hyperlegible (OFL 1.1)" : "Atkinson Hyperlegible font (OFL 1.1)") + '</span><span class="footLinks"><a href="' + (lang === "id" ? sitePath("id/privacy") : sitePath("en/privacy")) + '">' + (lang === "id" ? "Privasi" : "Privacy") + '</a><a href="' + esc(GITHUB_ZIP_URL || sitePath(lang + "/download")) + '">' + (lang === "id" ? "Aset GitHub" : "GitHub asset") + '</a><a href="https://github.com/mentaliss/bukabmp">GitHub</a><a href="' + sitePath(lang + "/status") + '">' + (lang === "id" ? "Status kanal" : "Channel status") + "</a></span></div></footer>";
 }
 
 function inject(content, lang) {
@@ -537,11 +552,17 @@ function page(lang, slug, md) {
     body = body.replace(pattern, '<div class="home-cta-row">$1</div>');
   }
   const isDocs = slug === "docs" || slug.startsWith("docs/");
+  const sectionLabel = isDocs
+    ? (lang === "id" ? "Panduan" : "Guides")
+    : slug
+      ? slug.split("/")[0].replace(/-/g, " ")
+      : (lang === "id" ? "Searchable PDF lokal" : "Local searchable PDF");
+  body = '<p class="eyebrow">' + esc(sectionLabel) + "</p>" + body;
   const toc = isDocs ? docsTableOfContents(md, lang, slug) : "";
   const mainBody = isDocs
     ? '<div class="docs-layout">' + toc + '<article class="docs-article">' + body + "</article></div>"
     : body;
-  const mainClass = isDocs ? ' class="docs-main"' : "";
+  const mainClass = isDocs ? ' class="docs-main"' : ' class="doc"';
   const canonicalPath = slug ? "/" + lang + "/" + slug + "/" : "/" + lang + "/";
   const canonical = SITE_URL + canonicalPath;
 
@@ -553,10 +574,12 @@ function page(lang, slug, md) {
     '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     "<title>" + esc(title) + " - BMP Terbuka</title>" +
     '<meta name="description" content="' + esc(description) + '">' +
-    '<meta name="theme-color" content="#f5f2e9" media="(prefers-color-scheme: light)">' +
-    '<meta name="theme-color" content="#14140f" media="(prefers-color-scheme: dark)">' +
-    '<link rel="icon" href="' + sitePath("assets/icon.svg").replace(/\/$/, "") + '" type="image/svg+xml">' +
+    '<meta name="theme-color" content="#ffffff">' +
+    '<link rel="icon" href="' + assetPath("assets/icon32.png") + '" sizes="32x32">' +
+    '<link rel="apple-touch-icon" href="' + assetPath("assets/icon128.png") + '">' +
     '<link rel="canonical" href="' + esc(canonical) + '">' +
+    '<link rel="preload" href="' + assetPath("assets/fonts/AtkinsonHyperlegible-Regular-latin.woff2") + '" as="font" type="font/woff2" crossorigin>' +
+    '<link rel="preload" href="' + assetPath("assets/fonts/AtkinsonHyperlegible-Bold-latin.woff2") + '" as="font" type="font/woff2" crossorigin>' +
     '<link rel="stylesheet" href="' + sitePath("assets/styles.css").replace(/\/$/, "") + '">' +
     "</head><body>" + skip + nav(lang, slug) + '<main id="main"' + mainClass + ">" + mainBody + "</main>" + footer(lang) + "</body></html>";
 }
@@ -564,7 +587,9 @@ function page(lang, slug, md) {
 fs.rmSync(out, {recursive: true, force: true});
 fs.mkdirSync(path.join(out, "assets"), {recursive: true});
 fs.copyFileSync(path.join(siteDir, "styles.css"), path.join(out, "assets", "styles.css"));
-fs.copyFileSync(path.join(siteDir, "icon.svg"), path.join(out, "assets", "icon.svg"));
+fs.cpSync(path.join(siteDir, "fonts"), path.join(out, "assets", "fonts"), { recursive: true });
+fs.copyFileSync(path.join(siteDir, "icon.png"), path.join(out, "assets", "icon128.png"));
+fs.copyFileSync(path.join(siteDir, "icon32.png"), path.join(out, "assets", "icon32.png"));
 
 for (const [lang, routes] of Object.entries({id: idRoutes, en: enRoutes})) {
   for (const [slug, source] of Object.entries(routes)) {
