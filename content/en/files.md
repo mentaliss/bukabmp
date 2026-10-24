@@ -10,7 +10,7 @@ Files in Downloads are **exported copies**. Deleting a Downloads copy does not a
 
 ## Storage Manager
 
-In v1.2.0 you can:
+In v1.3.0 you can:
 
 - view local storage usage;
 - see available BMP data;

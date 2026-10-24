@@ -4,13 +4,13 @@ This is the **canonical BMP Terbuka download and update page**.
 
 ## Google Chrome — Desktop
 
-Latest version: **v1.2.0**
+Latest version: **v1.3.0**
 
 [[GITHUB_ZIP_CTA]]
 
 Use the official asset:
 
-`BMP-Terbuka-v1.2.0.2-github.zip`
+`BMP-Terbuka-v1.3.0-github.zip`
 
 Do not use GitHub's automatically generated **Source code (zip)** or **Source code (tar.gz)** as the extension package.
 
@@ -28,7 +28,7 @@ The official path remains Microsoft Edge Add-ons.
 
 [[EDGE_CTA]]
 
-**v1.2.0 is now live on Microsoft Edge Add-ons.** Edge Desktop installs and updates through the normal Store mechanism.
+**Microsoft Edge Add-ons still serves v1.2.0.** The GitHub package above is already v1.3.0; the Store listing will follow. Edge Desktop installs and updates through the normal Store mechanism.
 
 Store updates are normally automatic, but they are **not always delivered immediately** after a new package is published. To check sooner on desktop, open `edge://extensions` and use **Update** when available. Developer mode may need to be enabled temporarily. Do not uninstall/reinstall or clear local extension data for a normal Store update.
 
@@ -44,7 +44,7 @@ For Edge Android updates, the safest path is to **wait for the automatic Store u
 
 If you choose to reinstall to get the newest build immediately, **create a BMP Terbuka Backup first** if you want to preserve extension-local data. Removing/reinstalling the extension can erase local cache/resume/Quiz-source data. **PDF files already saved in Downloads/device storage remain safe** because they are outside extension storage. After reinstalling, activate again if needed and Restore the backup; Restore remains MERGE.
 
-In v1.2.0, Android Restore uses a dedicated BMP Terbuka restore tab. See [Installation & Updates](docs/install) and [PDF, Backup, Restore & Storage](docs/files).
+In v1.3.0, Android Restore uses a dedicated BMP Terbuka restore tab. See [Installation & Updates](docs/install) and [PDF, Backup, Restore & Storage](docs/files).
 
 ## Microsoft Edge v1.2.0
 

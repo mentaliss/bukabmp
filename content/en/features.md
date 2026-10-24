@@ -1,4 +1,4 @@
-# BMP Terbuka v1.2.0 Features
+# BMP Terbuka v1.3.0 Features
 
 ## Searchable PDF
 

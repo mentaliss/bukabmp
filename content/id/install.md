@@ -1,6 +1,6 @@
 # Instalasi & Update
 
-BMP Terbuka v1.2.0 memakai jalur instalasi yang berbeda sesuai browser. Gunakan [Status & Versi](../status) untuk kondisi distribusi terbaru.
+BMP Terbuka v1.3.0 memakai jalur instalasi yang berbeda sesuai browser. Gunakan [Status & Versi](../status) untuk kondisi distribusi terbaru.
 
 ## Jalur Resmi
 
@@ -10,12 +10,12 @@ BMP Terbuka v1.2.0 memakai jalur instalasi yang berbeda sesuai browser. Gunakan 
 - **Firefox:** belum didukung resmi.
 - **Chrome Android:** bukan target instalasi resmi.
 
-Versi stabil produk: **v1.2.0**.
+Versi stabil produk: **v1.3.0**.
 
 ## Desktop — Google Chrome
 
-1. Buka GitHub Release resmi: https://github.com/mentaliss/bukabmp/releases/tag/v1.2.0
-2. Download `BMP-Terbuka-v1.2.0.2-github.zip`.
+1. Buka GitHub Release resmi: https://github.com/mentaliss/bukabmp/releases/tag/v1.3.0
+2. Download `BMP-Terbuka-v1.3.0-github.zip`.
 3. Extract ZIP ke folder tetap.
 4. Buka `chrome://extensions`.
 5. Aktifkan **Developer mode**.
@@ -51,7 +51,7 @@ Gunakan listing resmi:
 
 https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
 
-**BMP Terbuka v1.2.0 sudah live di Microsoft Edge Add-ons** untuk Desktop dan Android. Instalasi dari Store mengikuti mekanisme update normal Microsoft Edge.
+**Microsoft Edge Add-ons masih menyajikan BMP Terbuka v1.2.0** untuk Desktop dan Android; paket GitHub sudah v1.3.0. Instalasi dari Store mengikuti mekanisme update normal Microsoft Edge.
 
 Update Store di desktop biasanya otomatis, tetapi bisa terlambat. Kalau ingin mengecek lebih cepat, buka `edge://extensions` lalu gunakan **Update** jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall untuk update Store normal.
 
@@ -80,7 +80,7 @@ Setelah reinstall:
 
 **PDF yang sudah tersimpan di folder Downloads/perangkat tetap aman** dan tidak ikut terhapus hanya karena extension direinstall.
 
-### Restore Backup di Android v1.2.0
+### Restore Backup di Android v1.3.0
 
 Pada Edge Android, tombol **Pulihkan backup** tidak membuka file picker di popup.
 
@@ -90,7 +90,7 @@ Alurnya:
 
 Biarkan tab restore tetap terbuka sampai proses selesai. Menutup tab restore saat proses berjalan akan menghentikan restore.
 
-Ini adalah alur kompatibilitas Android v1.2.0 dan berbeda dari Desktop.
+Ini adalah alur kompatibilitas Android v1.3.0 dan berbeda dari Desktop.
 
 ### Restore di Desktop
 

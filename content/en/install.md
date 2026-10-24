@@ -1,6 +1,6 @@
 # Installation & Updates
 
-BMP Terbuka v1.2.0 uses different installation paths depending on the browser. Check [Status & Version](../status) for current distribution state.
+BMP Terbuka v1.3.0 uses different installation paths depending on the browser. Check [Status & Version](../status) for current distribution state.
 
 ## Official Paths
 
@@ -10,12 +10,12 @@ BMP Terbuka v1.2.0 uses different installation paths depending on the browser. C
 - **Firefox:** not officially supported.
 - **Chrome Android:** not an official target.
 
-Stable product version: **v1.2.0**.
+Stable product version: **v1.3.0**.
 
 ## Desktop — Google Chrome
 
-1. Open the official release: https://github.com/mentaliss/bukabmp/releases/tag/v1.2.0
-2. Download `BMP-Terbuka-v1.2.0.2-github.zip`.
+1. Open the official release: https://github.com/mentaliss/bukabmp/releases/tag/v1.3.0
+2. Download `BMP-Terbuka-v1.3.0-github.zip`.
 3. Extract it into a stable folder.
 4. Open `chrome://extensions`.
 5. Enable **Developer mode**.
@@ -51,7 +51,7 @@ Use the official listing:
 
 https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm
 
-**BMP Terbuka v1.2.0 is now live on Microsoft Edge Add-ons** for Desktop and Android. Store installations follow the normal Microsoft Edge update mechanism.
+**Microsoft Edge Add-ons still serves BMP Terbuka v1.2.0** for Desktop and Android; the GitHub package above is already v1.3.0. Store installations follow the normal Microsoft Edge update mechanism.
 
 Desktop Store updates are normally automatic, but delivery can be delayed. To check sooner, open `edge://extensions` and use **Update** when available. Developer mode may need to be enabled temporarily. Do not uninstall/reinstall for a normal Store update.
 
@@ -74,7 +74,7 @@ After reinstalling:
 
 **PDF files already saved in Downloads/device storage remain safe** and are not removed just because the extension is reinstalled.
 
-### Restoring a Backup on Android v1.2.0
+### Restoring a Backup on Android v1.3.0
 
 On Edge Android, **Restore backup** does not open the file picker inside the extension popup.
 

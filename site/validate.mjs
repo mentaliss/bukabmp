@@ -99,16 +99,16 @@ if (enHome.includes(">Microsoft Edge Add-ons<")) {
   throw new Error("English homepage must link to Download page instead of exposing Edge Add-ons CTA");
 }
 
-if (!idDownload.includes("BMP-Terbuka-v1.2.0.2-github.zip")) {
-  throw new Error("download page missing stable v1.2.0 asset");
+if (!idDownload.includes("BMP-Terbuka-v1.3.0-github.zip")) {
+  throw new Error("download page missing stable v1.3.0 asset");
 }
 
 if (/Unreleased/i.test(idDownload)) {
   throw new Error("download page must not describe v1.2.0 as unreleased");
 }
 
-if (!enDownload.includes("BMP-Terbuka-v1.2.0.2-github.zip")) {
-  throw new Error("English download page missing stable v1.2.0 asset");
+if (!enDownload.includes("BMP-Terbuka-v1.3.0-github.zip")) {
+  throw new Error("English download page missing stable v1.3.0 asset");
 }
 
 for (const required of [

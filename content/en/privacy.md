@@ -1,6 +1,6 @@
 # Privacy Policy
 
-BMP Terbuka is designed to be **local-first**. This page describes **BMP Terbuka v1.2.0**.
+BMP Terbuka is designed to be **local-first**. This page describes **BMP Terbuka v1.3.0**.
 
 ## Local document processing
 
@@ -16,7 +16,7 @@ Files in Downloads are exported copies and are separate from extension-local sto
 
 ## Backup & Restore
 
-A v1.2.0 backup is intended for personal recovery of local BMP Terbuka data. The backup file can contain locally stored study/material data.
+A v1.3.0 backup is intended for personal recovery of local BMP Terbuka data. The backup file can contain locally stored study/material data.
 
 Keep backup files private and do not share them casually with the group, bot, or third parties.
 

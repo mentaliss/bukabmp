@@ -4,13 +4,13 @@ Halaman ini adalah acuan untuk **versi stabil, jalur instalasi, dan status distr
 
 ## Versi Stabil Saat Ini
 
-**BMP Terbuka v1.2.0**
+**BMP Terbuka v1.3.0**
 
 Release publik: **3 Oktober 2026**
 
 GitHub Release:
 
-https://github.com/mentaliss/bukabmp/releases/tag/v1.2.0
+https://github.com/mentaliss/bukabmp/releases/tag/v1.3.0
 
 Halaman download/update:
 
@@ -20,13 +20,13 @@ https://mentaliss.github.io/bukabmp/id/download/
 
 ### Status
 
-**v1.2.0 tersedia melalui package manual GitHub Release.**
+**v1.3.0 tersedia melalui package manual GitHub Release.**
 
 Gunakan asset:
 
-`BMP-Terbuka-v1.2.0.2-github.zip`
+`BMP-Terbuka-v1.3.0-github.zip`
 
-Chrome Web Store **belum tersedia untuk publik (Coming soon)**. Produk tetap BMP Terbuka v1.2.0; package manual terbaru memakai technical build 1.2.0.2.
+Chrome Web Store **belum tersedia untuk publik (Coming soon)**. Produk stabil saat ini BMP Terbuka v1.3.0; package manual terbaru memakai build 1.3.0.
 
 ## Microsoft Edge — Desktop & Android
 
@@ -62,7 +62,7 @@ Kebijakan minimum version berasal dari runtime policy. Jangan menebak minimum ve
 
 ## Tutorial Video
 
-Video yang tersedia masih bertanda **v1.0.4** dan dipertahankan sebagai referensi alur lama. Untuk perilaku terbaru gunakan dokumentasi website v1.2.0.
+Video yang tersedia masih bertanda **v1.0.4** dan dipertahankan sebagai referensi alur lama. Untuk perilaku terbaru gunakan dokumentasi website v1.3.0.
 
 Android:
 

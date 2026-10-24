@@ -4,13 +4,13 @@ Halaman ini adalah **tujuan utama untuk download dan update BMP Terbuka**.
 
 ## Google Chrome — Desktop
 
-Versi terbaru: **v1.2.0**
+Versi terbaru: **v1.3.0**
 
 [[GITHUB_ZIP_CTA]]
 
 Gunakan asset resmi:
 
-`BMP-Terbuka-v1.2.0.2-github.zip`
+`BMP-Terbuka-v1.3.0-github.zip`
 
 Jangan gunakan asset otomatis **Source code (zip)** atau **Source code (tar.gz)** sebagai package extension.
 
@@ -28,7 +28,7 @@ Jalur resmi tetap Microsoft Edge Add-ons.
 
 [[EDGE_CTA]]
 
-**v1.2.0 sudah live di Microsoft Edge Add-ons.** Instalasi dan update Edge Desktop mengikuti mekanisme Store normal.
+**Microsoft Edge Add-ons masih menyediakan v1.2.0.** Paket GitHub di atas sudah v1.3.0 dan versi Store menyusul setelah listing diperbarui. Instalasi dan update Edge Desktop mengikuti mekanisme Store normal.
 
 Update Store biasanya terpasang otomatis, tetapi **tidak selalu masuk secara instan** setelah package baru dipublikasikan. Kalau ingin mengecek lebih cepat di desktop, buka `edge://extensions` lalu gunakan tombol **Update** jika tersedia. Developer mode mungkin perlu diaktifkan sementara. Jangan uninstall/reinstall atau menghapus data lokal hanya untuk update Store normal.
 

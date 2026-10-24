@@ -6,11 +6,11 @@ Use [Status & Version](https://mentaliss.github.io/bukabmp/en/status/) as the pr
 
 ### What is the latest version?
 
-The current stable product release is **BMP Terbuka v1.2.0**.
+The current stable product release is **BMP Terbuka v1.3.0**.
 
-Chrome Desktop can use the official manual `BMP-Terbuka-v1.2.0.2-github.zip` package from GitHub Releases.
+Chrome Desktop can use the official manual `BMP-Terbuka-v1.3.0-github.zip` package from GitHub Releases.
 
-The official Edge Desktop/Android path remains Microsoft Edge Add-ons. **BMP Terbuka v1.2.0 is now live on the official Microsoft Edge Add-ons listing.**
+The official Edge Desktop/Android path remains Microsoft Edge Add-ons. **Microsoft Edge Add-ons still serves BMP Terbuka v1.2.0**; the GitHub package above is already v1.3.0.
 
 ### Where should I update?
 
