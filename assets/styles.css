@@ -43,7 +43,7 @@ body{
   margin:0;
   background:var(--paper);
   color:var(--ink);
-  font:15px/1.62 var(--sans);
+  font:13px/1.6 var(--sans);
   -webkit-font-smoothing:antialiased;
   overflow-wrap:break-word;
 }
@@ -90,7 +90,7 @@ main{max-width:var(--shell);margin:0 auto;padding:26px 20px 40px;min-height:56vh
 
 .eyebrow{margin:0 0 4px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
 
-h1{margin:0 0 4px;font-size:26px;line-height:1.22;font-weight:700;letter-spacing:-.01em}
+h1{margin:0 0 4px;font-size:20px;line-height:1.3;font-weight:700;letter-spacing:-.01em}
 .doc > h1 + p{margin-top:10px}
 
 h2{
@@ -160,6 +160,12 @@ td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 /* kotak info memakai tint semantik ekstensi */
 .notice,blockquote{overflow-wrap:anywhere}
 
+/* daftar manfaat di beranda memakai pola kartu materi ekstensi */
+h2#yang-bisa-dilakukan + ul,
+h2#what-it-does + ul{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px;margin:12px 0 0;padding:0;list-style:none}
+h2#yang-bisa-dilakukan + ul li,
+h2#what-it-does + ul li{margin:0;padding:11px 12px;border:1px solid var(--line-2);border-radius:2px;background:var(--paper);font-size:13px;line-height:1.45;color:var(--ink)}
+
 /* ---------- panduan: sidebar + artikel ---------- */
 
 .docs-layout{display:grid;grid-template-columns:236px minmax(0,1fr);gap:24px;align-items:start}
@@ -197,6 +203,7 @@ footer{max-width:var(--shell);margin:0 auto;padding:0 20px}
 /* ---------- responsif ---------- */
 
 @media (max-width:900px){
+  body{font-size:14.5px}
   .topInner{padding:14px 16px 12px}
   .brandName{font-size:15px}
   .navInner{padding:0 16px}
