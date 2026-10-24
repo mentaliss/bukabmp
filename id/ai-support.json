@@ -3,7 +3,7 @@
   "language": "id",
   "source": "BMP Terbuka public documentation",
   "source_revision": "local",
-  "content_sha256": "fb7893dcb40d5989cd9a37197e25948258728e274e8e982ddc1af90e82f86e9e",
+  "content_sha256": "a98d92d4f2caeef8b62d5385b99d7477287d70266303bb04e494215540a1e37a",
   "canonical_base_url": "https://mentaliss.github.io/bukabmp/id/",
   "generated_from_routes": [
     "docs",
@@ -1273,114 +1273,164 @@
       "url": "https://mentaliss.github.io/bukabmp/id/faq/",
       "sections": [
         {
-          "heading": "Apakah perlu Python atau Tesseract desktop?",
+          "heading": "Ringkasan",
           "heading_path": [
-            "Apakah perlu Python atau Tesseract desktop?"
+            "Ringkasan"
           ],
-          "anchor": "apakah-perlu-python-atau-tesseract-desktop",
-          "url": "https://mentaliss.github.io/bukabmp/id/faq/#apakah-perlu-python-atau-tesseract-desktop",
-          "text": "Tidak. Release resmi membawa OCR runtime di dalam extension.",
-          "search_text": "FAQ Apakah perlu Python atau Tesseract desktop? Tidak. Release resmi membawa OCR runtime di dalam extension."
+          "anchor": "",
+          "url": "https://mentaliss.github.io/bukabmp/id/faq/",
+          "text": "Untuk fakta yang dapat berubah seperti versi dan status Store, gunakan [Status & Versi](https://mentaliss.github.io/bukabmp/id/status/) sebagai acuan utama.",
+          "search_text": "FAQ Ringkasan Untuk fakta yang dapat berubah seperti versi dan status Store, gunakan Status & Versi https://mentaliss.github.io/bukabmp/id/status/ sebagai acuan utama."
         },
         {
-          "heading": "Apakah perlu menjalankan BAT?",
+          "heading": "Versi terbaru berapa?",
           "heading_path": [
-            "Apakah perlu menjalankan BAT?"
+            "Versi & Download",
+            "Versi terbaru berapa?"
           ],
-          "anchor": "apakah-perlu-menjalankan-bat",
-          "url": "https://mentaliss.github.io/bukabmp/id/faq/#apakah-perlu-menjalankan-bat",
-          "text": "Tidak untuk end-user.",
-          "search_text": "FAQ Apakah perlu menjalankan BAT? Tidak untuk end-user."
+          "anchor": "versi-terbaru-berapa",
+          "url": "https://mentaliss.github.io/bukabmp/id/faq/#versi-terbaru-berapa",
+          "text": "Release stabil produk saat ini adalah **BMP Terbuka v1.2.0**.\n\nChrome Desktop dapat memakai package manual resmi `BMP-Terbuka-v1.2.0.2-github.zip` dari GitHub Release.\n\nUntuk Edge Desktop/Android, jalur resmi tetap Microsoft Edge Add-ons. **BMP Terbuka v1.2.0 sekarang sudah live di listing resmi Microsoft Edge Add-ons.**",
+          "search_text": "FAQ Versi & Download Versi terbaru berapa? Release stabil produk saat ini adalah BMP Terbuka v1.2.0 . Chrome Desktop dapat memakai package manual resmi BMP-Terbuka-v1.2.0.2-github.zip dari GitHub Release. Untuk Edge Desktop/Android, jalur resmi tetap Microsoft Edge Add-ons. BMP Terbuka v1.2.0 sekarang sudah live di listing resmi Microsoft Edge Add-ons."
         },
         {
-          "heading": "Kenapa harus join Telegram?",
+          "heading": "Di mana update?",
           "heading_path": [
-            "Kenapa harus join Telegram?"
+            "Versi & Download",
+            "Di mana update?"
           ],
-          "anchor": "kenapa-harus-join-telegram",
-          "url": "https://mentaliss.github.io/bukabmp/id/faq/#kenapa-harus-join-telegram",
-          "text": "V1 memakai community gate agar pengguna berada di kanal update kompatibilitas, security notice, support, dan diskusi.",
-          "search_text": "FAQ Kenapa harus join Telegram? V1 memakai community gate agar pengguna berada di kanal update kompatibilitas, security notice, support, dan diskusi."
+          "anchor": "di-mana-update",
+          "url": "https://mentaliss.github.io/bukabmp/id/faq/#di-mana-update",
+          "text": "Gunakan halaman website:\n\nhttps://mentaliss.github.io/bukabmp/id/download/\n\nWebsite ini menjadi tujuan update utama dan menjelaskan jalur sesuai platform.\n\nRingkasnya: instalasi Store desktop update otomatis tetapi dapat terlambat; update manual Desktop harus mengganti file di **folder Load unpacked yang sama** lalu Reload; Edge Android sebaiknya menunggu auto-update Store. Jika memilih reinstall di Android, buat Backup dulu bila ingin mempertahankan data lokal. PDF yang sudah tersimpan di Downloads/perangkat tetap aman.",
+          "search_text": "FAQ Versi & Download Di mana update? Gunakan halaman website: https://mentaliss.github.io/bukabmp/id/download/ Website ini menjadi tujuan update utama dan menjelaskan jalur sesuai platform. Ringkasnya: instalasi Store desktop update otomatis tetapi dapat terlambat; update manual Desktop harus mengganti file di folder Load unpacked yang sama lalu Reload; Edge Android sebaiknya menunggu auto-update Store. Jika memilih reinstall di Android, buat Backup dulu bila ingin mempertahankan data lokal. PDF yang sudah tersimpan di Downloads/perangkat tetap aman."
         },
         {
-          "heading": "Apakah Telegram atau activation service menerima materi saya?",
+          "heading": "Chrome Desktop",
           "heading_path": [
-            "Apakah Telegram atau activation service menerima materi saya?"
+            "Instalasi",
+            "Chrome Desktop"
           ],
-          "anchor": "apakah-telegram-atau-activation-service-menerima-materi-saya",
-          "url": "https://mentaliss.github.io/bukabmp/id/faq/#apakah-telegram-atau-activation-service-menerima-materi-saya",
-          "text": "Activation flow tidak digunakan untuk mengunggah gambar halaman, teks OCR, atau PDF hasil.\n\nSatu pengecualian: kalau bank soal Quiz untuk sebuah modul belum ada, extension mengirim teks materi yang **sudah dibersihkan dari identitas** (NIM/nama/email/URL) ke endpoint pembuatan Quiz agar soalnya di-generate. Backend menolak teks yang masih memuat identitas dan tidak menyimpan teks itu. Detail: `PRIVACY.md`.",
-          "search_text": "FAQ Apakah Telegram atau activation service menerima materi saya? Activation flow tidak digunakan untuk mengunggah gambar halaman, teks OCR, atau PDF hasil. Satu pengecualian: kalau bank soal Quiz untuk sebuah modul belum ada, extension mengirim teks materi yang sudah dibersihkan dari identitas (NIM/nama/email/URL) ke endpoint pembuatan Quiz agar soalnya di-generate. Backend menolak teks yang masih memuat identitas dan tidak menyimpan teks itu. Detail: PRIVACY.md ."
+          "anchor": "chrome-desktop",
+          "url": "https://mentaliss.github.io/bukabmp/id/faq/#chrome-desktop",
+          "text": "Download ZIP release resmi, extract, buka `chrome://extensions`, aktifkan Developer mode, lalu **Load unpacked** dari folder yang berisi `manifest.json`.\n\nJangan gunakan GitHub **Source code (zip)**.",
+          "search_text": "FAQ Instalasi Chrome Desktop Download ZIP release resmi, extract, buka chrome://extensions , aktifkan Developer mode, lalu Load unpacked dari folder yang berisi manifest.json . Jangan gunakan GitHub Source code (zip) ."
         },
         {
-          "heading": "Apakah password/NIM dikirim ke developer?",
+          "heading": "Edge Android/Desktop",
           "heading_path": [
-            "Apakah password/NIM dikirim ke developer?"
+            "Instalasi",
+            "Edge Android/Desktop"
           ],
-          "anchor": "apakah-password-nim-dikirim-ke-developer",
-          "url": "https://mentaliss.github.io/bukabmp/id/faq/#apakah-password-nim-dikirim-ke-developer",
-          "text": "Tidak. Extension tidak meminta password/NIM portal sumber.",
-          "search_text": "FAQ Apakah password/NIM dikirim ke developer? Tidak. Extension tidak meminta password/NIM portal sumber."
+          "anchor": "edge-android-desktop",
+          "url": "https://mentaliss.github.io/bukabmp/id/faq/#edge-android-desktop",
+          "text": "Gunakan listing resmi Microsoft Edge Add-ons:\n\nhttps://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm\n\nEdge Canary hanya fallback/testing. Chrome Android bukan target instalasi resmi.",
+          "search_text": "FAQ Instalasi Edge Android/Desktop Gunakan listing resmi Microsoft Edge Add-ons: https://microsoftedge.microsoft.com/addons/detail/mkgmigiagipmfdlppehhmckfokmpnmlm Edge Canary hanya fallback/testing. Chrome Android bukan target instalasi resmi."
         },
         {
-          "heading": "Apakah watermark dihapus?",
+          "heading": "Apa isi Backup?",
           "heading_path": [
-            "Apakah watermark dihapus?"
+            "Backup & Restore",
+            "Apa isi Backup?"
           ],
-          "anchor": "apakah-watermark-dihapus",
-          "url": "https://mentaliss.github.io/bukabmp/id/faq/#apakah-watermark-dihapus",
-          "text": "Tidak. BMP Terbuka sengaja mempertahankan watermark dari sumber.",
-          "search_text": "FAQ Apakah watermark dihapus? Tidak. BMP Terbuka sengaja mempertahankan watermark dari sumber."
+          "anchor": "apa-isi-backup",
+          "url": "https://mentaliss.github.io/bukabmp/id/faq/#apa-isi-backup",
+          "text": "Backup dibuat untuk pemulihan data lokal BMP Terbuka dan dapat mengandung data belajar/material yang tersimpan lokal. Simpan secara privat dan jangan kirim file backup ke group/bot.",
+          "search_text": "FAQ Backup & Restore Apa isi Backup? Backup dibuat untuk pemulihan data lokal BMP Terbuka dan dapat mengandung data belajar/material yang tersimpan lokal. Simpan secara privat dan jangan kirim file backup ke group/bot."
         },
         {
-          "heading": "Extension berhenti pada Request Rejected/403. Kenapa tidak retry?",
+          "heading": "Apakah Restore menghapus data lokal lain?",
           "heading_path": [
-            "Extension berhenti pada Request Rejected/403. Kenapa tidak retry?"
+            "Backup & Restore",
+            "Apakah Restore menghapus data lokal lain?"
           ],
-          "anchor": "extension-berhenti-pada-request-rejected-403-kenapa-tidak-retry",
-          "url": "https://mentaliss.github.io/bukabmp/id/faq/#extension-berhenti-pada-request-rejected-403-kenapa-tidak-retry",
-          "text": "Karena BMP Terbuka tidak dirancang untuk memaksa melewati penolakan server. Selesaikan login/akses melalui mekanisme normal sumber.",
-          "search_text": "FAQ Extension berhenti pada Request Rejected/403. Kenapa tidak retry? Karena BMP Terbuka tidak dirancang untuk memaksa melewati penolakan server. Selesaikan login/akses melalui mekanisme normal sumber."
+          "anchor": "apakah-restore-menghapus-data-lokal-lain",
+          "url": "https://mentaliss.github.io/bukabmp/id/faq/#apakah-restore-menghapus-data-lokal-lain",
+          "text": "Tidak secara otomatis.\n\nRestore memakai **MERGE**:\n- data backup dipulihkan;\n- item lokal yang cocok dapat diperbarui;\n- data lokal lain yang tidak terkait tidak otomatis dihapus.",
+          "search_text": "FAQ Backup & Restore Apakah Restore menghapus data lokal lain? Tidak secara otomatis. Restore memakai MERGE : - data backup dipulihkan; - item lokal yang cocok dapat diperbarui; - data lokal lain yang tidak terkait tidak otomatis dihapus."
         },
         {
-          "heading": "Kenapa output disebut FULL_CANDIDATE pada kondisi tertentu?",
+          "heading": "Bagaimana Restore di Android?",
           "heading_path": [
-            "Kenapa output disebut FULL_CANDIDATE pada kondisi tertentu?"
+            "Backup & Restore",
+            "Bagaimana Restore di Android?"
           ],
-          "anchor": "kenapa-output-disebut-full-candidate-pada-kondisi-tertentu",
-          "url": "https://mentaliss.github.io/bukabmp/id/faq/#kenapa-output-disebut-full-candidate-pada-kondisi-tertentu",
-          "text": "Jika extension menyimpulkan akhir karena modul berikutnya tidak tersedia, itu indikator, bukan bukti absolut. Bila user sendiri menentukan modul terakhir pada UI, hasil gabungan menggunakan nama `FULL_Searchable.pdf`.",
-          "search_text": "FAQ Kenapa output disebut FULL CANDIDATE pada kondisi tertentu? Jika extension menyimpulkan akhir karena modul berikutnya tidak tersedia, itu indikator, bukan bukti absolut. Bila user sendiri menentukan modul terakhir pada UI, hasil gabungan menggunakan nama FULL Searchable.pdf ."
+          "anchor": "bagaimana-restore-di-android",
+          "url": "https://mentaliss.github.io/bukabmp/id/faq/#bagaimana-restore-di-android",
+          "text": "Pada Edge Android v1.2.0:\n\n**Pulihkan backup → tab restore BMP Terbuka → pilih file → restore berjalan di tab tersebut.**\n\nBiarkan tab restore terbuka sampai selesai. Menutupnya ketika proses berjalan menghentikan restore.",
+          "search_text": "FAQ Backup & Restore Bagaimana Restore di Android? Pada Edge Android v1.2.0: Pulihkan backup → tab restore BMP Terbuka → pilih file → restore berjalan di tab tersebut. Biarkan tab restore terbuka sampai selesai. Menutupnya ketika proses berjalan menghentikan restore."
         },
         {
-          "heading": "Apa yang open-source?",
+          "heading": "Desktop?",
           "heading_path": [
-            "Apa yang open-source?"
+            "Backup & Restore",
+            "Desktop?"
           ],
-          "anchor": "apa-yang-open-source",
-          "url": "https://mentaliss.github.io/bukabmp/id/faq/#apa-yang-open-source",
-          "text": "Chrome extension BMP Terbuka, build tooling extension, dan dokumentasi publik di repo publik menggunakan GPL-3.0. Activation service, infrastructure, dan website source tidak dipublikasikan (source `worker/` hanya ada di repo privat kanonik).",
-          "search_text": "FAQ Apa yang open-source? Chrome extension BMP Terbuka, build tooling extension, dan dokumentasi publik di repo publik menggunakan GPL-3.0. Activation service, infrastructure, dan website source tidak dipublikasikan (source worker/ hanya ada di repo privat kanonik)."
+          "anchor": "desktop",
+          "url": "https://mentaliss.github.io/bukabmp/id/faq/#desktop",
+          "text": "Desktop tetap memilih file restore langsung dari popup.",
+          "search_text": "FAQ Backup & Restore Desktop? Desktop tetap memilih file restore langsung dari popup."
         },
         {
-          "heading": "Apakah community gate bisa diubah pada fork?",
+          "heading": "Penyimpanan",
           "heading_path": [
-            "Apakah community gate bisa diubah pada fork?"
+            "Penyimpanan"
           ],
-          "anchor": "apakah-community-gate-bisa-diubah-pada-fork",
-          "url": "https://mentaliss.github.io/bukabmp/id/faq/#apakah-community-gate-bisa-diubah-pada-fork",
-          "text": "Source client bersifat open-source, jadi fork dapat mengubah perilaku client. Community gate bukan klaim DRM absolut.",
-          "search_text": "FAQ Apakah community gate bisa diubah pada fork? Source client bersifat open-source, jadi fork dapat mengubah perilaku client. Community gate bukan klaim DRM absolut."
+          "anchor": "penyimpanan",
+          "url": "https://mentaliss.github.io/bukabmp/id/faq/#penyimpanan",
+          "text": "Storage Manager membantu melihat penggunaan storage, mengelola data BMP lokal, export/reuse data yang didukung, menghapus data per BMP, dan menghapus seluruh data lokal bila memang diinginkan.\n\nBuat backup dulu sebelum penghapusan destruktif jika datanya masih dibutuhkan.",
+          "search_text": "FAQ Penyimpanan Storage Manager membantu melihat penggunaan storage, mengelola data BMP lokal, export/reuse data yang didukung, menghapus data per BMP, dan menghapus seluruh data lokal bila memang diinginkan. Buat backup dulu sebelum penghapusan destruktif jika datanya masih dibutuhkan."
         },
         {
-          "heading": "Apakah ini produk resmi institusi?",
+          "heading": "Cara mulai?",
           "heading_path": [
-            "Apakah ini produk resmi institusi?"
+            "Quiz Telegram",
+            "Cara mulai?"
           ],
-          "anchor": "apakah-ini-produk-resmi-institusi",
-          "url": "https://mentaliss.github.io/bukabmp/id/faq/#apakah-ini-produk-resmi-institusi",
-          "text": "Tidak. BMP Terbuka adalah proyek komunitas independen.",
-          "search_text": "FAQ Apakah ini produk resmi institusi? Tidak. BMP Terbuka adalah proyek komunitas independen."
+          "anchor": "cara-mulai",
+          "url": "https://mentaliss.github.io/bukabmp/id/faq/#cara-mulai",
+          "text": "Setelah modul diproses dan source Quiz lokal tersedia:\n\n**pilih modul → Mulai Quiz Telegram → lanjutkan di Telegram.**",
+          "search_text": "FAQ Quiz Telegram Cara mulai? Setelah modul diproses dan source Quiz lokal tersedia: pilih modul → Mulai Quiz Telegram → lanjutkan di Telegram."
+        },
+        {
+          "heading": "Apakah PDF dikirim ke server untuk Quiz?",
+          "heading_path": [
+            "Quiz Telegram",
+            "Apakah PDF dikirim ke server untuk Quiz?"
+          ],
+          "anchor": "apakah-pdf-dikirim-ke-server-untuk-quiz",
+          "url": "https://mentaliss.github.io/bukabmp/id/faq/#apakah-pdf-dikirim-ke-server-untuk-quiz",
+          "text": "Raw PDF dan gambar halaman tidak diunggah untuk pembuatan Quiz.\n\nSource Quiz berasal dari teks yang diekstrak dan disanitasi secara lokal. Saat bank perlu dibuat, teks yang sudah disanitasi dapat dipakai oleh generation flow. Source teks asli tidak disimpan server-side sebagai salinan materi sumber setelah flow generation.",
+          "search_text": "FAQ Quiz Telegram Apakah PDF dikirim ke server untuk Quiz? Raw PDF dan gambar halaman tidak diunggah untuk pembuatan Quiz. Source Quiz berasal dari teks yang diekstrak dan disanitasi secara lokal. Saat bank perlu dibuat, teks yang sudah disanitasi dapat dipakai oleh generation flow. Source teks asli tidak disimpan server-side sebagai salinan materi sumber setelah flow generation."
+        },
+        {
+          "heading": "Privasi",
+          "heading_path": [
+            "Privasi"
+          ],
+          "anchor": "privasi",
+          "url": "https://mentaliss.github.io/bukabmp/id/faq/#privasi",
+          "text": "OCR/PDF utama diproses local-first. Extension tetap memakai jaringan untuk aktivasi, version state, telemetry pseudonymous, sponsor metrics terbatas, Supporter/payment, Telegram/community, dan Quiz yang memang memerlukan backend.\n\nJangan kirim password, NIM, OTP, cookie/session, activation secret, API key, file backup, atau materi yang tidak boleh didistribusikan.",
+          "search_text": "FAQ Privasi OCR/PDF utama diproses local-first. Extension tetap memakai jaringan untuk aktivasi, version state, telemetry pseudonymous, sponsor metrics terbatas, Supporter/payment, Telegram/community, dan Quiz yang memang memerlukan backend. Jangan kirim password, NIM, OTP, cookie/session, activation secret, API key, file backup, atau materi yang tidak boleh didistribusikan."
+        },
+        {
+          "heading": "Komunitas",
+          "heading_path": [
+            "Komunitas"
+          ],
+          "anchor": "komunitas",
+          "url": "https://mentaliss.github.io/bukabmp/id/faq/#komunitas",
+          "text": "Group Terbuka adalah:\n\n**Playground komunitas buat ngobrol, saling bantu, berbagi, ikut aktivitas, bahas tools, belajar, dan lainnya.**\n\nChannel: https://t.me/bukabmp\n\nGroup: https://t.me/+0pAg9ymEhWdkZmNl\n\nBot: https://t.me/bukabmp_bot",
+          "search_text": "FAQ Komunitas Group Terbuka adalah: Playground komunitas buat ngobrol, saling bantu, berbagi, ikut aktivitas, bahas tools, belajar, dan lainnya. Channel: https://t.me/bukabmp Group: https://t.me/+0pAg9ymEhWdkZmNl Bot: https://t.me/bukabmp bot"
+        },
+        {
+          "heading": "Troubleshooting",
+          "heading_path": [
+            "Troubleshooting"
+          ],
+          "anchor": "troubleshooting",
+          "url": "https://mentaliss.github.io/bukabmp/id/faq/#troubleshooting",
+          "text": "Jangan uninstall atau hapus storage sebagai langkah pertama. Catat versi, platform/browser, Kode BMP, modul/range, tahap terakhir, error, dan screenshot yang sudah dibersihkan dari data sensitif.\n\nPanduan lengkap:\n\nhttps://mentaliss.github.io/bukabmp/id/docs/troubleshooting/",
+          "search_text": "FAQ Troubleshooting Jangan uninstall atau hapus storage sebagai langkah pertama. Catat versi, platform/browser, Kode BMP, modul/range, tahap terakhir, error, dan screenshot yang sudah dibersihkan dari data sensitif. Panduan lengkap: https://mentaliss.github.io/bukabmp/id/docs/troubleshooting/"
         }
       ]
     },
@@ -1598,28 +1648,48 @@
           ],
           "anchor": "",
           "url": "https://mentaliss.github.io/bukabmp/id/privacy/",
-          "text": "BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku source extension (versi 1.3.0) dan Cloudflare Worker yang dipakai kanal Store.",
-          "search_text": "Privacy Policy Ringkasan BMP Terbuka dirancang local-first . Dokumen ini menjelaskan perilaku source extension (versi 1.3.0) dan Cloudflare Worker yang dipakai kanal Store."
+          "text": "BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku **BMP Terbuka v1.2.0**.",
+          "search_text": "Privacy Policy Ringkasan BMP Terbuka dirancang local-first . Dokumen ini menjelaskan perilaku BMP Terbuka v1.2.0 ."
         },
         {
-          "heading": "Data materi",
+          "heading": "Ringkasan",
           "heading_path": [
-            "Data materi"
+            "Ringkasan"
           ],
-          "anchor": "data-materi",
-          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#data-materi",
-          "text": "Extension memproses halaman materi, OCR, cache PDF, penggabungan PDF, dan ekspor PDF di perangkat pengguna. Backend BMP Terbuka tidak menerima:\n- password atau credential portal sumber;\n- NIM;\n- cookie/session portal sumber;\n- gambar halaman materi;\n- teks OCR mentah isi materi;\n- PDF hasil.\n\nPengecualian: pembuatan Quiz. Untuk modul yang belum ada di bank soal Quiz, extension mengirim *teks materi yang sudah dibersihkan* (`sanitizedText`, maksimum 48.000 karakter) ke endpoint `/v1/quiz/bank/generate` supaya soal dibuat model di sisi Worker. Teks itu tidak disimpan di database (hanya dipakai selama proses generate) dan Worker menolak payload yang masih memuat penanda identitas (NIM/nama mahasiswa/email/URL) dengan error `quiz_source_privacy_rejected`. Tidak ada data pribadi, gambar halaman, atau PDF yang dikirim.\n\nOCR tidak menggunakan layanan OCR cloud. Tesseract.js, WebAssembly OCR, model bahasa Indonesia, dan pdf-lib dibundel di package release.",
-          "search_text": "Privacy Policy Data materi Extension memproses halaman materi, OCR, cache PDF, penggabungan PDF, dan ekspor PDF di perangkat pengguna. Backend BMP Terbuka tidak menerima: - password atau credential portal sumber; - NIM; - cookie/session portal sumber; - gambar halaman materi; - teks OCR mentah isi materi; - PDF hasil. Pengecualian: pembuatan Quiz. Untuk modul yang belum ada di bank soal Quiz, extension mengirim teks materi yang sudah dibersihkan ( sanitizedText , maksimum 48.000 karakter) ke endpoint /v1/quiz/bank/generate supaya soal dibuat model di sisi Worker. Teks itu tidak disimpan di database (hanya dipakai selama proses generate) dan Worker menolak payload yang masih memuat penanda identitas (NIM/nama mahasiswa/email/URL) dengan error quiz source privacy rejected . Tidak ada data pribadi, gambar halaman, atau PDF yang dikirim. OCR tidak menggunakan layanan OCR cloud. Tesseract.js, WebAssembly OCR, model bahasa Indonesia, dan pdf-lib dibundel di package release."
+          "anchor": "ringkasan",
+          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#ringkasan",
+          "text": "Untuk alur OCR/PDF, halaman materi, OCR, cache PDF, penggabungan PDF, dan ekspor PDF diproses di perangkat pengguna. Backend BMP Terbuka tidak digunakan untuk mengunggah raw PDF hasil, gambar halaman materi, password/NIM/cookie portal sumber, atau teks OCR penuh dari alur PDF biasa.\n\nBMP Terbuka tetap menggunakan jaringan untuk fungsi yang memang memerlukannya, termasuk aktivasi komunitas, version/realtime state, telemetry pseudonymous, sponsor/advertising state dan metrics terbatas, Telegram/community flow, Supporter/payment flow, dan Quiz Telegram.",
+          "search_text": "Privacy Policy Ringkasan Untuk alur OCR/PDF, halaman materi, OCR, cache PDF, penggabungan PDF, dan ekspor PDF diproses di perangkat pengguna. Backend BMP Terbuka tidak digunakan untuk mengunggah raw PDF hasil, gambar halaman materi, password/NIM/cookie portal sumber, atau teks OCR penuh dari alur PDF biasa. BMP Terbuka tetap menggunakan jaringan untuk fungsi yang memang memerlukannya, termasuk aktivasi komunitas, version/realtime state, telemetry pseudonymous, sponsor/advertising state dan metrics terbatas, Telegram/community flow, Supporter/payment flow, dan Quiz Telegram."
         },
         {
-          "heading": "Penyimpanan lokal extension",
+          "heading": "Penyimpanan lokal",
           "heading_path": [
-            "Penyimpanan lokal extension"
+            "Penyimpanan lokal"
           ],
-          "anchor": "penyimpanan-lokal-extension",
-          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#penyimpanan-lokal-extension",
-          "text": "Browser dapat menyimpan data operasional di storage origin extension, antara lain:\n- installation ID acak yang dibuat extension;\n- signed community activation token;\n- status pairing sementara;\n- draft kode BMP/rentang dan opsi proses;\n- status pekerjaan;\n- metadata cache per BMP;\n- version-policy cache;\n- validated realtime state/ads cache.\n\nPDF modul disimpan lokal di IndexedDB `bmp-terbuka-pdf-cache`, object store `pdfs`, dengan key per BMP seperti `CODE:M1`. File di Downloads hanyalah salinan ekspor. Mengosongkan cache satu BMP tidak menghapus file yang sudah diekspor.\n\nUpdate **in-place dengan extension identity yang sama** mempertahankan storage browser menurut model extension Chromium. Uninstall, pembersihan storage browser, atau instalasi dengan identity berbeda dapat menghilangkan/memisahkan data tersebut.",
-          "search_text": "Privacy Policy Penyimpanan lokal extension Browser dapat menyimpan data operasional di storage origin extension, antara lain: - installation ID acak yang dibuat extension; - signed community activation token; - status pairing sementara; - draft kode BMP/rentang dan opsi proses; - status pekerjaan; - metadata cache per BMP; - version-policy cache; - validated realtime state/ads cache. PDF modul disimpan lokal di IndexedDB bmp-terbuka-pdf-cache , object store pdfs , dengan key per BMP seperti CODE:M1 . File di Downloads hanyalah salinan ekspor. Mengosongkan cache satu BMP tidak menghapus file yang sudah diekspor. Update in-place dengan extension identity yang sama mempertahankan storage browser menurut model extension Chromium. Uninstall, pembersihan storage browser, atau instalasi dengan identity berbeda dapat menghilangkan/memisahkan data tersebut."
+          "anchor": "penyimpanan-lokal",
+          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#penyimpanan-lokal",
+          "text": "Browser dapat menyimpan installation ID acak, analytics ID acak yang terpisah, signed activation token, pairing state sementara, draft, status pekerjaan, cache PDF per BMP, source Quiz lokal, version-policy cache, serta state lain yang diperlukan fitur lokal.\n\nFile di Downloads adalah salinan ekspor dan berbeda dari data yang masih tersimpan di storage extension.",
+          "search_text": "Privacy Policy Penyimpanan lokal Browser dapat menyimpan installation ID acak, analytics ID acak yang terpisah, signed activation token, pairing state sementara, draft, status pekerjaan, cache PDF per BMP, source Quiz lokal, version-policy cache, serta state lain yang diperlukan fitur lokal. File di Downloads adalah salinan ekspor dan berbeda dari data yang masih tersimpan di storage extension."
+        },
+        {
+          "heading": "Backup & Restore",
+          "heading_path": [
+            "Backup & Restore"
+          ],
+          "anchor": "backup-dan-restore",
+          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#backup-dan-restore",
+          "text": "Backup v1.2.0 dibuat untuk pemulihan data lokal pribadi. File backup dapat mengandung data belajar/material yang sebelumnya tersimpan secara lokal.\n\nKarena itu:\n- simpan backup di tempat yang kamu percaya;\n- jangan membagikan file backup ke group, bot, atau pihak lain tanpa alasan yang jelas;\n- menghapus file backup tidak otomatis menghapus storage extension, dan sebaliknya.\n\nRestore memakai **MERGE semantics**. Data dari backup dipulihkan dan item lokal yang cocok dapat diperbarui; data lokal lain yang tidak terkait tidak otomatis dihapus.",
+          "search_text": "Privacy Policy Backup & Restore Backup v1.2.0 dibuat untuk pemulihan data lokal pribadi. File backup dapat mengandung data belajar/material yang sebelumnya tersimpan secara lokal. Karena itu: - simpan backup di tempat yang kamu percaya; - jangan membagikan file backup ke group, bot, atau pihak lain tanpa alasan yang jelas; - menghapus file backup tidak otomatis menghapus storage extension, dan sebaliknya. Restore memakai MERGE semantics . Data dari backup dipulihkan dan item lokal yang cocok dapat diperbarui; data lokal lain yang tidak terkait tidak otomatis dihapus."
+        },
+        {
+          "heading": "Quiz Telegram",
+          "heading_path": [
+            "Quiz Telegram"
+          ],
+          "anchor": "quiz-telegram",
+          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#quiz-telegram",
+          "text": "Untuk Quiz:\n- raw PDF tidak diunggah untuk pembuatan soal;\n- gambar halaman tidak diunggah;\n- source Quiz berasal dari teks yang diekstrak dan disanitasi secara lokal;\n- bila bank soal perlu dibuat, source teks yang sudah disanitasi dapat dipakai oleh backend/AI generation flow untuk membuat soal;\n- source teks asli tersebut tidak disimpan server-side sebagai salinan materi sumber setelah flow generation.\n\nBank soal, status penggunaan, dan data gameplay yang diperlukan fitur Quiz dapat disimpan server-side sesuai fungsi produk.",
+          "search_text": "Privacy Policy Quiz Telegram Untuk Quiz: - raw PDF tidak diunggah untuk pembuatan soal; - gambar halaman tidak diunggah; - source Quiz berasal dari teks yang diekstrak dan disanitasi secara lokal; - bila bank soal perlu dibuat, source teks yang sudah disanitasi dapat dipakai oleh backend/AI generation flow untuk membuat soal; - source teks asli tersebut tidak disimpan server-side sebagai salinan materi sumber setelah flow generation. Bank soal, status penggunaan, dan data gameplay yang diperlukan fitur Quiz dapat disimpan server-side sesuai fungsi produk."
         },
         {
           "heading": "Aktivasi komunitas",
@@ -1628,88 +1698,38 @@
           ],
           "anchor": "aktivasi-komunitas",
           "url": "https://mentaliss.github.io/bukabmp/id/privacy/#aktivasi-komunitas",
-          "text": "Extension membuat pairing ke backend dengan:\n- installation ID acak;\n- versi extension;\n- distribution channel;\n- pada one-time legacy→v2 re-verification, current signed activation token dapat dikirim kembali ke backend agar sisa masa aktif tidak dipendekkan.\n\nBackend memverifikasi token tersebut secara kriptografis. Token invalid, expired, atau dari install berbeda tidak memberi expiry floor. Untuk expiry-preservation, member reference satu arah juga harus cocok dengan akun Telegram yang melakukan verifikasi.\n\nPairing sementara disimpan di Cloudflare KV dengan TTL **15 menit**. Record pairing dapat memuat installation ID, version/channel, hash poll secret, status, timestamp, expiry floor/member reference tervalidasi, dan setelah sukses signed activation token untuk diambil client selama TTL tersebut.\n\nMembership Telegram diperiksa saat aktivasi/re-verifikasi dan token refresh. Signed activation token disimpan oleh extension, terikat ke installation ID, dan diverifikasi lokal menggunakan public key.",
-          "search_text": "Privacy Policy Aktivasi komunitas Extension membuat pairing ke backend dengan: - installation ID acak; - versi extension; - distribution channel; - pada one-time legacy→v2 re-verification, current signed activation token dapat dikirim kembali ke backend agar sisa masa aktif tidak dipendekkan. Backend memverifikasi token tersebut secara kriptografis. Token invalid, expired, atau dari install berbeda tidak memberi expiry floor. Untuk expiry-preservation, member reference satu arah juga harus cocok dengan akun Telegram yang melakukan verifikasi. Pairing sementara disimpan di Cloudflare KV dengan TTL 15 menit . Record pairing dapat memuat installation ID, version/channel, hash poll secret, status, timestamp, expiry floor/member reference tervalidasi, dan setelah sukses signed activation token untuk diambil client selama TTL tersebut. Membership Telegram diperiksa saat aktivasi/re-verifikasi dan token refresh. Signed activation token disimpan oleh extension, terikat ke installation ID, dan diverifikasi lokal menggunakan public key."
+          "text": "Extension membuat pairing menggunakan installation ID acak, versi extension, dan distribution channel. Membership Telegram dapat diperiksa saat aktivasi/re-verifikasi dan token refresh.\n\nBackend dapat menyimpan data durable untuk fungsi bot, aktivasi, referral, Supporter, payment/idempotency, support ticket, dan Quiz. Data tersebut tidak dimaksudkan sebagai storage raw PDF/page-image pengguna.",
+          "search_text": "Privacy Policy Aktivasi komunitas Extension membuat pairing menggunakan installation ID acak, versi extension, dan distribution channel. Membership Telegram dapat diperiksa saat aktivasi/re-verifikasi dan token refresh. Backend dapat menyimpan data durable untuk fungsi bot, aktivasi, referral, Supporter, payment/idempotency, support ticket, dan Quiz. Data tersebut tidak dimaksudkan sebagai storage raw PDF/page-image pengguna."
         },
         {
-          "heading": "Durable account/activation data",
+          "heading": "Telemetry pseudonymous",
           "heading_path": [
-            "Durable account/activation data"
+            "Telemetry pseudonymous"
           ],
-          "anchor": "durable-account-activation-data",
-          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#durable-account-activation-data",
-          "text": "Backend v1.1.0 juga menggunakan D1/KV untuk fungsi bot, aktivasi, referral, dan Supporter. Bergantung feature gate produksi, data berikut dapat disimpan lebih lama daripada sesi pairing:\n- Telegram user ID internal untuk user bot;\n- first/last activation timestamp dan activation count;\n- opaque referral code dan referral/qualification state;\n- Supporter entitlement dan target masa aktivasi;\n- payment/idempotency records yang dibutuhkan untuk mencegah kredit ganda dan merekonsiliasi transaksi;\n- pilihan Supporter Wall dan state operasional terkait.\n\nData durable tersebut tidak berisi halaman BMP, gambar materi, teks OCR, PDF hasil, atau teks materi yang dikirim untuk pembuatan Quiz. Source saat ini tidak memberi TTL otomatis untuk seluruh record D1 tersebut; retention mengikuti kebutuhan operasional/transaksi sampai ada proses penghapusan/migrasi yang berlaku.",
-          "search_text": "Privacy Policy Durable account/activation data Backend v1.1.0 juga menggunakan D1/KV untuk fungsi bot, aktivasi, referral, dan Supporter. Bergantung feature gate produksi, data berikut dapat disimpan lebih lama daripada sesi pairing: - Telegram user ID internal untuk user bot; - first/last activation timestamp dan activation count; - opaque referral code dan referral/qualification state; - Supporter entitlement dan target masa aktivasi; - payment/idempotency records yang dibutuhkan untuk mencegah kredit ganda dan merekonsiliasi transaksi; - pilihan Supporter Wall dan state operasional terkait. Data durable tersebut tidak berisi halaman BMP, gambar materi, teks OCR, PDF hasil, atau teks materi yang dikirim untuk pembuatan Quiz. Source saat ini tidak memberi TTL otomatis untuk seluruh record D1 tersebut; retention mengikuti kebutuhan operasional/transaksi sampai ada proses penghapusan/migrasi yang berlaku."
+          "anchor": "telemetry-pseudonymous",
+          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#telemetry-pseudonymous",
+          "text": "Telemetry produk menggunakan identifier pseudonymous terpisah dari identitas Telegram dan activation credential. Payload telemetry di-allowlist dan tidak boleh berisi raw PDF, OCR text, material page image, password, cookie/session sumber, atau activation secret.\n\nProvider/platform seperti Cloudflare, Telegram, browser/store, dan source service dapat memiliki log infrastrukturnya sendiri sesuai konfigurasi dan kebijakan masing-masing.",
+          "search_text": "Privacy Policy Telemetry pseudonymous Telemetry produk menggunakan identifier pseudonymous terpisah dari identitas Telegram dan activation credential. Payload telemetry di-allowlist dan tidak boleh berisi raw PDF, OCR text, material page image, password, cookie/session sumber, atau activation secret. Provider/platform seperti Cloudflare, Telegram, browser/store, dan source service dapat memiliki log infrastrukturnya sendiri sesuai konfigurasi dan kebijakan masing-masing."
         },
         {
-          "heading": "Supporter dan Support Bot",
+          "heading": "Sponsor / advertising",
           "heading_path": [
-            "Supporter dan Support Bot"
+            "Sponsor / advertising"
           ],
-          "anchor": "supporter-dan-support-bot",
-          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#supporter-dan-support-bot",
-          "text": "Supporter bersifat opsional dan bukan syarat untuk OCR/PDF inti. Source saat ini menggunakan beberapa record sementara:\n- draft invoice Supporter: TTL **24 jam**;\n- konteks troubleshooting Supporter: TTL **6 jam**;\n- counter kuota AI: TTL **48 jam**.\n\nEntitlement, payment/idempotency, referral, dan activation ledger dapat bersifat durable sebagaimana dijelaskan di atas.",
-          "search_text": "Privacy Policy Supporter dan Support Bot Supporter bersifat opsional dan bukan syarat untuk OCR/PDF inti. Source saat ini menggunakan beberapa record sementara: - draft invoice Supporter: TTL 24 jam ; - konteks troubleshooting Supporter: TTL 6 jam ; - counter kuota AI: TTL 48 jam . Entitlement, payment/idempotency, referral, dan activation ledger dapat bersifat durable sebagaimana dijelaskan di atas."
+          "anchor": "sponsor-advertising",
+          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#sponsor-advertising",
+          "text": "Campaign dapat menampilkan sponsor card/interstitial melalui renderer di package extension. Arbitrary advertiser HTML, iframe, tracking pixel, atau executable JavaScript tidak digunakan sebagai creative extension.\n\nMetrics coarse dapat mencakup impression, click, dismiss, placement, campaign ID/revision, distribution channel, dan extension version. Event advertising tidak membawa raw PDF/OCR text atau credential sumber.",
+          "search_text": "Privacy Policy Sponsor / advertising Campaign dapat menampilkan sponsor card/interstitial melalui renderer di package extension. Arbitrary advertiser HTML, iframe, tracking pixel, atau executable JavaScript tidak digunakan sebagai creative extension. Metrics coarse dapat mencakup impression, click, dismiss, placement, campaign ID/revision, distribution channel, dan extension version. Event advertising tidak membawa raw PDF/OCR text atau credential sumber."
         },
         {
-          "heading": "Rate limiting dan anti-abuse",
+          "heading": "Pihak ketiga",
           "heading_path": [
-            "Rate limiting dan anti-abuse"
+            "Pihak ketiga"
           ],
-          "anchor": "rate-limiting-dan-anti-abuse",
-          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#rate-limiting-dan-anti-abuse",
-          "text": "Beberapa endpoint memakai fingerprint satu arah dari alamat IP dengan salt server:\n- pair start: counter TTL **60 detik**;\n- ad-event ingest: counter TTL **60 detik**;\n- reviewer activation: counter TTL **10 menit**.\n\nAnonymous product telemetry tidak memakai IP sebagai actor analytics. Rate-limit telemetry menggunakan HMAC pseudonymous dari `bmpAnalyticsIdV1`, dibucket per menit, dengan record counter KV berumur sekitar **120 detik**. Raw analytics UUID dan IP mentah tidak disimpan di record rate-limit tersebut. Infrastruktur Cloudflare dapat memiliki log platform tersendiri sesuai konfigurasi/provider.",
-          "search_text": "Privacy Policy Rate limiting dan anti-abuse Beberapa endpoint memakai fingerprint satu arah dari alamat IP dengan salt server: - pair start: counter TTL 60 detik ; - ad-event ingest: counter TTL 60 detik ; - reviewer activation: counter TTL 10 menit . Anonymous product telemetry tidak memakai IP sebagai actor analytics. Rate-limit telemetry menggunakan HMAC pseudonymous dari bmpAnalyticsIdV1 , dibucket per menit, dengan record counter KV berumur sekitar 120 detik . Raw analytics UUID dan IP mentah tidak disimpan di record rate-limit tersebut. Infrastruktur Cloudflare dapat memiliki log platform tersendiri sesuai konfigurasi/provider."
-        },
-        {
-          "heading": "Pemeriksaan versi dan realtime state",
-          "heading_path": [
-            "Pemeriksaan versi dan realtime state"
-          ],
-          "anchor": "pemeriksaan-versi-dan-realtime-state",
-          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#pemeriksaan-versi-dan-realtime-state",
-          "text": "Extension dapat meminta:\n- `/v1/version` dengan versi extension + distribution channel;\n- `/v1/extension-state` dengan versi extension + distribution channel.\n\nRealtime state berisi plain state/content yang melewati allowlist client. Backend tidak dapat mengirim JavaScript, arbitrary HTML, remote WASM, remote Worker, atau functionality baru untuk dieksekusi extension.\n\nUntuk channel Store, remote minimum-version enforcement hanya berlaku setelah backend menandai channel tersebut `store_ready=true`.",
-          "search_text": "Privacy Policy Pemeriksaan versi dan realtime state Extension dapat meminta: - /v1/version dengan versi extension + distribution channel; - /v1/extension-state dengan versi extension + distribution channel. Realtime state berisi plain state/content yang melewati allowlist client. Backend tidak dapat mengirim JavaScript, arbitrary HTML, remote WASM, remote Worker, atau functionality baru untuk dieksekusi extension. Untuk channel Store, remote minimum-version enforcement hanya berlaku setelah backend menandai channel tersebut store ready=true ."
-        },
-        {
-          "heading": "Sponsor / ads v1.1.0",
-          "heading_path": [
-            "Sponsor / ads v1.1.0"
-          ],
-          "anchor": "sponsor-ads-v1-1-0",
-          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#sponsor-ads-v1-1-0",
-          "text": "Kandidat v1.1.0 memiliki sponsor card dan sponsor interstitial yang dirender oleh code yang sudah ada di package. Campaign dapat menggunakan plain text atau media first-party yang tervalidasi: banner image untuk card, serta text/image/video untuk interstitial. Media berasal dari BMP-owned storage melalui media ID, bukan URL media arbitrary milik advertiser. CTA tetap HTTPS-only, dan tidak ada remote HTML/JavaScript/iframe/tracking pixel.\n\nJika tidak ada campaign aktif atau state tidak tersedia, extension dapat menampilkan house inventory seperti **Space iklan tersedia** dengan CTA kontak yang aman.\n\nUntuk campaign aktif, extension dapat mengirim event coarse:\n- `impression`, `click`, atau `dismiss`;\n- placement (`card` / `interstitial`);\n- campaign ID + revision;\n- distribution channel;\n- extension version.\n\nEvent ads **tidak** memuat Telegram user ID, installation ID, activation token, kode BMP, nama modul, halaman, OCR text, atau PDF. Backend memvalidasi event terhadap campaign/revision/placement yang sedang aktif sebelum menghitungnya. Jika Analytics Engine tersedia, field coarse tersebut dapat dicatat di sana; source juga dapat menulis event coarse ke log Worker. Retention log/Analytics Engine mengikuti konfigurasi/provider yang berlaku.\n\nIsi BMP/OCR/PDF tidak digunakan untuk advertising atau profiling.\n\nPemilihan campaign v1.1.0 bersifat **contextual pada distribution channel/campaign state**, bukan berdasarkan identitas pengguna, histori penggunaan, kode BMP, isi dokumen, atau profil personal. BMP Terbuka tidak menggunakan atau mentransfer data pengguna extension untuk personalized/interest-based/retargeted advertising.\n\nKarena sponsor adalah bagian dari pengalaman runtime, listing Store dan privacy disclosure untuk release yang memuat fitur ini harus menjelaskan keberadaan sponsor card/interstitial secara akurat.",
-          "search_text": "Privacy Policy Sponsor / ads v1.1.0 Kandidat v1.1.0 memiliki sponsor card dan sponsor interstitial yang dirender oleh code yang sudah ada di package. Campaign dapat menggunakan plain text atau media first-party yang tervalidasi: banner image untuk card, serta text/image/video untuk interstitial. Media berasal dari BMP-owned storage melalui media ID, bukan URL media arbitrary milik advertiser. CTA tetap HTTPS-only, dan tidak ada remote HTML/JavaScript/iframe/tracking pixel. Jika tidak ada campaign aktif atau state tidak tersedia, extension dapat menampilkan house inventory seperti Space iklan tersedia dengan CTA kontak yang aman. Untuk campaign aktif, extension dapat mengirim event coarse: - impression , click , atau dismiss ; - placement ( card / interstitial ); - campaign ID + revision; - distribution channel; - extension version. Event ads tidak memuat Telegram user ID, installation ID, activation token, kode BMP, nama modul, halaman, OCR text, atau PDF. Backend memvalidasi event terhadap campaign/revision/placement yang sedang aktif sebelum menghitungnya. Jika Analytics Engine tersedia, field coarse tersebut dapat dicatat di sana; source juga dapat menulis event coarse ke log Worker. Retention log/Analytics Engine mengikuti konfigurasi/provider yang berlaku. Isi BMP/OCR/PDF tidak digunakan untuk advertising atau profiling. Pemilihan campaign v1.1.0 bersifat contextual pada distribution channel/campaign state , bukan berdasarkan identitas pengguna, histori penggunaan, kode BMP, isi dokumen, atau profil personal. BMP Terbuka tidak menggunakan atau mentransfer data pengguna extension untuk personalized/interest-based/retargeted advertising. Karena sponsor adalah bagian dari pengalaman runtime, listing Store dan privacy disclosure untuk release yang memuat fitur ini harus menjelaskan keberadaan sponsor card/interstitial secara akurat."
-        },
-        {
-          "heading": "Store reviewer",
-          "heading_path": [
-            "Store reviewer"
-          ],
-          "anchor": "store-reviewer",
-          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#store-reviewer",
-          "text": "Reviewer Store memakai signed token normal yang terikat installation ID dan diverifikasi client. Reviewer secret tetap server-side dan tidak masuk package/repository.\n\nReviewer token memiliki masa berlaku maksimum **24 jam** dan scope `store_review`. Reviewer-only OCR fixture dibuat lokal dan bukan materi BMP asli.",
-          "search_text": "Privacy Policy Store reviewer Reviewer Store memakai signed token normal yang terikat installation ID dan diverifikasi client. Reviewer secret tetap server-side dan tidak masuk package/repository. Reviewer token memiliki masa berlaku maksimum 24 jam dan scope store review . Reviewer-only OCR fixture dibuat lokal dan bukan materi BMP asli."
-        },
-        {
-          "heading": "Sharing dan pihak ketiga",
-          "heading_path": [
-            "Sharing dan pihak ketiga"
-          ],
-          "anchor": "sharing-dan-pihak-ketiga",
-          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#sharing-dan-pihak-ketiga",
-          "text": "Fungsi aplikasi berinteraksi dengan layanan yang memang diperlukan, termasuk Cloudflare untuk backend, Telegram untuk komunitas/bot, browser/store untuk extension distribution, dan portal sumber yang dibuka pengguna. Masing-masing penyedia dapat memiliki log/kebijakan platform sendiri.\n\nBMP Terbuka tidak menjual isi materi, OCR text, atau PDF pengguna kepada advertiser.\n\nPenggunaan data oleh BMP Terbuka mengikuti pembatasan penggunaan yang dijelaskan di kebijakan ini; data pengguna extension tidak ditransfer, digunakan, atau dijual untuk personalized advertising atau retargeting.",
-          "search_text": "Privacy Policy Sharing dan pihak ketiga Fungsi aplikasi berinteraksi dengan layanan yang memang diperlukan, termasuk Cloudflare untuk backend, Telegram untuk komunitas/bot, browser/store untuk extension distribution, dan portal sumber yang dibuka pengguna. Masing-masing penyedia dapat memiliki log/kebijakan platform sendiri. BMP Terbuka tidak menjual isi materi, OCR text, atau PDF pengguna kepada advertiser. Penggunaan data oleh BMP Terbuka mengikuti pembatasan penggunaan yang dijelaskan di kebijakan ini; data pengguna extension tidak ditransfer, digunakan, atau dijual untuk personalized advertising atau retargeting."
-        },
-        {
-          "heading": "Anonymous product analytics (v1.1.0 candidate)",
-          "heading_path": [
-            "Anonymous product analytics (v1.1.0 candidate)"
-          ],
-          "anchor": "anonymous-product-analytics-v1-1-0-candidate",
-          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#anonymous-product-analytics-v1-1-0-candidate",
-          "text": "The v1.1.0 candidate adds compact product telemetry for extension opens, job lifecycle health, and paid-sponsor delivery. The extension creates a random per-installation analytics identifier named `bmpAnalyticsIdV1`. It is separate from `bmpInstallId`, activation credentials, Telegram identity, and Supporter/payment state. The Worker transforms the incoming identifier with a server-side keyed HMAC before analytics storage; the raw analytics identifier is not an analytics storage key. Per-day pseudonymous activity is bounded to roughly 180 days and daily aggregate metrics to roughly 13 months; the minimal actor-hash index is used to support unique-install and returning-user definitions without storing the raw analytics UUID.\n\nTelemetry is allowlisted and must not include Telegram IDs or usernames, member references, activation or pairing secrets, BMP codes, module numbers or names, RBV URLs, PDF names or contents, OCR text, document titles or contents, or browsing history. Delivery is fire-and-forget and BMP processing does not depend on telemetry success.\n\nDirect sponsor media is referenced by BMP-owned first-party media IDs. Advertiser-controlled arbitrary media URLs are not rendered by the extension. AdsOnBread fallback is **not active**: the release build removes the AdsOnBread SDK, so card inventory resolves through House Ad when no direct sponsor card is available. Live AdsOnBread SDK/account activation remains an external release gate and executable remote JavaScript is not loaded by the Manifest V3 extension.",
-          "search_text": "Privacy Policy Anonymous product analytics (v1.1.0 candidate) The v1.1.0 candidate adds compact product telemetry for extension opens, job lifecycle health, and paid-sponsor delivery. The extension creates a random per-installation analytics identifier named bmpAnalyticsIdV1 . It is separate from bmpInstallId , activation credentials, Telegram identity, and Supporter/payment state. The Worker transforms the incoming identifier with a server-side keyed HMAC before analytics storage; the raw analytics identifier is not an analytics storage key. Per-day pseudonymous activity is bounded to roughly 180 days and daily aggregate metrics to roughly 13 months; the minimal actor-hash index is used to support unique-install and returning-user definitions without storing the raw analytics UUID. Telemetry is allowlisted and must not include Telegram IDs or usernames, member references, activation or pairing secrets, BMP codes, module numbers or names, RBV URLs, PDF names or contents, OCR text, document titles or contents, or browsing history. Delivery is fire-and-forget and BMP processing does not depend on telemetry success. Direct sponsor media is referenced by BMP-owned first-party media IDs. Advertiser-controlled arbitrary media URLs are not rendered by the extension. AdsOnBread fallback is not active : the release build removes the AdsOnBread SDK, so card inventory resolves through House Ad when no direct sponsor card is available. Live AdsOnBread SDK/account activation remains an external release gate and executable remote JavaScript is not loaded by the Manifest V3 extension."
+          "anchor": "pihak-ketiga",
+          "url": "https://mentaliss.github.io/bukabmp/id/privacy/#pihak-ketiga",
+          "text": "BMP Terbuka tidak menjual isi materi, OCR text, atau PDF pengguna kepada advertiser dan tidak menggunakan isi dokumen untuk personalized advertising/retargeting.",
+          "search_text": "Privacy Policy Pihak ketiga BMP Terbuka tidak menjual isi materi, OCR text, atau PDF pengguna kepada advertiser dan tidak menggunakan isi dokumen untuk personalized advertising/retargeting."
         }
       ]
     },
@@ -1786,14 +1806,14 @@
       "url": "https://mentaliss.github.io/bukabmp/id/security/",
       "sections": [
         {
-          "heading": "Scope repository",
+          "heading": "Scope publik",
           "heading_path": [
-            "Scope repository"
+            "Scope publik"
           ],
-          "anchor": "scope-repository",
-          "url": "https://mentaliss.github.io/bukabmp/id/security/#scope-repository",
-          "text": "Repo publik `mentaliss/bukabmp` mempublikasikan source **Chrome extension BMP Terbuka** dan tooling build/release extension. Source activation service (`worker/`) dan infrastructure operasional hanya berada di repo privat kanonik ini dan **tidak** dipublikasikan.",
-          "search_text": "Security Policy Scope repository Repo publik mentaliss/bukabmp mempublikasikan source Chrome extension BMP Terbuka dan tooling build/release extension. Source activation service ( worker/ ) dan infrastructure operasional hanya berada di repo privat kanonik ini dan tidak dipublikasikan."
+          "anchor": "scope-publik",
+          "url": "https://mentaliss.github.io/bukabmp/id/security/#scope-publik",
+          "text": "Repository ini mempublikasikan source browser extension BMP Terbuka, public website source, public build/release tooling, dan dokumentasi publik.\n\nSecret produksi, private signing material, credential operator, serta konfigurasi provider privat tidak boleh berada di package extension atau dokumentasi publik.",
+          "search_text": "Security Policy Scope publik Repository ini mempublikasikan source browser extension BMP Terbuka, public website source, public build/release tooling, dan dokumentasi publik. Secret produksi, private signing material, credential operator, serta konfigurasi provider privat tidak boleh berada di package extension atau dokumentasi publik."
         },
         {
           "heading": "Melaporkan kerentanan",
@@ -1802,18 +1822,18 @@
           ],
           "anchor": "melaporkan-kerentanan",
           "url": "https://mentaliss.github.io/bukabmp/id/security/#melaporkan-kerentanan",
-          "text": "Jangan membuka detail kerentanan sensitif sebagai public GitHub Issue. Gunakan **GitHub Private Vulnerability Reporting / Security Advisories** bila tersedia.\n\nSertakan:\n- versi BMP Terbuka;\n- browser/OS;\n- langkah reproduksi minimum;\n- dampak;\n- proof-of-concept yang tidak menyertakan credential atau materi berhak cipta.",
-          "search_text": "Security Policy Melaporkan kerentanan Jangan membuka detail kerentanan sensitif sebagai public GitHub Issue. Gunakan GitHub Private Vulnerability Reporting / Security Advisories bila tersedia. Sertakan: - versi BMP Terbuka; - browser/OS; - langkah reproduksi minimum; - dampak; - proof-of-concept yang tidak menyertakan credential atau materi berhak cipta."
+          "text": "Jangan membuka detail kerentanan sensitif sebagai public GitHub Issue. Gunakan **GitHub Private Vulnerability Reporting / Security Advisories** bila tersedia.\n\nSertakan:\n- versi/build atau halaman yang terdampak;\n- browser/OS bila relevan;\n- langkah reproduksi minimum;\n- dampak;\n- proof-of-concept yang tidak menyertakan credential, file backup pribadi, atau materi berhak cipta.",
+          "search_text": "Security Policy Melaporkan kerentanan Jangan membuka detail kerentanan sensitif sebagai public GitHub Issue. Gunakan GitHub Private Vulnerability Reporting / Security Advisories bila tersedia. Sertakan: - versi/build atau halaman yang terdampak; - browser/OS bila relevan; - langkah reproduksi minimum; - dampak; - proof-of-concept yang tidak menyertakan credential, file backup pribadi, atau materi berhak cipta."
         },
         {
-          "heading": "Contoh isu in-scope",
+          "heading": "Prinsip keamanan v1.2.0",
           "heading_path": [
-            "Contoh isu in-scope"
+            "Prinsip keamanan v1.2.0"
           ],
-          "anchor": "contoh-isu-in-scope",
-          "url": "https://mentaliss.github.io/bukabmp/id/security/#contoh-isu-in-scope",
-          "text": "- extension mengirim materi atau credential ke endpoint yang tidak semestinya;\n- XSS/injection pada halaman extension;\n- verifikasi signed activation token pada client dapat dibypass karena bug implementasi;\n- penyimpanan credential sumber yang tidak disengaja;\n- permission Chrome lebih luas daripada yang diperlukan;\n- dependency/build artifact extension telah dimodifikasi tanpa terdeteksi.\n\nMasalah yang terlihat melalui API aktivasi juga boleh dilaporkan secara privat bila berdampak pada keamanan pengguna, meskipun implementasi service tersebut tidak dipublikasikan (source `worker/` hanya ada di repo privat).",
-          "search_text": "Security Policy Contoh isu in-scope - extension mengirim materi atau credential ke endpoint yang tidak semestinya; - XSS/injection pada halaman extension; - verifikasi signed activation token pada client dapat dibypass karena bug implementasi; - penyimpanan credential sumber yang tidak disengaja; - permission Chrome lebih luas daripada yang diperlukan; - dependency/build artifact extension telah dimodifikasi tanpa terdeteksi. Masalah yang terlihat melalui API aktivasi juga boleh dilaporkan secara privat bila berdampak pada keamanan pengguna, meskipun implementasi service tersebut tidak dipublikasikan (source worker/ hanya ada di repo privat)."
+          "anchor": "prinsip-keamanan-v1-2-0",
+          "url": "https://mentaliss.github.io/bukabmp/id/security/#prinsip-keamanan-v1-2-0",
+          "text": "- credential sumber tetap berada pada browser/source service;\n- OCR dan PDF utama local-first;\n- Quiz tidak mengunggah raw PDF atau page image;\n- Backup dapat mengandung data belajar/material lokal sehingga harus diperlakukan sebagai file privat;\n- remote state tidak boleh menyuntikkan arbitrary executable code;\n- 403/429/re-authentication memicu safe stop, bukan blind retry;\n- update normal tidak boleh meminta pengguna menghapus storage sebagai langkah default;\n- Store identity harus menggunakan jalur publikasi resmi, bukan CRX diagnostic/audit.",
+          "search_text": "Security Policy Prinsip keamanan v1.2.0 - credential sumber tetap berada pada browser/source service; - OCR dan PDF utama local-first; - Quiz tidak mengunggah raw PDF atau page image; - Backup dapat mengandung data belajar/material lokal sehingga harus diperlakukan sebagai file privat; - remote state tidak boleh menyuntikkan arbitrary executable code; - 403/429/re-authentication memicu safe stop, bukan blind retry; - update normal tidak boleh meminta pengguna menghapus storage sebagai langkah default; - Store identity harus menggunakan jalur publikasi resmi, bukan CRX diagnostic/audit."
         },
         {
           "heading": "Out of scope",
@@ -1849,8 +1869,8 @@
           ],
           "anchor": "yang-bmp-terbuka-lakukan",
           "url": "https://mentaliss.github.io/bukabmp/id/responsible-use/#yang-bmp-terbuka-lakukan",
-          "text": "- menggunakan sesi browser pengguna yang sedang login;\n- mengambil halaman yang diberikan server kepada sesi tersebut;\n- melakukan OCR lokal;\n- menyusun searchable PDF;\n- mempertahankan watermark sumber;\n- berhenti saat server menolak akses.",
-          "search_text": "Responsible Use Yang BMP Terbuka lakukan - menggunakan sesi browser pengguna yang sedang login; - mengambil halaman yang diberikan server kepada sesi tersebut; - melakukan OCR lokal; - menyusun searchable PDF; - mempertahankan watermark sumber; - berhenti saat server menolak akses."
+          "text": "- menggunakan sesi browser pengguna yang sudah login secara normal;\n- mengambil resource yang diberikan server kepada sesi tersebut;\n- melakukan OCR lokal;\n- menyusun searchable PDF;\n- mempertahankan watermark sumber;\n- berhenti saat server menolak akses;\n- menyediakan Backup/Restore untuk data lokal pribadi;\n- menyediakan Quiz Telegram dari source teks lokal yang disanitasi.",
+          "search_text": "Responsible Use Yang BMP Terbuka lakukan - menggunakan sesi browser pengguna yang sudah login secara normal; - mengambil resource yang diberikan server kepada sesi tersebut; - melakukan OCR lokal; - menyusun searchable PDF; - mempertahankan watermark sumber; - berhenti saat server menolak akses; - menyediakan Backup/Restore untuk data lokal pribadi; - menyediakan Quiz Telegram dari source teks lokal yang disanitasi."
         },
         {
           "heading": "Yang bukan tujuan BMP Terbuka",
@@ -1863,14 +1883,24 @@
           "search_text": "Responsible Use Yang bukan tujuan BMP Terbuka BMP Terbuka tidak ditujukan untuk: - memperoleh akses tanpa akun/hak yang semestinya; - mencuri atau berbagi credential; - memalsukan token/cookie keamanan; - menghindari blokir dengan fingerprint spoofing atau IP rotation; - menghapus watermark; - memperjualbelikan atau mengunggah ulang materi tanpa hak."
         },
         {
+          "heading": "Backup dan berbagi data",
+          "heading_path": [
+            "Backup dan berbagi data"
+          ],
+          "anchor": "backup-dan-berbagi-data",
+          "url": "https://mentaliss.github.io/bukabmp/id/responsible-use/#backup-dan-berbagi-data",
+          "text": "Backup dapat mengandung data belajar/material yang tersimpan di perangkat. Simpan file backup secara privat. Jangan menggunakan fitur backup, komunitas, bot, atau Quiz untuk mendistribusikan materi yang tidak berhak kamu bagikan.",
+          "search_text": "Responsible Use Backup dan berbagi data Backup dapat mengandung data belajar/material yang tersimpan di perangkat. Simpan file backup secara privat. Jangan menggunakan fitur backup, komunitas, bot, atau Quiz untuk mendistribusikan materi yang tidak berhak kamu bagikan."
+        },
+        {
           "heading": "Hak cipta",
           "heading_path": [
             "Hak cipta"
           ],
           "anchor": "hak-cipta",
           "url": "https://mentaliss.github.io/bukabmp/id/responsible-use/#hak-cipta",
-          "text": "Memiliki akses untuk membaca suatu materi tidak otomatis berarti memiliki hak untuk mendistribusikan salinannya.\n\nPengguna bertanggung jawab untuk:\n- memahami ketentuan layanan sumber;\n- memastikan hak/izin atas penggunaan yang dilakukan;\n- tidak menjual atau mendistribusikan ulang materi jika tidak memiliki hak;\n- mempertahankan watermark dan atribusi yang ada.",
-          "search_text": "Responsible Use Hak cipta Memiliki akses untuk membaca suatu materi tidak otomatis berarti memiliki hak untuk mendistribusikan salinannya. Pengguna bertanggung jawab untuk: - memahami ketentuan layanan sumber; - memastikan hak/izin atas penggunaan yang dilakukan; - tidak menjual atau mendistribusikan ulang materi jika tidak memiliki hak; - mempertahankan watermark dan atribusi yang ada."
+          "text": "Memiliki akses untuk membaca suatu materi tidak otomatis berarti memiliki hak untuk mendistribusikan salinannya.\n\nPengguna bertanggung jawab untuk memahami ketentuan layanan sumber, memastikan hak/izin atas penggunaan yang dilakukan, dan tidak menjual atau mendistribusikan ulang materi jika tidak memiliki hak.",
+          "search_text": "Responsible Use Hak cipta Memiliki akses untuk membaca suatu materi tidak otomatis berarti memiliki hak untuk mendistribusikan salinannya. Pengguna bertanggung jawab untuk memahami ketentuan layanan sumber, memastikan hak/izin atas penggunaan yang dilakukan, dan tidak menjual atau mendistribusikan ulang materi jika tidak memiliki hak."
         },
         {
           "heading": "Security awareness",
@@ -1879,8 +1909,8 @@
           ],
           "anchor": "security-awareness",
           "url": "https://mentaliss.github.io/bukabmp/id/responsible-use/#security-awareness",
-          "text": "BMP Terbuka juga dimaksudkan untuk mendorong pemahaman bahwa pembatasan UI/client-side tidak menggantikan authorization per-resource di server.\n\nJika perilaku sebuah layanan menunjukkan potensi masalah keamanan, lakukan pengujian hanya sejauh minimum yang diperlukan untuk memahami isu dan gunakan responsible disclosure. Jangan melakukan eksploitasi massal.",
-          "search_text": "Responsible Use Security awareness BMP Terbuka juga dimaksudkan untuk mendorong pemahaman bahwa pembatasan UI/client-side tidak menggantikan authorization per-resource di server. Jika perilaku sebuah layanan menunjukkan potensi masalah keamanan, lakukan pengujian hanya sejauh minimum yang diperlukan untuk memahami isu dan gunakan responsible disclosure. Jangan melakukan eksploitasi massal."
+          "text": "Jika perilaku sebuah layanan menunjukkan potensi masalah keamanan, lakukan pengujian hanya sejauh minimum yang diperlukan untuk memahami isu dan gunakan responsible disclosure. Jangan melakukan eksploitasi massal.",
+          "search_text": "Responsible Use Security awareness Jika perilaku sebuah layanan menunjukkan potensi masalah keamanan, lakukan pengujian hanya sejauh minimum yang diperlukan untuk memahami isu dan gunakan responsible disclosure. Jangan melakukan eksploitasi massal."
         }
       ]
     },
@@ -1896,8 +1926,8 @@
           ],
           "anchor": "buka-bmp",
           "url": "https://mentaliss.github.io/bukabmp/id/community/#buka-bmp",
-          "text": "Channel resmi untuk:\n- release baru;\n- status kompatibilitas;\n- security notice;\n- panduan penggunaan.",
-          "search_text": "Community Buka BMP Channel resmi untuk: - release baru; - status kompatibilitas; - security notice; - panduan penggunaan."
+          "text": "Channel resmi untuk release, status kompatibilitas, security notice, dan update penting:\n\nhttps://t.me/bukabmp",
+          "search_text": "Community Buka BMP Channel resmi untuk release, status kompatibilitas, security notice, dan update penting: https://t.me/bukabmp"
         },
         {
           "heading": "Group Terbuka",
@@ -1906,8 +1936,18 @@
           ],
           "anchor": "group-terbuka",
           "url": "https://mentaliss.github.io/bukabmp/id/community/#group-terbuka",
-          "text": "Tempat untuk:\n- troubleshooting;\n- feedback;\n- diskusi fitur;\n- kontribusi komunitas.",
-          "search_text": "Community Group Terbuka Tempat untuk: - troubleshooting; - feedback; - diskusi fitur; - kontribusi komunitas."
+          "text": "**Playground komunitas buat ngobrol, saling bantu, berbagi, ikut aktivitas, bahas tools, belajar, dan lainnya.**\n\nDiskusi teknis BMP Terbuka, troubleshooting, feedback, dan kontribusi tetap boleh, tetapi itu hanya sebagian aktivitas komunitas—bukan identitas utama group.\n\nhttps://t.me/+0pAg9ymEhWdkZmNl",
+          "search_text": "Community Group Terbuka Playground komunitas buat ngobrol, saling bantu, berbagi, ikut aktivitas, bahas tools, belajar, dan lainnya. Diskusi teknis BMP Terbuka, troubleshooting, feedback, dan kontribusi tetap boleh, tetapi itu hanya sebagian aktivitas komunitas—bukan identitas utama group. https://t.me/+0pAg9ymEhWdkZmNl"
+        },
+        {
+          "heading": "Bot",
+          "heading_path": [
+            "Bot"
+          ],
+          "anchor": "bot",
+          "url": "https://mentaliss.github.io/bukabmp/id/community/#bot",
+          "text": "@bukabmp_bot\n\nhttps://t.me/bukabmp_bot\n\nBot dipakai untuk aktivasi, bantuan, Supporter, Quiz, dan AI support.",
+          "search_text": "Community Bot @bukabmp bot https://t.me/bukabmp bot Bot dipakai untuk aktivasi, bantuan, Supporter, Quiz, dan AI support."
         },
         {
           "heading": "Aturan utama",
@@ -1916,8 +1956,8 @@
           ],
           "anchor": "aturan-utama",
           "url": "https://mentaliss.github.io/bukabmp/id/community/#aturan-utama",
-          "text": "Jangan membagikan:\n- password/NIM;\n- cookie/session token;\n- akun;\n- materi/PDF yang tidak boleh Anda distribusikan.\n\nJangan menawarkan:\n- penghapusan watermark;\n- bypass/stealth terhadap blokir;\n- jual-beli credential.\n\nCommunity gate bertujuan membangun jalur komunikasi dengan pengguna, bukan klaim DRM anti-crack.",
-          "search_text": "Community Aturan utama Jangan membagikan: - password/NIM; - cookie/session token; - akun; - materi/PDF yang tidak boleh Anda distribusikan. Jangan menawarkan: - penghapusan watermark; - bypass/stealth terhadap blokir; - jual-beli credential. Community gate bertujuan membangun jalur komunikasi dengan pengguna, bukan klaim DRM anti-crack."
+          "text": "Jangan membagikan:\n- password/NIM;\n- OTP;\n- cookie/session token;\n- activation/pairing secret;\n- API key;\n- file backup pribadi;\n- materi/PDF yang tidak boleh didistribusikan.\n\nJangan menawarkan:\n- penghapusan watermark;\n- bypass/stealth terhadap blokir;\n- jual-beli credential;\n- spam, promosi ilegal, atau flood.\n\nCommunity gate bertujuan membangun jalur komunikasi dengan pengguna, bukan klaim DRM anti-crack.",
+          "search_text": "Community Aturan utama Jangan membagikan: - password/NIM; - OTP; - cookie/session token; - activation/pairing secret; - API key; - file backup pribadi; - materi/PDF yang tidak boleh didistribusikan. Jangan menawarkan: - penghapusan watermark; - bypass/stealth terhadap blokir; - jual-beli credential; - spam, promosi ilegal, atau flood. Community gate bertujuan membangun jalur komunikasi dengan pengguna, bukan klaim DRM anti-crack."
         }
       ]
     },
