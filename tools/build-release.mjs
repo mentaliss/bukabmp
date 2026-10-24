@@ -219,6 +219,9 @@ fs.writeFileSync(
 );
 
 if(edgeUncompressedTessdata){
+  // Edge store package forbids nested/compressed assets: the release training
+  // data is shipped uncompressed, so a copied ind.traineddata.gz must not remain.
+  fs.rmSync(path.join(out,"vendor","lang","ind.traineddata.gz"),{force:true});
   const offscreenPath=path.join(out,"offscreen.js");
   const offscreen=fs.readFileSync(offscreenPath,"utf8");
   if(!offscreen.includes("gzip: true")){
