@@ -1,131 +1,59 @@
 # Privacy Policy
 
-BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku source extension (versi 1.3.0) dan Cloudflare Worker yang dipakai kanal Store.
+BMP Terbuka dirancang **local-first**. Dokumen ini menjelaskan perilaku **BMP Terbuka v1.2.0**.
 
-## Data materi
+## Ringkasan
 
-Extension memproses halaman materi, OCR, cache PDF, penggabungan PDF, dan ekspor PDF di perangkat pengguna. Backend BMP Terbuka tidak menerima:
-- password atau credential portal sumber;
-- NIM;
-- cookie/session portal sumber;
-- gambar halaman materi;
-- teks OCR mentah isi materi;
-- PDF hasil.
+Untuk alur OCR/PDF, halaman materi, OCR, cache PDF, penggabungan PDF, dan ekspor PDF diproses di perangkat pengguna. Backend BMP Terbuka tidak digunakan untuk mengunggah raw PDF hasil, gambar halaman materi, password/NIM/cookie portal sumber, atau teks OCR penuh dari alur PDF biasa.
 
-Pengecualian: pembuatan Quiz. Untuk modul yang belum ada di bank soal Quiz, extension mengirim *teks materi yang sudah dibersihkan* (`sanitizedText`, maksimum 48.000 karakter) ke endpoint `/v1/quiz/bank/generate` supaya soal dibuat model di sisi Worker. Teks itu tidak disimpan di database (hanya dipakai selama proses generate) dan Worker menolak payload yang masih memuat penanda identitas (NIM/nama mahasiswa/email/URL) dengan error `quiz_source_privacy_rejected`. Tidak ada data pribadi, gambar halaman, atau PDF yang dikirim.
+BMP Terbuka tetap menggunakan jaringan untuk fungsi yang memang memerlukannya, termasuk aktivasi komunitas, version/realtime state, telemetry pseudonymous, sponsor/advertising state dan metrics terbatas, Telegram/community flow, Supporter/payment flow, dan Quiz Telegram.
 
-OCR tidak menggunakan layanan OCR cloud. Tesseract.js, WebAssembly OCR, model bahasa Indonesia, dan pdf-lib dibundel di package release.
+## Penyimpanan lokal
 
-## Penyimpanan lokal extension
+Browser dapat menyimpan installation ID acak, analytics ID acak yang terpisah, signed activation token, pairing state sementara, draft, status pekerjaan, cache PDF per BMP, source Quiz lokal, version-policy cache, serta state lain yang diperlukan fitur lokal.
 
-Browser dapat menyimpan data operasional di storage origin extension, antara lain:
-- installation ID acak yang dibuat extension;
-- signed community activation token;
-- status pairing sementara;
-- draft kode BMP/rentang dan opsi proses;
-- status pekerjaan;
-- metadata cache per BMP;
-- version-policy cache;
-- validated realtime state/ads cache.
+File di Downloads adalah salinan ekspor dan berbeda dari data yang masih tersimpan di storage extension.
 
-PDF modul disimpan lokal di IndexedDB `bmp-terbuka-pdf-cache`, object store `pdfs`, dengan key per BMP seperti `CODE:M1`. File di Downloads hanyalah salinan ekspor. Mengosongkan cache satu BMP tidak menghapus file yang sudah diekspor.
+## Backup & Restore
 
-Update **in-place dengan extension identity yang sama** mempertahankan storage browser menurut model extension Chromium. Uninstall, pembersihan storage browser, atau instalasi dengan identity berbeda dapat menghilangkan/memisahkan data tersebut.
+Backup v1.2.0 dibuat untuk pemulihan data lokal pribadi. File backup dapat mengandung data belajar/material yang sebelumnya tersimpan secara lokal.
+
+Karena itu:
+- simpan backup di tempat yang kamu percaya;
+- jangan membagikan file backup ke group, bot, atau pihak lain tanpa alasan yang jelas;
+- menghapus file backup tidak otomatis menghapus storage extension, dan sebaliknya.
+
+Restore memakai **MERGE semantics**. Data dari backup dipulihkan dan item lokal yang cocok dapat diperbarui; data lokal lain yang tidak terkait tidak otomatis dihapus.
+
+## Quiz Telegram
+
+Untuk Quiz:
+- raw PDF tidak diunggah untuk pembuatan soal;
+- gambar halaman tidak diunggah;
+- source Quiz berasal dari teks yang diekstrak dan disanitasi secara lokal;
+- bila bank soal perlu dibuat, source teks yang sudah disanitasi dapat dipakai oleh backend/AI generation flow untuk membuat soal;
+- source teks asli tersebut tidak disimpan server-side sebagai salinan materi sumber setelah flow generation.
+
+Bank soal, status penggunaan, dan data gameplay yang diperlukan fitur Quiz dapat disimpan server-side sesuai fungsi produk.
 
 ## Aktivasi komunitas
 
-Extension membuat pairing ke backend dengan:
-- installation ID acak;
-- versi extension;
-- distribution channel;
-- pada one-time legacy→v2 re-verification, current signed activation token dapat dikirim kembali ke backend agar sisa masa aktif tidak dipendekkan.
+Extension membuat pairing menggunakan installation ID acak, versi extension, dan distribution channel. Membership Telegram dapat diperiksa saat aktivasi/re-verifikasi dan token refresh.
 
-Backend memverifikasi token tersebut secara kriptografis. Token invalid, expired, atau dari install berbeda tidak memberi expiry floor. Untuk expiry-preservation, member reference satu arah juga harus cocok dengan akun Telegram yang melakukan verifikasi.
+Backend dapat menyimpan data durable untuk fungsi bot, aktivasi, referral, Supporter, payment/idempotency, support ticket, dan Quiz. Data tersebut tidak dimaksudkan sebagai storage raw PDF/page-image pengguna.
 
-Pairing sementara disimpan di Cloudflare KV dengan TTL **15 menit**. Record pairing dapat memuat installation ID, version/channel, hash poll secret, status, timestamp, expiry floor/member reference tervalidasi, dan setelah sukses signed activation token untuk diambil client selama TTL tersebut.
+## Telemetry pseudonymous
 
-Membership Telegram diperiksa saat aktivasi/re-verifikasi dan token refresh. Signed activation token disimpan oleh extension, terikat ke installation ID, dan diverifikasi lokal menggunakan public key.
+Telemetry produk menggunakan identifier pseudonymous terpisah dari identitas Telegram dan activation credential. Payload telemetry di-allowlist dan tidak boleh berisi raw PDF, OCR text, material page image, password, cookie/session sumber, atau activation secret.
 
-## Durable account/activation data
+Provider/platform seperti Cloudflare, Telegram, browser/store, dan source service dapat memiliki log infrastrukturnya sendiri sesuai konfigurasi dan kebijakan masing-masing.
 
-Backend v1.1.0 juga menggunakan D1/KV untuk fungsi bot, aktivasi, referral, dan Supporter. Bergantung feature gate produksi, data berikut dapat disimpan lebih lama daripada sesi pairing:
-- Telegram user ID internal untuk user bot;
-- first/last activation timestamp dan activation count;
-- opaque referral code dan referral/qualification state;
-- Supporter entitlement dan target masa aktivasi;
-- payment/idempotency records yang dibutuhkan untuk mencegah kredit ganda dan merekonsiliasi transaksi;
-- pilihan Supporter Wall dan state operasional terkait.
+## Sponsor / advertising
 
-Data durable tersebut tidak berisi halaman BMP, gambar materi, teks OCR, PDF hasil, atau teks materi yang dikirim untuk pembuatan Quiz. Source saat ini tidak memberi TTL otomatis untuk seluruh record D1 tersebut; retention mengikuti kebutuhan operasional/transaksi sampai ada proses penghapusan/migrasi yang berlaku.
+Campaign dapat menampilkan sponsor card/interstitial melalui renderer di package extension. Arbitrary advertiser HTML, iframe, tracking pixel, atau executable JavaScript tidak digunakan sebagai creative extension.
 
-## Supporter dan Support Bot
+Metrics coarse dapat mencakup impression, click, dismiss, placement, campaign ID/revision, distribution channel, dan extension version. Event advertising tidak membawa raw PDF/OCR text atau credential sumber.
 
-Supporter bersifat opsional dan bukan syarat untuk OCR/PDF inti. Source saat ini menggunakan beberapa record sementara:
-- draft invoice Supporter: TTL **24 jam**;
-- konteks troubleshooting Supporter: TTL **6 jam**;
-- counter kuota AI: TTL **48 jam**.
+## Pihak ketiga
 
-Entitlement, payment/idempotency, referral, dan activation ledger dapat bersifat durable sebagaimana dijelaskan di atas.
-
-## Rate limiting dan anti-abuse
-
-Beberapa endpoint memakai fingerprint satu arah dari alamat IP dengan salt server:
-- pair start: counter TTL **60 detik**;
-- ad-event ingest: counter TTL **60 detik**;
-- reviewer activation: counter TTL **10 menit**.
-
-Anonymous product telemetry tidak memakai IP sebagai actor analytics. Rate-limit telemetry menggunakan HMAC pseudonymous dari `bmpAnalyticsIdV1`, dibucket per menit, dengan record counter KV berumur sekitar **120 detik**. Raw analytics UUID dan IP mentah tidak disimpan di record rate-limit tersebut. Infrastruktur Cloudflare dapat memiliki log platform tersendiri sesuai konfigurasi/provider.
-
-## Pemeriksaan versi dan realtime state
-
-Extension dapat meminta:
-- `/v1/version` dengan versi extension + distribution channel;
-- `/v1/extension-state` dengan versi extension + distribution channel.
-
-Realtime state berisi plain state/content yang melewati allowlist client. Backend tidak dapat mengirim JavaScript, arbitrary HTML, remote WASM, remote Worker, atau functionality baru untuk dieksekusi extension.
-
-Untuk channel Store, remote minimum-version enforcement hanya berlaku setelah backend menandai channel tersebut `store_ready=true`.
-
-## Sponsor / ads v1.1.0
-
-Kandidat v1.1.0 memiliki sponsor card dan sponsor interstitial yang dirender oleh code yang sudah ada di package. Campaign dapat menggunakan plain text atau media first-party yang tervalidasi: banner image untuk card, serta text/image/video untuk interstitial. Media berasal dari BMP-owned storage melalui media ID, bukan URL media arbitrary milik advertiser. CTA tetap HTTPS-only, dan tidak ada remote HTML/JavaScript/iframe/tracking pixel.
-
-Jika tidak ada campaign aktif atau state tidak tersedia, extension dapat menampilkan house inventory seperti **Space iklan tersedia** dengan CTA kontak yang aman.
-
-Untuk campaign aktif, extension dapat mengirim event coarse:
-- `impression`, `click`, atau `dismiss`;
-- placement (`card` / `interstitial`);
-- campaign ID + revision;
-- distribution channel;
-- extension version.
-
-Event ads **tidak** memuat Telegram user ID, installation ID, activation token, kode BMP, nama modul, halaman, OCR text, atau PDF. Backend memvalidasi event terhadap campaign/revision/placement yang sedang aktif sebelum menghitungnya. Jika Analytics Engine tersedia, field coarse tersebut dapat dicatat di sana; source juga dapat menulis event coarse ke log Worker. Retention log/Analytics Engine mengikuti konfigurasi/provider yang berlaku.
-
-Isi BMP/OCR/PDF tidak digunakan untuk advertising atau profiling.
-
-Pemilihan campaign v1.1.0 bersifat **contextual pada distribution channel/campaign state**, bukan berdasarkan identitas pengguna, histori penggunaan, kode BMP, isi dokumen, atau profil personal. BMP Terbuka tidak menggunakan atau mentransfer data pengguna extension untuk personalized/interest-based/retargeted advertising.
-
-Karena sponsor adalah bagian dari pengalaman runtime, listing Store dan privacy disclosure untuk release yang memuat fitur ini harus menjelaskan keberadaan sponsor card/interstitial secara akurat.
-
-## Store reviewer
-
-Reviewer Store memakai signed token normal yang terikat installation ID dan diverifikasi client. Reviewer secret tetap server-side dan tidak masuk package/repository.
-
-Reviewer token memiliki masa berlaku maksimum **24 jam** dan scope `store_review`. Reviewer-only OCR fixture dibuat lokal dan bukan materi BMP asli.
-
-## Sharing dan pihak ketiga
-
-Fungsi aplikasi berinteraksi dengan layanan yang memang diperlukan, termasuk Cloudflare untuk backend, Telegram untuk komunitas/bot, browser/store untuk extension distribution, dan portal sumber yang dibuka pengguna. Masing-masing penyedia dapat memiliki log/kebijakan platform sendiri.
-
-BMP Terbuka tidak menjual isi materi, OCR text, atau PDF pengguna kepada advertiser.
-
-Penggunaan data oleh BMP Terbuka mengikuti pembatasan penggunaan yang dijelaskan di kebijakan ini; data pengguna extension tidak ditransfer, digunakan, atau dijual untuk personalized advertising atau retargeting.
-
-
-## Anonymous product analytics (v1.1.0 candidate)
-
-The v1.1.0 candidate adds compact product telemetry for extension opens, job lifecycle health, and paid-sponsor delivery. The extension creates a random per-installation analytics identifier named `bmpAnalyticsIdV1`. It is separate from `bmpInstallId`, activation credentials, Telegram identity, and Supporter/payment state. The Worker transforms the incoming identifier with a server-side keyed HMAC before analytics storage; the raw analytics identifier is not an analytics storage key. Per-day pseudonymous activity is bounded to roughly 180 days and daily aggregate metrics to roughly 13 months; the minimal actor-hash index is used to support unique-install and returning-user definitions without storing the raw analytics UUID.
-
-Telemetry is allowlisted and must not include Telegram IDs or usernames, member references, activation or pairing secrets, BMP codes, module numbers or names, RBV URLs, PDF names or contents, OCR text, document titles or contents, or browsing history. Delivery is fire-and-forget and BMP processing does not depend on telemetry success.
-
-Direct sponsor media is referenced by BMP-owned first-party media IDs. Advertiser-controlled arbitrary media URLs are not rendered by the extension. AdsOnBread fallback is **not active**: the release build removes the AdsOnBread SDK, so card inventory resolves through House Ad when no direct sponsor card is available. Live AdsOnBread SDK/account activation remains an external release gate and executable remote JavaScript is not loaded by the Manifest V3 extension.
+BMP Terbuka tidak menjual isi materi, OCR text, atau PDF pengguna kepada advertiser dan tidak menggunakan isi dokumen untuk personalized advertising/retargeting.

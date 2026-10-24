@@ -1,30 +1,32 @@
 # Security Policy
 
-## Scope repository
+## Scope publik
 
-Repo publik `mentaliss/bukabmp` mempublikasikan source **Chrome extension BMP Terbuka** dan tooling build/release extension. Source activation service (`worker/`) dan infrastructure operasional hanya berada di repo privat kanonik ini dan **tidak** dipublikasikan.
+Repository ini mempublikasikan source browser extension BMP Terbuka, public website source, public build/release tooling, dan dokumentasi publik.
+
+Secret produksi, private signing material, credential operator, serta konfigurasi provider privat tidak boleh berada di package extension atau dokumentasi publik.
 
 ## Melaporkan kerentanan
 
 Jangan membuka detail kerentanan sensitif sebagai public GitHub Issue. Gunakan **GitHub Private Vulnerability Reporting / Security Advisories** bila tersedia.
 
 Sertakan:
-- versi BMP Terbuka;
-- browser/OS;
+- versi/build atau halaman yang terdampak;
+- browser/OS bila relevan;
 - langkah reproduksi minimum;
 - dampak;
-- proof-of-concept yang tidak menyertakan credential atau materi berhak cipta.
+- proof-of-concept yang tidak menyertakan credential, file backup pribadi, atau materi berhak cipta.
 
-## Contoh isu in-scope
+## Prinsip keamanan v1.2.0
 
-- extension mengirim materi atau credential ke endpoint yang tidak semestinya;
-- XSS/injection pada halaman extension;
-- verifikasi signed activation token pada client dapat dibypass karena bug implementasi;
-- penyimpanan credential sumber yang tidak disengaja;
-- permission Chrome lebih luas daripada yang diperlukan;
-- dependency/build artifact extension telah dimodifikasi tanpa terdeteksi.
-
-Masalah yang terlihat melalui API aktivasi juga boleh dilaporkan secara privat bila berdampak pada keamanan pengguna, meskipun implementasi service tersebut tidak dipublikasikan (source `worker/` hanya ada di repo privat).
+- credential sumber tetap berada pada browser/source service;
+- OCR dan PDF utama local-first;
+- Quiz tidak mengunggah raw PDF atau page image;
+- Backup dapat mengandung data belajar/material lokal sehingga harus diperlakukan sebagai file privat;
+- remote state tidak boleh menyuntikkan arbitrary executable code;
+- 403/429/re-authentication memicu safe stop, bukan blind retry;
+- update normal tidak boleh meminta pengguna menghapus storage sebagai langkah default;
+- Store identity harus menggunakan jalur publikasi resmi, bukan CRX diagnostic/audit.
 
 ## Out of scope
 
