@@ -1,6 +1,7 @@
 dist/
 dist-site/
 .cache/
+promo-video/
 extension/config.js
 *.pem
 *.key
