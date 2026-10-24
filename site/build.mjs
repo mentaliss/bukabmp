@@ -247,7 +247,23 @@ function markdown(md, lang, slug = "") {
   const lines = md.replace(/\r/g, "").split("\n");
   let html = "";
   let list = null;
+  let fence = null;
+  let paragraph = [];
   const headingIds = new Map();
+  const tableCells = (value) => value.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(cell => cell.trim());
+
+  const flushParagraph = () => {
+    if (!paragraph.length) return;
+    const text = paragraph.join(" ").trim();
+    if (text) {
+      if (/^https?:\/\/\S+$/.test(text)) {
+        html += '<p><a href="' + esc(text) + '">' + esc(text) + "</a></p>";
+      } else {
+        html += "<p>" + inline(text, lang, slug) + "</p>";
+      }
+    }
+    paragraph = [];
+  };
 
   const closeList = () => {
     if (list) {
@@ -256,15 +272,59 @@ function markdown(md, lang, slug = "") {
     }
   };
 
-  for (const raw of lines) {
+  for (let i = 0; i < lines.length; i += 1) {
+    const raw = lines[i];
     const line = raw.trimEnd();
+    const fenceMatch = line.match(/^```(\S*)\s*$/);
+    if (fenceMatch) {
+      if (fence) {
+        html += "<pre><code" + (fence.lang ? ' class="language-' + esc(fence.lang) + '"' : "") + ">" +
+          esc(fence.lines.join("\n")) + "</code></pre>";
+        fence = null;
+      } else {
+        flushParagraph();
+        closeList();
+        fence = { lang: fenceMatch[1], lines: [] };
+      }
+      continue;
+    }
+    if (fence) {
+      fence.lines.push(raw);
+      continue;
+    }
+
     if (!line.trim()) {
+      flushParagraph();
       closeList();
+      continue;
+    }
+
+    if (/^\s*(---+|\*\*\*+|___+)\s*$/.test(line)) {
+      flushParagraph();
+      closeList();
+      html += "<hr>";
+      continue;
+    }
+
+    if (/^\|.*\|$/.test(line.trim()) && /^\|[\s:|-]+\|$/.test((lines[i + 1] || "").trim())) {
+      flushParagraph();
+      closeList();
+      html += "<table><thead><tr>" +
+        tableCells(line).map(cell => "<th>" + inline(cell, lang, slug) + "</th>").join("") +
+        "</tr></thead><tbody>";
+      i += 2;
+      while (i < lines.length && /^\|.*\|$/.test(lines[i].trim())) {
+        html += "<tr>" + tableCells(lines[i]).map(cell => "<td>" + inline(cell, lang, slug) + "</td>").join("") + "</tr>";
+        i += 1;
+      }
+      i -= 1;
+      html += "</tbody></table>";
       continue;
     }
 
     const heading = line.match(/^(#{1,3})\s+(.+)$/);
     if (heading) {
+      flushParagraph();
       closeList();
       const level = heading[1].length;
       const id = headingSlug(heading[2], headingIds);
@@ -273,6 +333,7 @@ function markdown(md, lang, slug = "") {
     }
 
     if (/^>\s?/.test(line)) {
+      flushParagraph();
       closeList();
       html += "<blockquote>" + inline(line.replace(/^>\s?/, ""), lang, slug) + "</blockquote>";
       continue;
@@ -280,6 +341,7 @@ function markdown(md, lang, slug = "") {
 
     const unordered = line.match(/^[-*]\s+(.+)$/);
     if (unordered) {
+      flushParagraph();
       if (list !== "ul") {
         closeList();
         list = "ul";
@@ -291,6 +353,7 @@ function markdown(md, lang, slug = "") {
 
     const ordered = line.match(/^\d+\.\s+(.+)$/);
     if (ordered) {
+      flushParagraph();
       if (list !== "ol") {
         closeList();
         list = "ol";
@@ -301,14 +364,10 @@ function markdown(md, lang, slug = "") {
     }
 
     closeList();
-    if (/^https?:\/\/\S+$/.test(line.trim())) {
-      const url = line.trim();
-      html += '<p><a href="' + esc(url) + '">' + esc(url) + "</a></p>";
-    } else {
-      html += "<p>" + inline(line, lang, slug) + "</p>";
-    }
+    paragraph.push(line.trim() === "" ? "" : line);
   }
 
+  flushParagraph();
   closeList();
   return html;
 }
