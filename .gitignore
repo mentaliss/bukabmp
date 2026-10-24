@@ -1,4 +1,5 @@
 dist/
+dist-site/
 .cache/
 extension/config.js
 *.pem
